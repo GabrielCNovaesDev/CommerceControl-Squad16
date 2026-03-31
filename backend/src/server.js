@@ -8,6 +8,7 @@ const productRoutes = require('./routes/productRoutes');
 const squadRoutes = require('./routes/squadRoutes');
 const storeRoutes = require('./routes/storeRoutes');
 const inventoryRoutes = require('./routes/inventoryRoutes');
+const roundRoutes = require('./routes/roundRoutes');
 
 const app = express();
 
@@ -24,6 +25,7 @@ app.use('/products', productRoutes);
 app.use('/squads', squadRoutes);
 app.use('/stores', storeRoutes);
 app.use('/stores/:storeId/inventory', inventoryRoutes);
+app.use('/rounds', roundRoutes);
 
 const PORT = process.env.PORT || 3333;
 
