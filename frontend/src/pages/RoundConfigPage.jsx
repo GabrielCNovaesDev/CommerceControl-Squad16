@@ -1,9 +1,369 @@
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useForm, useWatch } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import roundService from '../services/roundService';
+import storeService from '../services/storeService';
+import productService from '../services/productService';
 import PlayerLayout from '../components/layout/PlayerLayout';
+import Button from '../components/ui/Button';
+import { formatCurrency } from '../utils/formatters';
+
+const schema = z.object({
+  fixedExpenses: z.coerce.number({ invalid_type_error: 'Valor inválido' }).min(0, 'Não pode ser negativo'),
+  variableExpenses: z.coerce.number({ invalid_type_error: 'Valor inválido' }).min(0, 'Não pode ser negativo'),
+  items: z.array(
+    z.object({
+      productId: z.string(),
+      salePrice: z.coerce
+        .number({ invalid_type_error: 'Valor inválido' })
+        .positive('Deve ser positivo'),
+      salesVolume: z.coerce
+        .number({ invalid_type_error: 'Valor inválido' })
+        .int('Deve ser inteiro')
+        .positive('Deve ser positivo'),
+    })
+  ).min(1),
+});
+
+function ProductRow({ index, product, availableQty, control, register, errors }) {
+  const salePrice = useWatch({ control, name: `items.${index}.salePrice` });
+  const salesVolume = useWatch({ control, name: `items.${index}.salesVolume` });
+
+  const priceWarning = salePrice && Number(salePrice) < product.purchasePrice;
+  const volumeWarning = salesVolume && Number(salesVolume) > availableQty;
+
+  return (
+    <div className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-3 items-start py-3 border-b border-gray-100 last:border-0">
+      {/* Produto */}
+      <div>
+        <p className="text-sm font-medium text-gray-900">{product.name}</p>
+        <p className="text-xs text-gray-400 mt-0.5">
+          Custo: {formatCurrency(product.purchasePrice)}
+        </p>
+      </div>
+
+      {/* Estoque */}
+      <div className="text-right">
+        <p className="text-xs text-gray-400 mb-1">Estoque</p>
+        <p className="text-sm font-medium text-gray-700">{availableQty}</p>
+      </div>
+
+      {/* Preço de venda */}
+      <div className="w-32">
+        <label className="text-xs text-gray-500 mb-1 block">Preço venda (R$)</label>
+        <input
+          type="number"
+          step="0.01"
+          min="0"
+          className={`w-full rounded-lg border px-2.5 py-1.5 text-sm outline-none focus:ring-2 focus:ring-blue-500 transition
+            ${priceWarning ? 'border-orange-400 bg-orange-50' : 'border-gray-300'}
+            ${errors?.items?.[index]?.salePrice ? 'border-red-400 bg-red-50' : ''}`}
+          {...register(`items.${index}.salePrice`)}
+        />
+        {priceWarning && (
+          <p className="text-xs text-orange-600 mt-0.5">Abaixo do custo</p>
+        )}
+        {errors?.items?.[index]?.salePrice && (
+          <p className="text-xs text-red-600 mt-0.5">
+            {errors.items[index].salePrice.message}
+          </p>
+        )}
+      </div>
+
+      {/* Volume */}
+      <div className="w-28">
+        <label className="text-xs text-gray-500 mb-1 block">Volume (un.)</label>
+        <input
+          type="number"
+          min="1"
+          className={`w-full rounded-lg border px-2.5 py-1.5 text-sm outline-none focus:ring-2 focus:ring-blue-500 transition
+            ${volumeWarning ? 'border-orange-400 bg-orange-50' : 'border-gray-300'}
+            ${errors?.items?.[index]?.salesVolume ? 'border-red-400 bg-red-50' : ''}`}
+          {...register(`items.${index}.salesVolume`)}
+        />
+        {volumeWarning && (
+          <p className="text-xs text-orange-600 mt-0.5">Acima do estoque</p>
+        )}
+        {errors?.items?.[index]?.salesVolume && (
+          <p className="text-xs text-red-600 mt-0.5">
+            {errors.items[index].salesVolume.message}
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function DREPreview({ dre, feedbacks, onClose }) {
+  if (!dre) return null;
+
+  const rows = [
+    { label: 'Receita Bruta', value: dre.grossRevenue, highlight: false },
+    { label: 'Custos', value: -dre.costs, highlight: false },
+    { label: 'Lucro Bruto', value: dre.grossProfit, highlight: false },
+    { label: 'Despesas', value: -dre.expenses, highlight: false },
+    { label: 'Lucro Líquido', value: dre.netProfit, highlight: true },
+  ];
+
+  return (
+    <div className="rounded-xl border border-blue-200 bg-blue-50 p-5 flex flex-col gap-4">
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-semibold text-blue-800">Simulação — DRE Preview</h3>
+        <button onClick={onClose} className="text-xs text-blue-500 hover:text-blue-700">
+          Fechar
+        </button>
+      </div>
+
+      <div className="bg-white rounded-lg border border-blue-100 overflow-hidden">
+        {rows.map(({ label, value, highlight }) => (
+          <div
+            key={label}
+            className={`flex justify-between items-center px-4 py-2 text-sm border-b border-gray-50 last:border-0
+              ${highlight ? 'font-semibold' : ''}
+              ${highlight && value < 0 ? 'text-red-600' : ''}
+              ${highlight && value >= 0 ? 'text-green-700' : 'text-gray-700'}`}
+          >
+            <span>{label}</span>
+            <span>{formatCurrency(Math.abs(value))}{value < 0 ? ' (-)' : ''}</span>
+          </div>
+        ))}
+        <div className="flex justify-between items-center px-4 py-2 text-sm bg-gray-50">
+          <span className="text-gray-500">Margem Líquida</span>
+          <span className={`font-medium ${dre.netMargin < 0 ? 'text-red-600' : 'text-green-700'}`}>
+            {dre.netMargin.toFixed(2).replace('.', ',')}%
+          </span>
+        </div>
+      </div>
+
+      {feedbacks.length > 0 && (
+        <ul className="flex flex-col gap-1.5">
+          {feedbacks.map((msg, i) => (
+            <li key={i} className="flex gap-2 text-xs text-orange-700 bg-orange-50 border border-orange-200 rounded-lg px-3 py-2">
+              <span>⚠</span>
+              <span>{msg}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
 
 export default function RoundConfigPage() {
+  const navigate = useNavigate();
+  const [activeRound, setActiveRound] = useState(null);
+  const [store, setStore] = useState(null);
+  const [inventoryMap, setInventoryMap] = useState({});
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [preview, setPreview] = useState(null);
+  const [submitError, setSubmitError] = useState('');
+  const [submitSuccess, setSubmitSuccess] = useState(false);
+
+  const {
+    register,
+    handleSubmit,
+    control,
+    getValues,
+    formState: { errors, isSubmitting },
+  } = useForm({
+    resolver: zodResolver(schema),
+    defaultValues: { fixedExpenses: 0, variableExpenses: 0, items: [] },
+  });
+
+  useEffect(() => {
+    async function load() {
+      try {
+        const [rounds, s, prods] = await Promise.all([
+          roundService.getRounds(),
+          storeService.getMyStore(),
+          productService.getProducts(),
+        ]);
+
+        const open = rounds.find((r) => r.status === 'OPEN');
+        setActiveRound(open ?? null);
+        setStore(s);
+        setProducts(prods);
+
+        if (s) {
+          const inv = await storeService.getInventory(s.id);
+          const map = Object.fromEntries(inv.map((i) => [i.productId, i.quantity]));
+          setInventoryMap(map);
+        }
+      } finally {
+        setLoading(false);
+      }
+    }
+    load();
+  }, []);
+
+  async function handlePreview() {
+    const values = getValues();
+    try {
+      const result = await roundService.previewSimulation({
+        fixedExpenses: Number(values.fixedExpenses),
+        variableExpenses: Number(values.variableExpenses),
+        items: values.items.map((item) => ({
+          productId: item.productId,
+          salePrice: Number(item.salePrice),
+          salesVolume: Number(item.salesVolume),
+        })),
+      });
+      setPreview(result);
+    } catch (err) {
+      setSubmitError(err.response?.data?.message ?? 'Erro ao simular');
+    }
+  }
+
+  async function onSubmit(data) {
+    setSubmitError('');
+    try {
+      await roundService.submitConfig(activeRound.id, {
+        fixedExpenses: Number(data.fixedExpenses),
+        variableExpenses: Number(data.variableExpenses),
+        items: data.items.map((item) => ({
+          productId: item.productId,
+          salePrice: Number(item.salePrice),
+          salesVolume: Number(item.salesVolume),
+        })),
+      });
+      setSubmitSuccess(true);
+      setTimeout(() => navigate('/store'), 1500);
+    } catch (err) {
+      setSubmitError(err.response?.data?.message ?? 'Erro ao enviar configuração');
+    }
+  }
+
+  if (loading) {
+    return (
+      <PlayerLayout>
+        <div className="flex items-center justify-center h-40 text-gray-400 text-sm">
+          Carregando...
+        </div>
+      </PlayerLayout>
+    );
+  }
+
+  if (!activeRound) {
+    return (
+      <PlayerLayout>
+        <div className="flex flex-col items-center justify-center h-40 gap-2">
+          <p className="text-gray-500 font-medium">Nenhuma rodada aberta no momento.</p>
+          <p className="text-sm text-gray-400">Aguarde o Game Master iniciar uma nova rodada.</p>
+        </div>
+      </PlayerLayout>
+    );
+  }
+
+  if (submitSuccess) {
+    return (
+      <PlayerLayout>
+        <div className="flex flex-col items-center justify-center h-40 gap-2">
+          <p className="text-green-600 font-semibold text-lg">Estratégia enviada com sucesso!</p>
+          <p className="text-sm text-gray-400">Redirecionando...</p>
+        </div>
+      </PlayerLayout>
+    );
+  }
+
   return (
     <PlayerLayout>
-      <h1 className="text-xl font-bold text-gray-900">Configuração da Rodada</h1>
+      <div className="max-w-3xl flex flex-col gap-6">
+        <div>
+          <h1 className="text-xl font-bold text-gray-900">Configurar Rodada #{activeRound.number}</h1>
+          <p className="text-sm text-gray-500 mt-0.5">Defina sua estratégia para esta rodada.</p>
+        </div>
+
+        <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-6">
+          {/* Despesas */}
+          <div className="rounded-xl bg-white border border-gray-200 shadow-sm">
+            <div className="px-5 py-4 border-b border-gray-100">
+              <h2 className="text-sm font-semibold text-gray-700">Despesas da Loja</h2>
+            </div>
+            <div className="px-5 py-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="flex flex-col gap-1">
+                <label className="text-sm font-medium text-gray-700">Despesas Fixas R$</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  className={`rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 transition
+                    ${errors.fixedExpenses ? 'border-red-400 bg-red-50' : 'border-gray-300'}`}
+                  {...register('fixedExpenses')}
+                />
+                {errors.fixedExpenses && (
+                  <span className="text-xs text-red-600">{errors.fixedExpenses.message}</span>
+                )}
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <label className="text-sm font-medium text-gray-700">Despesas Variáveis R$</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  className={`rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 transition
+                    ${errors.variableExpenses ? 'border-red-400 bg-red-50' : 'border-gray-300'}`}
+                  {...register('variableExpenses')}
+                />
+                {errors.variableExpenses && (
+                  <span className="text-xs text-red-600">{errors.variableExpenses.message}</span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Produtos */}
+          <div className="rounded-xl bg-white border border-gray-200 shadow-sm">
+            <div className="px-5 py-4 border-b border-gray-100">
+              <h2 className="text-sm font-semibold text-gray-700">Configuração por Produto</h2>
+            </div>
+            <div className="px-5">
+              {products.map((product, index) => {
+                // Registra o productId como hidden
+                register(`items.${index}.productId`, { value: product.id });
+                return (
+                  <ProductRow
+                    key={product.id}
+                    index={index}
+                    product={product}
+                    availableQty={inventoryMap[product.id] ?? 0}
+                    control={control}
+                    register={register}
+                    errors={errors}
+                  />
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Preview DRE */}
+          {preview && (
+            <DREPreview
+              dre={preview.dre}
+              feedbacks={preview.feedbacks}
+              onClose={() => setPreview(null)}
+            />
+          )}
+
+          {submitError && (
+            <p className="rounded-lg bg-red-50 border border-red-200 px-4 py-2 text-sm text-red-600">
+              {submitError}
+            </p>
+          )}
+
+          <div className="flex gap-3">
+            <Button type="button" variant="secondary" onClick={handlePreview}>
+              Simular
+            </Button>
+            <Button type="submit" loading={isSubmitting}>
+              Confirmar Estratégia
+            </Button>
+          </div>
+        </form>
+      </div>
     </PlayerLayout>
   );
 }
