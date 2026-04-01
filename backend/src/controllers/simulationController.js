@@ -175,7 +175,14 @@ async function getResults(req, res) {
     const results = await prisma.financialResult.findMany({
       where: { roundId },
       include: {
-        store: { select: { id: true, name: true, squadId: true } },
+        store: {
+          select: {
+            id: true,
+            name: true,
+            squadId: true,
+            squad: { select: { id: true, name: true } },
+          },
+        },
       },
     });
     return res.status(200).json(results);
