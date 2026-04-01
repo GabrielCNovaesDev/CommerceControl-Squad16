@@ -10,6 +10,9 @@ import Card from '../components/ui/Card';
 import Badge from '../components/ui/Badge';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
+import Skeleton from '../components/ui/Skeleton';
+import ErrorMessage from '../components/ui/ErrorMessage';
+import { useToast } from '../hooks/useToast';
 import { formatCurrency } from '../utils/formatters';
 
 const ROUND_STATUS_BADGE = {
@@ -27,12 +30,13 @@ const createStoreSchema = z.object({
 
 export default function StoresDashboardPage() {
   const navigate = useNavigate();
+  const toast = useToast();
   const [store, setStore] = useState(null);
   const [inventory, setInventory] = useState([]);
   const [activeRound, setActiveRound] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [creating, setCreating] = useState(false);
-  const [createError, setCreateError] = useState('');
 
   const {
     register,
@@ -40,46 +44,60 @@ export default function StoresDashboardPage() {
     formState: { errors, isSubmitting },
   } = useForm({ resolver: zodResolver(createStoreSchema) });
 
-  useEffect(() => {
-    async function load() {
-      try {
-        const s = await storeService.getMyStore();
-        setStore(s);
-        const [inv, rounds] = await Promise.all([
-          storeService.getInventory(s.id),
-          roundService.getRounds(),
-        ]);
-        setInventory(inv);
-        const open = rounds.find((r) => r.status === 'OPEN' || r.status === 'PROCESSING');
-        setActiveRound(open ?? null);
-      } catch (err) {
-        if (err.response?.status === 404) {
-          setStore(null);
-        }
-      } finally {
-        setLoading(false);
+  async function load() {
+    setLoadError('');
+    try {
+      const s = await storeService.getMyStore();
+      setStore(s);
+      const [inv, rounds] = await Promise.all([
+        storeService.getInventory(s.id),
+        roundService.getRounds(),
+      ]);
+      setInventory(inv);
+      const open = rounds.find((r) => r.status === 'OPEN' || r.status === 'PROCESSING');
+      setActiveRound(open ?? null);
+    } catch (err) {
+      if (err.response?.status === 404) {
+        setStore(null);
+      } else {
+        setLoadError('Não foi possível carregar os dados da loja.');
       }
+    } finally {
+      setLoading(false);
     }
-    load();
-  }, []);
+  }
+
+  useEffect(() => { load(); }, []);
 
   async function onCreateStore(data) {
-    setCreateError('');
     try {
       const s = await storeService.createStore(data);
       setStore(s);
       setCreating(false);
+      toast.success('Loja criada com sucesso!');
     } catch (err) {
-      setCreateError(err.response?.data?.message ?? 'Erro ao criar loja');
+      toast.error(err.response?.data?.message ?? 'Erro ao criar loja');
     }
   }
 
   if (loading) {
     return (
       <PlayerLayout>
-        <div className="flex items-center justify-center h-40 text-gray-400 text-sm">
-          Carregando...
+        <div className="max-w-4xl flex flex-col gap-4">
+          <Skeleton variant="line" className="w-48 h-6" />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Skeleton variant="card" />
+            <Skeleton variant="card" />
+          </div>
         </div>
+      </PlayerLayout>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <PlayerLayout>
+        <ErrorMessage message={loadError} onRetry={() => { setLoading(true); load(); }} />
       </PlayerLayout>
     );
   }
@@ -113,9 +131,6 @@ export default function StoresDashboardPage() {
                   error={errors.initialCapital?.message}
                   {...register('initialCapital')}
                 />
-                {createError && (
-                  <p className="text-xs text-red-600">{createError}</p>
-                )}
                 <div className="flex gap-2 mt-1">
                   <Button type="submit" loading={isSubmitting} className="flex-1">
                     Criar

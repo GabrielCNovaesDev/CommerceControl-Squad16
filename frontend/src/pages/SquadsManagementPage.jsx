@@ -6,6 +6,9 @@ import squadService from '../services/squadService';
 import userService from '../services/userService';
 import AdminLayout from '../components/layout/AdminLayout';
 import Button from '../components/ui/Button';
+import Skeleton from '../components/ui/Skeleton';
+import ErrorMessage from '../components/ui/ErrorMessage';
+import { useToast } from '../hooks/useToast';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -347,23 +350,25 @@ function MembersPanel({ squad, onRemoveUser, onAddUser }) {
 // ─── Componente principal ────────────────────────────────────────────────────
 
 export default function SquadsManagementPage() {
+  const toast = useToast();
   const [squads, setSquads] = useState([]);
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [expandedId, setExpandedId] = useState(null);
 
   // Modal states
   const [createSquadOpen, setCreateSquadOpen] = useState(false);
   const [createUserOpen, setCreateUserOpen] = useState(false);
-  const [editSquad, setEditSquad] = useState(null);       // squad object
-  const [deleteSquad, setDeleteSquad] = useState(null);   // squad object
+  const [editSquad, setEditSquad] = useState(null);
+  const [deleteSquad, setDeleteSquad] = useState(null);
   const [deletingSquad, setDeletingSquad] = useState(false);
-  const [addUserTo, setAddUserTo] = useState(null);       // squadId
-  const [removeUser, setRemoveUser] = useState(null);     // { user, squadId }
+  const [addUserTo, setAddUserTo] = useState(null);
+  const [removeUser, setRemoveUser] = useState(null);
   const [removingUser, setRemovingUser] = useState(false);
-  const [actionError, setActionError] = useState('');
 
   async function loadAll() {
+    setLoadError('');
     try {
       const [squadList, userList] = await Promise.all([
         squadService.getSquads(),
@@ -371,6 +376,8 @@ export default function SquadsManagementPage() {
       ]);
       setSquads(squadList);
       setUsers(userList);
+    } catch {
+      setLoadError('Não foi possível carregar squads e usuários.');
     } finally {
       setLoading(false);
     }
@@ -383,23 +390,25 @@ export default function SquadsManagementPage() {
   function handleSquadCreated(squad) {
     setSquads((prev) => [{ ...squad, users: [], stores: [] }, ...prev]);
     setCreateSquadOpen(false);
+    toast.success(`Squad "${squad.name}" criado com sucesso!`);
   }
 
   function handleSquadUpdated(updated) {
     setSquads((prev) => prev.map((s) => (s.id === updated.id ? { ...s, name: updated.name } : s)));
     setEditSquad(null);
+    toast.success('Squad atualizado com sucesso!');
   }
 
   async function handleDeleteSquad() {
     if (!deleteSquad) return;
     setDeletingSquad(true);
-    setActionError('');
     try {
       await squadService.deleteSquad(deleteSquad.id);
       setSquads((prev) => prev.filter((s) => s.id !== deleteSquad.id));
       setDeleteSquad(null);
+      toast.success('Squad removido.');
     } catch (err) {
-      setActionError(err.response?.data?.message ?? 'Erro ao deletar squad');
+      toast.error(err.response?.data?.message ?? 'Erro ao deletar squad');
     } finally {
       setDeletingSquad(false);
     }
@@ -407,9 +416,9 @@ export default function SquadsManagementPage() {
 
   function handleUserCreated(user) {
     setUsers((prev) => [...prev, user]);
-    // If user was assigned to a squad, reload squads to reflect new member
     if (user.squadId) loadAll();
     setCreateUserOpen(false);
+    toast.success(`Usuário "${user.name}" criado com sucesso!`);
   }
 
   function handleAddUser(squadId) {
@@ -418,23 +427,20 @@ export default function SquadsManagementPage() {
   }
 
   async function handleAddUserSuccess(userId) {
-    // Reload to get fresh squad members list
     await loadAll();
     setAddUserTo(null);
+    toast.success('Usuário adicionado ao squad.');
   }
 
   function handleRemoveUser(user, squadId) {
-    setActionError('');
     setRemoveUser({ user, squadId });
   }
 
   async function handleConfirmRemoveUser() {
     if (!removeUser) return;
     setRemovingUser(true);
-    setActionError('');
     try {
       await squadService.removeUser(removeUser.squadId, removeUser.user.id);
-      // Update local state: remove user from squad members and clear their squadId
       setSquads((prev) =>
         prev.map((s) =>
           s.id === removeUser.squadId
@@ -446,8 +452,9 @@ export default function SquadsManagementPage() {
         prev.map((u) => (u.id === removeUser.user.id ? { ...u, squadId: null } : u))
       );
       setRemoveUser(null);
+      toast.success('Usuário removido do squad.');
     } catch (err) {
-      setActionError(err.response?.data?.message ?? 'Erro ao remover usuário');
+      toast.error(err.response?.data?.message ?? 'Erro ao remover usuário');
     } finally {
       setRemovingUser(false);
     }
@@ -479,20 +486,15 @@ export default function SquadsManagementPage() {
           </div>
         </div>
 
-        {/* Erro de ação */}
-        {actionError && (
-          <p className="rounded-lg bg-red-50 border border-red-200 px-4 py-2 text-sm text-red-600">
-            {actionError}
-          </p>
-        )}
-
         {/* Lista */}
         {loading ? (
-          <div className="flex flex-col gap-2 animate-pulse">
+          <div className="flex flex-col gap-2">
             {[...Array(3)].map((_, i) => (
-              <div key={i} className="h-16 rounded-xl bg-gray-100" />
+              <Skeleton key={i} variant="card" className="h-16" />
             ))}
           </div>
+        ) : loadError ? (
+          <ErrorMessage message={loadError} onRetry={() => { setLoading(true); loadAll(); }} />
         ) : squads.length === 0 ? (
           <div className="rounded-xl border border-gray-200 bg-white shadow-sm px-6 py-12 flex flex-col items-center gap-2">
             <p className="text-gray-500 font-medium">Nenhum squad cadastrado.</p>
@@ -544,7 +546,7 @@ export default function SquadsManagementPage() {
                         Editar
                       </button>
                       <button
-                        onClick={() => { setActionError(''); setDeleteSquad(squad); }}
+                        onClick={() => setDeleteSquad(squad)}
                         className="text-xs font-medium text-gray-500 hover:text-red-600 transition-colors px-2 py-1 rounded hover:bg-red-50"
                       >
                         Deletar
@@ -598,7 +600,7 @@ export default function SquadsManagementPage() {
           message="Esta ação removerá o squad permanentemente. Não será possível desfazer."
           confirmLabel="Deletar Squad"
           onConfirm={handleDeleteSquad}
-          onCancel={() => { setDeleteSquad(null); setActionError(''); }}
+          onCancel={() => setDeleteSquad(null)}
           loading={deletingSquad}
         />
       )}
@@ -609,7 +611,7 @@ export default function SquadsManagementPage() {
           message={`O usuário perderá o vínculo com o squad e não poderá mais participar da rodada como membro deste grupo.`}
           confirmLabel="Remover"
           onConfirm={handleConfirmRemoveUser}
-          onCancel={() => { setRemoveUser(null); setActionError(''); }}
+          onCancel={() => setRemoveUser(null)}
           loading={removingUser}
         />
       )}

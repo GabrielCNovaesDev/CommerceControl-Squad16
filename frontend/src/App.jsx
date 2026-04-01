@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import PrivateRoute from './components/layout/PrivateRoute';
+import Toast from './components/ui/Toast';
 
 import LoginPage from './pages/LoginPage';
 import UnauthorizedPage from './pages/UnauthorizedPage';
@@ -18,6 +19,7 @@ import AdminResultsPage from './pages/AdminResultsPage';
 export default function App() {
   return (
     <BrowserRouter>
+      <Toast />
       <Routes>
         {/* Redireciona raiz para /login */}
         <Route path="/" element={<Navigate to="/login" replace />} />

@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import roundService from '../services/roundService';
 import PlayerLayout from '../components/layout/PlayerLayout';
+import Skeleton from '../components/ui/Skeleton';
+import ErrorMessage from '../components/ui/ErrorMessage';
 import { formatCurrency, formatPercent } from '../utils/formatters';
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
@@ -239,11 +241,14 @@ export default function ResultsPage() {
   const [result, setResult] = useState(null);
   const [rankingPosition, setRankingPosition] = useState(null);
   const [loadingRounds, setLoadingRounds] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [loadingResult, setLoadingResult] = useState(false);
   const [noResult, setNoResult] = useState(false);
 
   // Carrega lista de rodadas encerradas
-  useEffect(() => {
+  function loadRounds() {
+    setLoadError('');
+    setLoadingRounds(true);
     roundService.getRounds()
       .then((rounds) => {
         const closed = rounds
@@ -254,8 +259,11 @@ export default function ResultsPage() {
           setSelectedRoundId(closed[0].id);
         }
       })
+      .catch(() => setLoadError('Não foi possível carregar as rodadas.'))
       .finally(() => setLoadingRounds(false));
-  }, []);
+  }
+
+  useEffect(() => { loadRounds(); }, []);
 
   // Carrega resultado e ranking ao mudar a rodada
   useEffect(() => {
@@ -291,9 +299,19 @@ export default function ResultsPage() {
   if (loadingRounds) {
     return (
       <PlayerLayout>
-        <div className="flex items-center justify-center h-40 text-gray-400 text-sm">
-          Carregando...
+        <div className="max-w-3xl flex flex-col gap-4">
+          <Skeleton variant="line" className="w-40 h-6" />
+          <Skeleton variant="card" />
+          <Skeleton variant="table" rows={3} />
         </div>
+      </PlayerLayout>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <PlayerLayout>
+        <ErrorMessage message={loadError} onRetry={loadRounds} />
       </PlayerLayout>
     );
   }
@@ -328,10 +346,9 @@ export default function ResultsPage() {
         </div>
 
         {loadingResult ? (
-          <div className="flex flex-col gap-3 animate-pulse">
-            {[...Array(4)].map((_, i) => (
-              <div key={i} className="h-16 rounded-xl bg-gray-100" />
-            ))}
+          <div className="flex flex-col gap-3">
+            <Skeleton variant="card" />
+            <Skeleton variant="table" rows={5} />
           </div>
         ) : noResult ? (
           <div className="rounded-xl border border-gray-200 bg-white shadow-sm px-6 py-10 flex flex-col items-center gap-2">

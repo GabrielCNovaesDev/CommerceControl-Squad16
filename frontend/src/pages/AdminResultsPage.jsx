@@ -8,6 +8,9 @@ import {
 import roundService from '../services/roundService';
 import AdminLayout from '../components/layout/AdminLayout';
 import Badge from '../components/ui/Badge';
+import Skeleton from '../components/ui/Skeleton';
+import ErrorMessage from '../components/ui/ErrorMessage';
+import { useToast } from '../hooks/useToast';
 import { formatCurrency, formatPercent } from '../utils/formatters';
 
 // ─── Paleta de squads para o gráfico de linhas ───────────────────────────────
@@ -218,17 +221,21 @@ function MarginLineChart({ historyData, squadNames }) {
 // ─── Componente principal ─────────────────────────────────────────────────────
 
 export default function AdminResultsPage() {
+  const toast = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
   const [allRounds, setAllRounds] = useState([]);
   const [selectedRoundId, setSelectedRoundId] = useState(searchParams.get('roundId') ?? null);
   const [results, setResults] = useState([]);
   const [historyData, setHistoryData] = useState([]);
   const [loadingRounds, setLoadingRounds] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [loadingResults, setLoadingResults] = useState(false);
   const [loadingHistory, setLoadingHistory] = useState(false);
 
   // Carrega lista de rodadas
-  useEffect(() => {
+  function loadRounds() {
+    setLoadError('');
+    setLoadingRounds(true);
     roundService.getRounds()
       .then((rounds) => {
         const sorted = [...rounds].sort((a, b) => b.number - a.number);
@@ -238,8 +245,11 @@ export default function AdminResultsPage() {
           setSelectedRoundId(sorted[0].id);
         }
       })
+      .catch(() => setLoadError('Não foi possível carregar as rodadas.'))
       .finally(() => setLoadingRounds(false));
-  }, []);
+  }
+
+  useEffect(() => { loadRounds(); }, []);
 
   // Atualiza query param quando seletor muda
   useEffect(() => {
@@ -322,9 +332,18 @@ export default function AdminResultsPage() {
   if (loadingRounds) {
     return (
       <AdminLayout>
-        <div className="flex items-center justify-center h-40 text-gray-400 text-sm">
-          Carregando...
+        <div className="max-w-6xl flex flex-col gap-4">
+          <Skeleton variant="line" className="w-40 h-6" />
+          <Skeleton variant="table" rows={4} />
         </div>
+      </AdminLayout>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <AdminLayout>
+        <ErrorMessage message={loadError} onRetry={loadRounds} />
       </AdminLayout>
     );
   }
@@ -353,7 +372,7 @@ export default function AdminResultsPage() {
           <div className="flex items-center gap-3">
             {sorted.length > 0 && (
               <button
-                onClick={() => exportToCsv(sorted)}
+                onClick={() => { exportToCsv(sorted); toast.success('Arquivo CSV baixado.'); }}
                 className="text-sm font-medium text-indigo-600 hover:text-indigo-800 border border-indigo-200 hover:border-indigo-400 rounded-lg px-3 py-1.5 transition-colors"
               >
                 Exportar CSV
@@ -390,12 +409,7 @@ export default function AdminResultsPage() {
           <>
             {/* Tabela */}
             {loadingResults ? (
-              <div className="flex flex-col gap-2 animate-pulse">
-                <div className="h-10 rounded-xl bg-gray-100" />
-                {[...Array(4)].map((_, i) => (
-                  <div key={i} className="h-12 rounded-xl bg-gray-100" />
-                ))}
-              </div>
+              <Skeleton variant="table" rows={4} />
             ) : sorted.length === 0 ? (
               <div className="rounded-xl border border-gray-200 bg-white shadow-sm px-6 py-10 flex items-center justify-center">
                 <p className="text-sm text-gray-400">Nenhum resultado disponível para esta rodada.</p>

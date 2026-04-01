@@ -7,6 +7,9 @@ import squadService from '../services/squadService';
 import AdminLayout from '../components/layout/AdminLayout';
 import Badge from '../components/ui/Badge';
 import Button from '../components/ui/Button';
+import Skeleton from '../components/ui/Skeleton';
+import ErrorMessage from '../components/ui/ErrorMessage';
+import { useToast } from '../hooks/useToast';
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
 
@@ -199,17 +202,20 @@ function SquadsTable({ squads, submittedStoreIds }) {
 // ─── Componente principal ───────────────────────────────────────────────────
 
 export default function AdminDashboardPage() {
+  const toast = useToast();
   const [activeRound, setActiveRound] = useState(null);
   const [roundDetail, setRoundDetail] = useState(null);
   const [squads, setSquads] = useState([]);
   const [allRounds, setAllRounds] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showCloseModal, setShowCloseModal] = useState(false);
   const [closingRound, setClosingRound] = useState(false);
   const [closeError, setCloseError] = useState('');
 
   async function loadData() {
+    setLoadError('');
     try {
       const [rounds, squadList] = await Promise.all([
         roundService.getRounds(),
@@ -228,6 +234,8 @@ export default function AdminDashboardPage() {
       } else {
         setRoundDetail(null);
       }
+    } catch {
+      setLoadError('Não foi possível carregar os dados do dashboard.');
     } finally {
       setLoading(false);
     }
@@ -244,6 +252,7 @@ export default function AdminDashboardPage() {
     try {
       await roundService.closeRound(activeRound.id);
       setShowCloseModal(false);
+      toast.success('Rodada encerrada e resultados calculados!');
       setLoading(true);
       await loadData();
     } catch (err) {
@@ -255,6 +264,7 @@ export default function AdminDashboardPage() {
 
   function handleRoundCreated() {
     setShowCreateModal(false);
+    toast.success('Rodada criada com sucesso!');
     setLoading(true);
     loadData();
   }
@@ -262,9 +272,23 @@ export default function AdminDashboardPage() {
   if (loading) {
     return (
       <AdminLayout>
-        <div className="flex items-center justify-center h-40 text-gray-400 text-sm">
-          Carregando...
+        <div className="max-w-5xl flex flex-col gap-6">
+          <Skeleton variant="line" className="w-40 h-6" />
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <Skeleton variant="card" />
+            <Skeleton variant="card" />
+            <Skeleton variant="card" />
+          </div>
+          <Skeleton variant="table" rows={4} />
         </div>
+      </AdminLayout>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <AdminLayout>
+        <ErrorMessage message={loadError} onRetry={() => { setLoading(true); loadData(); }} />
       </AdminLayout>
     );
   }

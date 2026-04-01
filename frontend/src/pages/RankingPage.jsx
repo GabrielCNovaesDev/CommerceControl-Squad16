@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import roundService from '../services/roundService';
 import useAuthStore from '../store/authStore';
 import PlayerLayout from '../components/layout/PlayerLayout';
+import Skeleton from '../components/ui/Skeleton';
+import ErrorMessage from '../components/ui/ErrorMessage';
 import { formatCurrency, formatPercent } from '../utils/formatters';
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
@@ -148,24 +150,6 @@ function RankingTable({ ranking, mySquadId }) {
   );
 }
 
-function LoadingSkeleton() {
-  return (
-    <div className="rounded-xl border border-gray-200 overflow-hidden shadow-sm animate-pulse">
-      <div className="h-10 bg-gray-50 border-b border-gray-200" />
-      {[...Array(5)].map((_, i) => (
-        <div key={i} className="flex gap-4 px-4 py-3 border-t border-gray-100">
-          <div className="w-7 h-7 rounded-full bg-gray-100" />
-          <div className="flex-1 h-4 rounded bg-gray-100" />
-          <div className="w-24 h-4 rounded bg-gray-100" />
-          <div className="w-24 h-4 rounded bg-gray-100" />
-          <div className="w-20 h-4 rounded bg-gray-100" />
-          <div className="w-24 h-4 rounded bg-gray-100" />
-        </div>
-      ))}
-    </div>
-  );
-}
-
 // ─── Componente principal ───────────────────────────────────────────────────
 
 export default function RankingPage() {
@@ -174,10 +158,13 @@ export default function RankingPage() {
   const [selectedRoundId, setSelectedRoundId] = useState(null);
   const [ranking, setRanking] = useState([]);
   const [loadingRounds, setLoadingRounds] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [loadingRanking, setLoadingRanking] = useState(false);
 
   // Carrega rodadas encerradas
-  useEffect(() => {
+  function loadRounds() {
+    setLoadError('');
+    setLoadingRounds(true);
     roundService.getRounds()
       .then((rounds) => {
         const closed = rounds
@@ -188,8 +175,11 @@ export default function RankingPage() {
           setSelectedRoundId(closed[0].id);
         }
       })
+      .catch(() => setLoadError('Não foi possível carregar as rodadas.'))
       .finally(() => setLoadingRounds(false));
-  }, []);
+  }
+
+  useEffect(() => { loadRounds(); }, []);
 
   // Carrega ranking ao mudar rodada
   useEffect(() => {
@@ -211,9 +201,18 @@ export default function RankingPage() {
   if (loadingRounds) {
     return (
       <PlayerLayout>
-        <div className="flex items-center justify-center h-40 text-gray-400 text-sm">
-          Carregando...
+        <div className="max-w-4xl flex flex-col gap-4">
+          <Skeleton variant="line" className="w-32 h-6" />
+          <Skeleton variant="table" rows={5} />
         </div>
+      </PlayerLayout>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <PlayerLayout>
+        <ErrorMessage message={loadError} onRetry={loadRounds} />
       </PlayerLayout>
     );
   }
@@ -250,7 +249,7 @@ export default function RankingPage() {
 
         {/* Tabela */}
         {loadingRanking ? (
-          <LoadingSkeleton />
+          <Skeleton variant="table" rows={5} />
         ) : ranking.length === 0 ? (
           <div className="rounded-xl border border-gray-200 bg-white shadow-sm px-6 py-10 flex items-center justify-center">
             <p className="text-gray-400 text-sm">Nenhum dado de ranking disponível para esta rodada.</p>

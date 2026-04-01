@@ -7,6 +7,9 @@ import roundService from '../services/roundService';
 import AdminLayout from '../components/layout/AdminLayout';
 import Badge from '../components/ui/Badge';
 import Button from '../components/ui/Button';
+import Skeleton from '../components/ui/Skeleton';
+import ErrorMessage from '../components/ui/ErrorMessage';
+import { useToast } from '../hooks/useToast';
 import { formatDate } from '../utils/formatters';
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
@@ -232,17 +235,22 @@ function RoundsTable({ rounds, hasOpenRound, onClose }) {
 // ─── Componente principal ────────────────────────────────────────────────────
 
 export default function RoundsManagementPage() {
+  const toast = useToast();
   const [rounds, setRounds] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [roundToClose, setRoundToClose] = useState(null);
   const [closingRound, setClosingRound] = useState(false);
   const [closeSuccess, setCloseSuccess] = useState(false);
 
   async function loadRounds() {
+    setLoadError('');
     try {
       const data = await roundService.getRounds();
       setRounds(data);
+    } catch {
+      setLoadError('Não foi possível carregar as rodadas.');
     } finally {
       setLoading(false);
     }
@@ -254,7 +262,7 @@ export default function RoundsManagementPage() {
 
   function handleRoundCreated(newRound) {
     setShowCreateModal(false);
-    // Optimistic: add to list while backend syncs
+    toast.success(`Rodada #${newRound.number} criada com sucesso!`);
     setRounds((prev) =>
       [...prev, { ...newRound, submittedConfigsCount: 0 }].sort((a, b) => b.number - a.number)
     );
@@ -266,12 +274,12 @@ export default function RoundsManagementPage() {
     try {
       await roundService.closeRound(roundToClose.id);
       setCloseSuccess(true);
-      // Update row status in list
+      toast.success(`Rodada #${roundToClose.number} encerrada com sucesso!`);
       setRounds((prev) =>
         prev.map((r) => (r.id === roundToClose.id ? { ...r, status: 'CLOSED' } : r))
       );
     } catch (err) {
-      // On error close modal and reload full list
+      toast.error(err.response?.data?.message ?? 'Erro ao encerrar rodada');
       setRoundToClose(null);
       loadRounds();
     } finally {
@@ -309,12 +317,9 @@ export default function RoundsManagementPage() {
 
         {/* Lista */}
         {loading ? (
-          <div className="flex flex-col gap-2 animate-pulse">
-            <div className="h-10 rounded-xl bg-gray-100" />
-            {[...Array(3)].map((_, i) => (
-              <div key={i} className="h-14 rounded-xl bg-gray-100" />
-            ))}
-          </div>
+          <Skeleton variant="table" rows={3} />
+        ) : loadError ? (
+          <ErrorMessage message={loadError} onRetry={() => { setLoading(true); loadRounds(); }} />
         ) : rounds.length === 0 ? (
           <div className="rounded-xl border border-gray-200 bg-white shadow-sm px-6 py-12 flex flex-col items-center gap-2">
             <p className="text-gray-500 font-medium">Nenhuma rodada criada ainda.</p>

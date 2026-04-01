@@ -9,6 +9,9 @@ import productService from '../services/productService';
 import PlayerLayout from '../components/layout/PlayerLayout';
 import Button from '../components/ui/Button';
 import DREPreview from '../components/DREPreview';
+import Skeleton from '../components/ui/Skeleton';
+import ErrorMessage from '../components/ui/ErrorMessage';
+import { useToast } from '../hooks/useToast';
 import { formatCurrency } from '../utils/formatters';
 
 const schema = z.object({
@@ -99,13 +102,14 @@ function ProductRow({ index, product, availableQty, control, register, errors })
 
 export default function RoundConfigPage() {
   const navigate = useNavigate();
+  const toast = useToast();
   const [activeRound, setActiveRound] = useState(null);
   const [store, setStore] = useState(null);
   const [inventoryMap, setInventoryMap] = useState({});
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [preview, setPreview] = useState(null);
-  const [submitError, setSubmitError] = useState('');
   const [submitSuccess, setSubmitSuccess] = useState(false);
 
   const {
@@ -119,31 +123,33 @@ export default function RoundConfigPage() {
     defaultValues: { fixedExpenses: 0, variableExpenses: 0, items: [] },
   });
 
-  useEffect(() => {
-    async function load() {
-      try {
-        const [rounds, s, prods] = await Promise.all([
-          roundService.getRounds(),
-          storeService.getMyStore(),
-          productService.getProducts(),
-        ]);
+  async function load() {
+    setLoadError('');
+    try {
+      const [rounds, s, prods] = await Promise.all([
+        roundService.getRounds(),
+        storeService.getMyStore(),
+        productService.getProducts(),
+      ]);
 
-        const open = rounds.find((r) => r.status === 'OPEN');
-        setActiveRound(open ?? null);
-        setStore(s);
-        setProducts(prods);
+      const open = rounds.find((r) => r.status === 'OPEN');
+      setActiveRound(open ?? null);
+      setStore(s);
+      setProducts(prods);
 
-        if (s) {
-          const inv = await storeService.getInventory(s.id);
-          const map = Object.fromEntries(inv.map((i) => [i.productId, i.quantity]));
-          setInventoryMap(map);
-        }
-      } finally {
-        setLoading(false);
+      if (s) {
+        const inv = await storeService.getInventory(s.id);
+        const map = Object.fromEntries(inv.map((i) => [i.productId, i.quantity]));
+        setInventoryMap(map);
       }
+    } catch {
+      setLoadError('Não foi possível carregar os dados da rodada.');
+    } finally {
+      setLoading(false);
     }
-    load();
-  }, []);
+  }
+
+  useEffect(() => { load(); }, []);
 
   async function handlePreview() {
     const values = getValues();
@@ -159,12 +165,11 @@ export default function RoundConfigPage() {
       });
       setPreview(result);
     } catch (err) {
-      setSubmitError(err.response?.data?.message ?? 'Erro ao simular');
+      toast.error(err.response?.data?.message ?? 'Erro ao simular');
     }
   }
 
   async function onSubmit(data) {
-    setSubmitError('');
     try {
       await roundService.submitConfig(activeRound.id, {
         fixedExpenses: Number(data.fixedExpenses),
@@ -175,19 +180,30 @@ export default function RoundConfigPage() {
           salesVolume: Number(item.salesVolume),
         })),
       });
+      toast.success('Estratégia enviada com sucesso!');
       setSubmitSuccess(true);
       setTimeout(() => navigate('/store'), 1500);
     } catch (err) {
-      setSubmitError(err.response?.data?.message ?? 'Erro ao enviar configuração');
+      toast.error(err.response?.data?.message ?? 'Erro ao enviar configuração');
     }
   }
 
   if (loading) {
     return (
       <PlayerLayout>
-        <div className="flex items-center justify-center h-40 text-gray-400 text-sm">
-          Carregando...
+        <div className="max-w-3xl flex flex-col gap-4">
+          <Skeleton variant="line" className="w-64 h-6" />
+          <Skeleton variant="card" className="h-28" />
+          <Skeleton variant="table" rows={5} />
         </div>
+      </PlayerLayout>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <PlayerLayout>
+        <ErrorMessage message={loadError} onRetry={() => { setLoading(true); load(); }} />
       </PlayerLayout>
     );
   }
@@ -291,12 +307,6 @@ export default function RoundConfigPage() {
               dre={preview.dre}
               feedbacks={preview.feedbacks}
             />
-          )}
-
-          {submitError && (
-            <p className="rounded-lg bg-red-50 border border-red-200 px-4 py-2 text-sm text-red-600">
-              {submitError}
-            </p>
           )}
 
           <div className="flex gap-3">

@@ -5,6 +5,9 @@ import { z } from 'zod';
 import productService from '../services/productService';
 import AdminLayout from '../components/layout/AdminLayout';
 import Button from '../components/ui/Button';
+import Skeleton from '../components/ui/Skeleton';
+import ErrorMessage from '../components/ui/ErrorMessage';
+import { useToast } from '../hooks/useToast';
 import { formatCurrency } from '../utils/formatters';
 
 // ─── Schema ──────────────────────────────────────────────────────────────────
@@ -164,8 +167,10 @@ function DeleteModal({ product, onConfirm, onCancel, loading, error }) {
 // ─── Componente principal ─────────────────────────────────────────────────────
 
 export default function ProductsManagementPage() {
+  const toast = useToast();
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [search, setSearch] = useState('');
   const [createOpen, setCreateOpen] = useState(false);
   const [editProduct, setEditProduct] = useState(null);
@@ -173,11 +178,16 @@ export default function ProductsManagementPage() {
   const [deletingProduct, setDeletingProduct] = useState(false);
   const [deleteError, setDeleteError] = useState('');
 
-  useEffect(() => {
+  function loadProducts() {
+    setLoadError('');
+    setLoading(true);
     productService.getProducts()
       .then(setProducts)
+      .catch(() => setLoadError('Não foi possível carregar os produtos.'))
       .finally(() => setLoading(false));
-  }, []);
+  }
+
+  useEffect(() => { loadProducts(); }, []);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -188,11 +198,13 @@ export default function ProductsManagementPage() {
   function handleCreated(product) {
     setProducts((prev) => [product, ...prev]);
     setCreateOpen(false);
+    toast.success(`Produto "${product.name}" criado com sucesso!`);
   }
 
   function handleUpdated(updated) {
     setProducts((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
     setEditProduct(null);
+    toast.success('Produto atualizado com sucesso!');
   }
 
   async function handleDeleteConfirm() {
@@ -203,6 +215,7 @@ export default function ProductsManagementPage() {
       await productService.deleteProduct(deleteProduct.id);
       setProducts((prev) => prev.filter((p) => p.id !== deleteProduct.id));
       setDeleteProduct(null);
+      toast.success('Produto removido.');
     } catch (err) {
       const status = err.response?.status;
       setDeleteError(
@@ -238,12 +251,9 @@ export default function ProductsManagementPage() {
 
         {/* Tabela */}
         {loading ? (
-          <div className="flex flex-col gap-2 animate-pulse">
-            <div className="h-10 rounded-xl bg-gray-100" />
-            {[...Array(4)].map((_, i) => (
-              <div key={i} className="h-14 rounded-xl bg-gray-100" />
-            ))}
-          </div>
+          <Skeleton variant="table" rows={4} />
+        ) : loadError ? (
+          <ErrorMessage message={loadError} onRetry={loadProducts} />
         ) : filtered.length === 0 ? (
           <div className="rounded-xl border border-gray-200 bg-white shadow-sm px-6 py-12 flex flex-col items-center gap-2">
             {products.length === 0 ? (
