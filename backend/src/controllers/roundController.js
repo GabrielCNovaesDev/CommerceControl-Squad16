@@ -11,7 +11,13 @@ const createSchema = z.object({
 
 async function listRounds(req, res) {
   const rounds = await roundRepository.findAll();
-  return res.status(200).json(rounds);
+  return res.status(200).json(
+    rounds.map((r) => ({
+      ...r,
+      submittedConfigsCount: r._count.roundConfigs,
+      _count: undefined,
+    }))
+  );
 }
 
 async function getRound(req, res) {

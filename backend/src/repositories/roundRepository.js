@@ -5,6 +5,9 @@ const prisma = new PrismaClient();
 function findAll() {
   return prisma.round.findMany({
     orderBy: { number: 'desc' },
+    include: {
+      _count: { select: { roundConfigs: true } },
+    },
   });
 }
 
