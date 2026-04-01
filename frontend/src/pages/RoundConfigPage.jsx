@@ -8,6 +8,7 @@ import storeService from '../services/storeService';
 import productService from '../services/productService';
 import PlayerLayout from '../components/layout/PlayerLayout';
 import Button from '../components/ui/Button';
+import DREPreview from '../components/DREPreview';
 import { formatCurrency } from '../utils/formatters';
 
 const schema = z.object({
@@ -92,61 +93,6 @@ function ProductRow({ index, product, availableQty, control, register, errors })
           </p>
         )}
       </div>
-    </div>
-  );
-}
-
-function DREPreview({ dre, feedbacks, onClose }) {
-  if (!dre) return null;
-
-  const rows = [
-    { label: 'Receita Bruta', value: dre.grossRevenue, highlight: false },
-    { label: 'Custos', value: -dre.costs, highlight: false },
-    { label: 'Lucro Bruto', value: dre.grossProfit, highlight: false },
-    { label: 'Despesas', value: -dre.expenses, highlight: false },
-    { label: 'Lucro Líquido', value: dre.netProfit, highlight: true },
-  ];
-
-  return (
-    <div className="rounded-xl border border-blue-200 bg-blue-50 p-5 flex flex-col gap-4">
-      <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-blue-800">Simulação — DRE Preview</h3>
-        <button onClick={onClose} className="text-xs text-blue-500 hover:text-blue-700">
-          Fechar
-        </button>
-      </div>
-
-      <div className="bg-white rounded-lg border border-blue-100 overflow-hidden">
-        {rows.map(({ label, value, highlight }) => (
-          <div
-            key={label}
-            className={`flex justify-between items-center px-4 py-2 text-sm border-b border-gray-50 last:border-0
-              ${highlight ? 'font-semibold' : ''}
-              ${highlight && value < 0 ? 'text-red-600' : ''}
-              ${highlight && value >= 0 ? 'text-green-700' : 'text-gray-700'}`}
-          >
-            <span>{label}</span>
-            <span>{formatCurrency(Math.abs(value))}{value < 0 ? ' (-)' : ''}</span>
-          </div>
-        ))}
-        <div className="flex justify-between items-center px-4 py-2 text-sm bg-gray-50">
-          <span className="text-gray-500">Margem Líquida</span>
-          <span className={`font-medium ${dre.netMargin < 0 ? 'text-red-600' : 'text-green-700'}`}>
-            {dre.netMargin.toFixed(2).replace('.', ',')}%
-          </span>
-        </div>
-      </div>
-
-      {feedbacks.length > 0 && (
-        <ul className="flex flex-col gap-1.5">
-          {feedbacks.map((msg, i) => (
-            <li key={i} className="flex gap-2 text-xs text-orange-700 bg-orange-50 border border-orange-200 rounded-lg px-3 py-2">
-              <span>⚠</span>
-              <span>{msg}</span>
-            </li>
-          ))}
-        </ul>
-      )}
     </div>
   );
 }
@@ -344,7 +290,6 @@ export default function RoundConfigPage() {
             <DREPreview
               dre={preview.dre}
               feedbacks={preview.feedbacks}
-              onClose={() => setPreview(null)}
             />
           )}
 
