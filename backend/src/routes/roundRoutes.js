@@ -2,7 +2,7 @@ const { Router } = require('express');
 const authMiddleware = require('../middlewares/authMiddleware');
 const roleMiddleware = require('../middlewares/roleMiddleware');
 const { listRounds, getRound, createRound, closeRound } = require('../controllers/roundController');
-const { submitConfig } = require('../controllers/simulationController');
+const { submitConfig, getResults } = require('../controllers/simulationController');
 
 const router = Router();
 
@@ -14,5 +14,6 @@ router.get('/:id', authMiddleware, masterAndPlayer, getRound);
 router.post('/', authMiddleware, onlyMaster, createRound);
 router.patch('/:id/close', authMiddleware, onlyMaster, closeRound);
 router.post('/:id/config', authMiddleware, roleMiddleware(['PLAYER']), submitConfig);
+router.get('/:id/results', authMiddleware, masterAndPlayer, getResults);
 
 module.exports = router;

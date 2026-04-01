@@ -5,6 +5,10 @@ const storeRepository = require('../repositories/storeRepository');
 const productRepository = require('../repositories/productRepository');
 const inventoryRepository = require('../repositories/inventoryRepository');
 const { calcularDREPreview, gerarFeedback } = require('../services/financeService');
+const rankingService = require('../services/rankingService');
+const { PrismaClient } = require('@prisma/client');
+
+const prisma = new PrismaClient();
 
 const configSchema = z.object({
   fixedExpenses: z.number().min(0, 'Despesas fixas não podem ser negativas'),
@@ -142,4 +146,62 @@ async function previewConfig(req, res) {
   return res.status(200).json({ dre, feedbacks, preview: true });
 }
 
-module.exports = { submitConfig, previewConfig };
+async function getRanking(req, res) {
+  const { roundId } = req.query;
+
+  if (!roundId) {
+    return res.status(400).json({ message: 'Parâmetro roundId é obrigatório' });
+  }
+
+  const ranking = await rankingService.getRanking(roundId);
+  return res.status(200).json(ranking);
+}
+
+async function getResults(req, res) {
+  const { id: roundId } = req.params;
+  const { role, squadId } = req.user;
+
+  const round = await roundRepository.findById(roundId);
+  if (!round) {
+    return res.status(404).json({ message: 'Rodada não encontrada' });
+  }
+
+  if (round.status !== 'CLOSED') {
+    return res.status(404).json({ message: 'Resultados disponíveis apenas após o encerramento da rodada' });
+  }
+
+  if (role === 'GAME_MASTER') {
+    const results = await prisma.financialResult.findMany({
+      where: { roundId },
+      include: {
+        store: { select: { id: true, name: true, squadId: true } },
+      },
+    });
+    return res.status(200).json(results);
+  }
+
+  // PLAYER — somente resultado da própria loja
+  if (!squadId) {
+    return res.status(400).json({ message: 'Usuário não pertence a um squad' });
+  }
+
+  const store = await storeRepository.findBySquadId(squadId);
+  if (!store) {
+    return res.status(400).json({ message: 'Seu squad não possui uma loja cadastrada' });
+  }
+
+  const result = await prisma.financialResult.findFirst({
+    where: { roundId, storeId: store.id },
+    include: {
+      store: { select: { id: true, name: true, squadId: true } },
+    },
+  });
+
+  if (!result) {
+    return res.status(404).json({ message: 'Resultado não encontrado para sua loja nesta rodada' });
+  }
+
+  return res.status(200).json(result);
+}
+
+module.exports = { submitConfig, previewConfig, getRanking, getResults };
