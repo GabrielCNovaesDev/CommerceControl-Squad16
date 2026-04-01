@@ -3,8 +3,10 @@ const roundRepository = require('../repositories/roundRepository');
 const roundConfigRepository = require('../repositories/roundConfigRepository');
 const storeRepository = require('../repositories/storeRepository');
 const productRepository = require('../repositories/productRepository');
+const inventoryRepository = require('../repositories/inventoryRepository');
+const { calcularDREPreview, gerarFeedback } = require('../services/financeService');
 
-const submitConfigSchema = z.object({
+const configSchema = z.object({
   fixedExpenses: z.number().min(0, 'Despesas fixas não podem ser negativas'),
   variableExpenses: z.number().min(0, 'Despesas variáveis não podem ser negativas'),
   items: z
@@ -47,7 +49,7 @@ async function submitConfig(req, res) {
     return res.status(409).json({ message: 'Você já submeteu uma configuração para esta rodada' });
   }
 
-  const parsed = submitConfigSchema.safeParse(req.body);
+  const parsed = configSchema.safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json({ errors: parsed.error.flatten().fieldErrors });
   }
@@ -88,4 +90,56 @@ async function submitConfig(req, res) {
   });
 }
 
-module.exports = { submitConfig };
+async function previewConfig(req, res) {
+  const { squadId } = req.user;
+
+  if (!squadId) {
+    return res.status(400).json({ message: 'Usuário não pertence a um squad' });
+  }
+
+  const store = await storeRepository.findBySquadId(squadId);
+  if (!store) {
+    return res.status(400).json({ message: 'Seu squad não possui uma loja cadastrada' });
+  }
+
+  const parsed = configSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ errors: parsed.error.flatten().fieldErrors });
+  }
+
+  const { fixedExpenses, variableExpenses, items } = parsed.data;
+
+  const productIds = [...new Set(items.map((i) => i.productId))];
+  const foundProducts = await Promise.all(productIds.map((id) => productRepository.findById(id)));
+  const missingProducts = productIds.filter((id, idx) => !foundProducts[idx]);
+  if (missingProducts.length > 0) {
+    return res.status(400).json({ message: 'Produtos não encontrados', missingProductIds: missingProducts });
+  }
+
+  const purchasePriceMap = Object.fromEntries(
+    foundProducts.map((p) => [p.id, p.purchasePrice])
+  );
+
+  const inventoryList = await inventoryRepository.findByStoreId(store.id);
+
+  const roundConfig = { fixedExpenses, variableExpenses };
+
+  const itemsForEngine = items.map((item) => ({
+    productId: item.productId,
+    salePrice: item.salePrice,
+    salesVolume: item.salesVolume,
+    product: { purchasePrice: purchasePriceMap[item.productId] },
+  }));
+
+  const inventory = inventoryList.map((inv) => ({
+    productId: inv.productId,
+    quantity: inv.quantity,
+  }));
+
+  const dre = calcularDREPreview(roundConfig, itemsForEngine, inventory);
+  const feedbacks = gerarFeedback(dre);
+
+  return res.status(200).json({ dre, feedbacks, preview: true });
+}
+
+module.exports = { submitConfig, previewConfig };
