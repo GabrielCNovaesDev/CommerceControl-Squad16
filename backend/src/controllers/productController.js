@@ -1,5 +1,6 @@
 const { z } = require('zod');
 const productRepository = require('../repositories/productRepository');
+const asyncHandler = require('../utils/asyncHandler');
 
 const createSchema = z.object({
   name: z.string().min(1, 'Nome é obrigatório'),
@@ -62,4 +63,9 @@ async function deleteProduct(req, res) {
   return res.status(200).json({ deleted: true });
 }
 
-module.exports = { listProducts, createProduct, updateProduct, deleteProduct };
+module.exports = {
+  listProducts: asyncHandler(listProducts),
+  createProduct: asyncHandler(createProduct),
+  updateProduct: asyncHandler(updateProduct),
+  deleteProduct: asyncHandler(deleteProduct),
+};

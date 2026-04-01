@@ -7,6 +7,7 @@ const inventoryRepository = require('../repositories/inventoryRepository');
 const { calcularDREPreview, gerarFeedback } = require('../services/financeService');
 const rankingService = require('../services/rankingService');
 const { PrismaClient } = require('@prisma/client');
+const asyncHandler = require('../utils/asyncHandler');
 
 const prisma = new PrismaClient();
 
@@ -204,4 +205,9 @@ async function getResults(req, res) {
   return res.status(200).json(result);
 }
 
-module.exports = { submitConfig, previewConfig, getRanking, getResults };
+module.exports = {
+  submitConfig: asyncHandler(submitConfig),
+  previewConfig: asyncHandler(previewConfig),
+  getRanking: asyncHandler(getRanking),
+  getResults: asyncHandler(getResults),
+};

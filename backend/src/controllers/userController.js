@@ -1,6 +1,7 @@
 const bcrypt = require('bcryptjs');
 const { z } = require('zod');
 const userRepository = require('../repositories/userRepository');
+const asyncHandler = require('../utils/asyncHandler');
 
 const createSchema = z.object({
   name: z.string().min(1, 'Nome é obrigatório'),
@@ -84,4 +85,9 @@ async function deleteUser(req, res) {
   return res.status(200).json({ deleted: true });
 }
 
-module.exports = { listUsers, createUser, updateUser, deleteUser };
+module.exports = {
+  listUsers: asyncHandler(listUsers),
+  createUser: asyncHandler(createUser),
+  updateUser: asyncHandler(updateUser),
+  deleteUser: asyncHandler(deleteUser),
+};

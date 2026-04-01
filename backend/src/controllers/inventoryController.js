@@ -1,6 +1,7 @@
 const { z } = require('zod');
 const inventoryRepository = require('../repositories/inventoryRepository');
 const storeRepository = require('../repositories/storeRepository');
+const asyncHandler = require('../utils/asyncHandler');
 
 const updateQuantitySchema = z.object({
   quantity: z.int('Quantidade deve ser um número inteiro').min(0, 'Quantidade não pode ser negativa'),
@@ -73,4 +74,8 @@ async function restockInventory(req, res) {
   return res.status(200).json(updated);
 }
 
-module.exports = { getInventory, updateInventoryItem, restockInventory };
+module.exports = {
+  getInventory: asyncHandler(getInventory),
+  updateInventoryItem: asyncHandler(updateInventoryItem),
+  restockInventory: asyncHandler(restockInventory),
+};

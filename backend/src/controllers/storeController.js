@@ -2,6 +2,7 @@ const { z } = require('zod');
 const storeRepository = require('../repositories/storeRepository');
 const productRepository = require('../repositories/productRepository');
 const { PrismaClient } = require('@prisma/client');
+const asyncHandler = require('../utils/asyncHandler');
 
 const prisma = new PrismaClient();
 
@@ -61,4 +62,8 @@ async function listStores(req, res) {
   return res.status(200).json(stores);
 }
 
-module.exports = { getMyStore, createStore, listStores };
+module.exports = {
+  getMyStore: asyncHandler(getMyStore),
+  createStore: asyncHandler(createStore),
+  listStores: asyncHandler(listStores),
+};

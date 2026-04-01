@@ -2,6 +2,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { z } = require('zod');
 const { PrismaClient } = require('@prisma/client');
+const asyncHandler = require('../utils/asyncHandler');
 
 const prisma = new PrismaClient();
 
@@ -45,4 +46,4 @@ async function login(req, res) {
   });
 }
 
-module.exports = { login };
+module.exports = { login: asyncHandler(login) };

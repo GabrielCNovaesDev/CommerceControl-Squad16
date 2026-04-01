@@ -1,6 +1,7 @@
 const { z } = require('zod');
 const roundRepository = require('../repositories/roundRepository');
 const simulationService = require('../services/simulationService');
+const asyncHandler = require('../utils/asyncHandler');
 
 const createSchema = z.object({
   number: z.int('Número deve ser um inteiro').positive('Número deve ser positivo'),
@@ -66,4 +67,9 @@ async function closeRound(req, res) {
   return res.status(200).json({ message: 'Rodada encerrada e resultados calculados' });
 }
 
-module.exports = { listRounds, getRound, createRound, closeRound };
+module.exports = {
+  listRounds: asyncHandler(listRounds),
+  getRound: asyncHandler(getRound),
+  createRound: asyncHandler(createRound),
+  closeRound: asyncHandler(closeRound),
+};

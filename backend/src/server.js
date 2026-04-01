@@ -10,6 +10,7 @@ const storeRoutes = require('./routes/storeRoutes');
 const inventoryRoutes = require('./routes/inventoryRoutes');
 const roundRoutes = require('./routes/roundRoutes');
 const simulationRoutes = require('./routes/simulationRoutes');
+const errorMiddleware = require('./middlewares/errorMiddleware');
 
 const app = express();
 
@@ -28,6 +29,9 @@ app.use('/stores', storeRoutes);
 app.use('/stores/:storeId/inventory', inventoryRoutes);
 app.use('/rounds', roundRoutes);
 app.use('/simulation', simulationRoutes);
+
+// Deve ser o último middleware — captura todos os erros propagados por next(err)
+app.use(errorMiddleware);
 
 const PORT = process.env.PORT || 3333;
 

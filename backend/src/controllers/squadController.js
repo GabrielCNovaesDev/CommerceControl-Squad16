@@ -1,6 +1,7 @@
 const { z } = require('zod');
 const squadRepository = require('../repositories/squadRepository');
 const { PrismaClient } = require('@prisma/client');
+const asyncHandler = require('../utils/asyncHandler');
 
 const prisma = new PrismaClient();
 
@@ -108,4 +109,11 @@ async function removeUserFromSquad(req, res) {
   return res.status(200).json(updated);
 }
 
-module.exports = { listSquads, createSquad, updateSquad, deleteSquad, addUserToSquad, removeUserFromSquad };
+module.exports = {
+  listSquads: asyncHandler(listSquads),
+  createSquad: asyncHandler(createSquad),
+  updateSquad: asyncHandler(updateSquad),
+  deleteSquad: asyncHandler(deleteSquad),
+  addUserToSquad: asyncHandler(addUserToSquad),
+  removeUserFromSquad: asyncHandler(removeUserFromSquad),
+};
