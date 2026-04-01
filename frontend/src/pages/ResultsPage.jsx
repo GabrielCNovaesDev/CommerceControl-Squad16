@@ -1,7 +1,9 @@
+import PlayerLayout from '../components/layout/PlayerLayout';
+
 export default function ResultsPage() {
   return (
-    <div className="p-8">
-      <h1 className="text-2xl font-bold text-gray-800">Resultados</h1>
-    </div>
+    <PlayerLayout>
+      <h1 className="text-xl font-bold text-gray-900">Resultados</h1>
+    </PlayerLayout>
   );
 }
