@@ -4,6 +4,9 @@ const roundService = {
   getRounds: () =>
     api.get('/rounds').then((r) => r.data),
 
+  getRound: (id) =>
+    api.get(`/rounds/${id}`).then((r) => r.data),
+
   createRound: (data) =>
     api.post('/rounds', data).then((r) => r.data),
 

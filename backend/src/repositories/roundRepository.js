@@ -13,6 +13,7 @@ function findById(id) {
     where: { id },
     include: {
       _count: { select: { roundConfigs: true } },
+      roundConfigs: { select: { storeId: true } },
     },
   });
 }

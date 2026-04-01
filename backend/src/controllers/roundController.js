@@ -25,7 +25,9 @@ async function getRound(req, res) {
   return res.status(200).json({
     ...round,
     submittedConfigsCount: round._count.roundConfigs,
+    submittedStoreIds: round.roundConfigs.map((rc) => rc.storeId),
     _count: undefined,
+    roundConfigs: undefined,
   });
 }
 
