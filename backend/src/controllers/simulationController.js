@@ -195,6 +195,15 @@ async function getResults(req, res) {
     where: { roundId, storeId: store.id },
     include: {
       store: { select: { id: true, name: true, squadId: true } },
+      roundConfig: {
+        include: {
+          roundConfigItems: {
+            include: {
+              product: { select: { id: true, name: true, purchasePrice: true } },
+            },
+          },
+        },
+      },
     },
   });
 
