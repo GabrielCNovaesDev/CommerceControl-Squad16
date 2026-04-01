@@ -21,6 +21,7 @@ async function getRanking(roundId) {
 
   return sorted.map((result, index) => ({
     position: index + 1,
+    squadId: result.store.squad.id,
     squadName: result.store.squad.name,
     storeName: result.store.name,
     netMargin: result.netMargin,
