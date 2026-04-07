@@ -117,6 +117,7 @@ export default function RoundConfigPage() {
     handleSubmit,
     control,
     getValues,
+    reset,
     formState: { errors, isSubmitting },
   } = useForm({
     resolver: zodResolver(schema),
@@ -136,6 +137,15 @@ export default function RoundConfigPage() {
       setActiveRound(open ?? null);
       setStore(s);
       setProducts(prods);
+      reset({
+        fixedExpenses: 0,
+        variableExpenses: 0,
+        items: prods.map((p) => ({
+          productId: p.id,
+          salePrice: p.salePrice,
+          salesVolume: '',
+        })),
+      });
 
       if (s) {
         const inv = await storeService.getInventory(s.id);
@@ -283,21 +293,17 @@ export default function RoundConfigPage() {
               <h2 className="text-sm font-semibold text-gray-700">Configuração por Produto</h2>
             </div>
             <div className="px-5">
-              {products.map((product, index) => {
-                // Registra o productId como hidden
-                register(`items.${index}.productId`, { value: product.id });
-                return (
-                  <ProductRow
-                    key={product.id}
-                    index={index}
-                    product={product}
-                    availableQty={inventoryMap[product.id] ?? 0}
-                    control={control}
-                    register={register}
-                    errors={errors}
-                  />
-                );
-              })}
+              {products.map((product, index) => (
+                <ProductRow
+                  key={product.id}
+                  index={index}
+                  product={product}
+                  availableQty={inventoryMap[product.id] ?? 0}
+                  control={control}
+                  register={register}
+                  errors={errors}
+                />
+              ))}
             </div>
           </div>
 
