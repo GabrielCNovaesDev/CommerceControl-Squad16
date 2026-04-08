@@ -1,0 +1,126 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  name      String
+  email     String   @unique
+  password  String
+  role      String   @default("PLAYER")
+  leader    Boolean  @default(false)
+  squadId   String?
+  createdAt DateTime @default(now())
+
+  squad Squad? @relation(fields: [squadId], references: [id])
+}
+
+model Squad {
+  id        String   @id @default(uuid())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users  User[]
+  stores Store[]
+}
+
+model Store {
+  id             String   @id @default(uuid())
+  name           String
+  initialCapital Float
+  squadId        String
+  createdAt      DateTime @default(now())
+
+  squad            Squad             @relation(fields: [squadId], references: [id])
+  inventories      Inventory[]
+  roundConfigs     RoundConfig[]
+  financialResults FinancialResult[]
+}
+
+model Product {
+  id            String   @id @default(uuid())
+  name          String
+  purchasePrice Float
+  salePrice     Float
+  createdAt     DateTime @default(now())
+
+  inventories      Inventory[]
+  roundConfigItems RoundConfigItem[]
+}
+
+model Inventory {
+  id            String  @id @default(uuid())
+  storeId       String
+  productId     String
+  quantity      Int
+  agingCategory String?
+
+  store   Store   @relation(fields: [storeId], references: [id])
+  product Product @relation(fields: [productId], references: [id])
+
+  @@unique([storeId, productId])
+}
+
+model Round {
+  id        String      @id @default(uuid())
+  number    Int
+  startDate DateTime
+  endDate   DateTime
+  status    String      @default("OPEN")
+
+  roundConfigs     RoundConfig[]
+  financialResults FinancialResult[]
+}
+
+model RoundConfig {
+  id               String   @id @default(uuid())
+  roundId          String
+  storeId          String
+  fixedExpenses    Float
+  variableExpenses Float
+  submittedAt      DateTime @default(now())
+
+  round            Round             @relation(fields: [roundId], references: [id])
+  store            Store             @relation(fields: [storeId], references: [id])
+  roundConfigItems RoundConfigItem[]
+  financialResult  FinancialResult?
+
+  @@unique([roundId, storeId])
+}
+
+model RoundConfigItem {
+  id            String @id @default(uuid())
+  roundConfigId String
+  productId     String
+  salePrice     Float
+  salesVolume   Int
+
+  roundConfig RoundConfig @relation(fields: [roundConfigId], references: [id])
+  product     Product     @relation(fields: [productId], references: [id])
+
+  @@unique([roundConfigId, productId])
+}
+
+model FinancialResult {
+  id            String   @id @default(uuid())
+  roundId       String
+  storeId       String
+  roundConfigId String   @unique
+  grossRevenue  Float
+  costs         Float
+  expenses      Float
+  grossProfit   Float
+  netProfit     Float
+  netMargin     Float
+  calculatedAt  DateTime @default(now())
+
+  round       Round       @relation(fields: [roundId], references: [id])
+  store       Store       @relation(fields: [storeId], references: [id])
+  roundConfig RoundConfig @relation(fields: [roundConfigId], references: [id])
+}

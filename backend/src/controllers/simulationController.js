@@ -17,7 +17,7 @@ const configSchema = z.object({
   items: z
     .array(
       z.object({
-        productId: z.string().uuid('productId inválido'),
+        productId: z.string().min(1, 'productId é obrigatório'),
         salePrice: z.number().positive('Preço de venda deve ser positivo'),
         salesVolume: z.int('Volume deve ser um inteiro').positive('Volume deve ser positivo'),
       })

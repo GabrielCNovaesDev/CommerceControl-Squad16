@@ -65,9 +65,45 @@ npm run studio
 
 ## Testes
 
+A suíte usa **Jest** + **Supertest** + **jest-mock-extended**. Todos os testes mockam o Prisma — nenhum acesso real ao banco.
+
 ```bash
-npm test
+npm test               # roda todos os testes
+npm run test:watch     # modo watch
+npm run test:coverage  # gera relatório de cobertura em coverage/
 ```
+
+### Estrutura
+
+```
+src/__tests__/
+├── helpers/auth.js              — signToken() para gerar JWTs nos testes
+├── unit/
+│   ├── financeService.test.js   — motor de DRE (15 casos, cobertura 100%)
+│   ├── rankingService.test.js   — ordenação e shape do ranking (5 casos)
+│   └── middlewares.test.js      — auth e role (7 casos)
+└── integration/
+    ├── simulation.test.js       — POST /simulation/preview (4 casos)
+    └── rounds.test.js           — POST /rounds/:id/config + PATCH /rounds/:id/close (10 casos)
+```
+
+### Cobertura
+
+| Módulo | Cobertura | Observação |
+|---|---|---|
+| `services/financeService.js` | **100%** | Threshold mínimo configurado: 90% |
+| `services/rankingService.js` | 100% | |
+| `middlewares/authMiddleware.js` | 100% | |
+| `middlewares/roleMiddleware.js` | 100% | |
+| `controllers/simulationController.js` | ~66% | Cobre `previewConfig` e `submitConfig` |
+
+### O que cada suíte cobre
+
+- **financeService**: cálculo de DRE com volume dentro/fora do estoque, divisão por zero, prejuízo, múltiplos produtos, todos os branches de `gerarFeedback`.
+- **rankingService**: ordenação primária por `netMargin`, desempate por `netProfit`, array vazio, blindagem de campos internos.
+- **middlewares**: JWT válido/inválido/ausente, roles permitidas/negadas, OBSERVER bloqueado.
+- **simulation (integração)**: preview retorna DRE sem persistir, validação Zod, controle de role.
+- **rounds (integração)**: submissão de config, conflito de duplicata, validação, encerramento de rodada chamando `simulationService.processRound` e atualizando status.
 
 ## Endpoints
 

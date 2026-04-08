@@ -7,10 +7,13 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
+    "dev:local": "dotenv -e .env.local -- nodemon src/server.js",
+    "setup:local": "prisma generate --schema=prisma/schema.local.prisma && dotenv -e .env.local -- prisma db push --schema=prisma/schema.local.prisma && dotenv -e .env.local -- node prisma/seed.js",
     "migrate": "prisma migrate dev",
     "seed": "node prisma/seed.js",
     "test": "jest",
     "test:watch": "jest --watchAll",
+    "test:coverage": "jest --coverage",
     "studio": "prisma studio"
   },
   "keywords": [],
@@ -31,6 +34,7 @@
   "devDependencies": {
     "jest": "^30.3.0",
     "jest-mock-extended": "^4.0.0",
+    "dotenv-cli": "^7.4.4",
     "nodemon": "^3.1.14",
     "prisma": "^5.22.0",
     "supertest": "^7.2.2"

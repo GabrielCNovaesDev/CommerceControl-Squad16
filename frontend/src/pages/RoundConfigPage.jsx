@@ -35,6 +35,9 @@ function ProductRow({ index, product, availableQty, control, register, errors })
   const salePrice = useWatch({ control, name: `items.${index}.salePrice` });
   const salesVolume = useWatch({ control, name: `items.${index}.salesVolume` });
 
+  // Campo oculto para garantir que productId seja incluído no submit
+  register(`items.${index}.productId`);
+
   const priceWarning = salePrice && Number(salePrice) < product.purchasePrice;
   const volumeWarning = salesVolume && Number(salesVolume) > availableQty;
 
@@ -104,7 +107,7 @@ export default function RoundConfigPage() {
   const navigate = useNavigate();
   const toast = useToast();
   const [activeRound, setActiveRound] = useState(null);
-  const [store, setStore] = useState(null);
+
   const [inventoryMap, setInventoryMap] = useState({});
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -117,6 +120,7 @@ export default function RoundConfigPage() {
     handleSubmit,
     control,
     getValues,
+    trigger,
     reset,
     formState: { errors, isSubmitting },
   } = useForm({
@@ -135,7 +139,6 @@ export default function RoundConfigPage() {
 
       const open = rounds.find((r) => r.status === 'OPEN');
       setActiveRound(open ?? null);
-      setStore(s);
       setProducts(prods);
       reset({
         fixedExpenses: 0,
@@ -143,7 +146,7 @@ export default function RoundConfigPage() {
         items: prods.map((p) => ({
           productId: p.id,
           salePrice: p.salePrice,
-          salesVolume: '',
+          salesVolume: 1,
         })),
       });
 
@@ -162,6 +165,8 @@ export default function RoundConfigPage() {
   useEffect(() => { load(); }, []);
 
   async function handlePreview() {
+    const isValid = await trigger();
+    if (!isValid) return;
     const values = getValues();
     try {
       const result = await roundService.previewSimulation({
@@ -175,7 +180,7 @@ export default function RoundConfigPage() {
       });
       setPreview(result);
     } catch (err) {
-      toast.error(err.response?.data?.message ?? 'Erro ao simular');
+      toast.error(err.response?.data?.message ?? err.response?.data?.error ?? 'Erro ao simular');
     }
   }
 
@@ -194,7 +199,7 @@ export default function RoundConfigPage() {
       setSubmitSuccess(true);
       setTimeout(() => navigate('/store'), 1500);
     } catch (err) {
-      toast.error(err.response?.data?.message ?? 'Erro ao enviar configuração');
+      toast.error(err.response?.data?.message ?? err.response?.data?.error ?? 'Erro ao enviar configuração');
     }
   }
 

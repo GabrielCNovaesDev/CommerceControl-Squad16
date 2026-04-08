@@ -4,7 +4,10 @@
       "Bash(npm init:*)",
       "Bash(mkdir -p \"C:/Users/gabid/OneDrive/Desktop/PROGRAMAÇÃO/PROJETO RESIDÊNCIA/backend/src/__tests__/helpers\")",
       "Bash(mkdir -p \"C:/Users/gabid/OneDrive/Desktop/PROGRAMAÇÃO/PROJETO RESIDÊNCIA/backend/src/__tests__/fixtures\")",
-      "Bash(mkdir -p \"C:/Users/gabid/OneDrive/Desktop/PROGRAMAÇÃO/PROJETO RESIDÊNCIA/backend/src/__tests__/integration\")"
+      "Bash(mkdir -p \"C:/Users/gabid/OneDrive/Desktop/PROGRAMAÇÃO/PROJETO RESIDÊNCIA/backend/src/__tests__/integration\")",
+      "Bash(grep -E \"\\\\.\\(js|json\\)$\")",
+      "Bash(del \"C:\\\\Users\\\\gabid\\\\OneDrive\\\\Desktop\\\\PROGRAMAÇÃO\\\\PROJETO RESIDÊNCIA\\\\backend\\\\src\\\\services\\\\financeService.test.js\")",
+      "Bash(npm test:*)"
     ]
   }
 }
