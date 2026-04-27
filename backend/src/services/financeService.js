@@ -1,114 +1,146 @@
 /**
- * financeService.js — v2
- * Squad 16 | Simulador Estratégico de Loja
+ * financeService.js — v3
+ * Motor de cálculo financeiro do DRE conforme regras do cliente.
  *
- * Motor de cálculo financeiro do DRE.
+ * Estrutura do DRE:
+ *   Receita Bruta
+ *   (-) Impostos (por categoria: taxRate × receita)
+ *   (=) Receita Líquida
+ *   (-) Custo de Venda (purchasePrice × qtd vendida)
+ *   (=) Massa Margem Líquida (PDV)
+ *   (-) Quebras (estoque não vendido × purchasePrice × breakageRate)
+ *   (-) Aging  (estoque não vendido × purchasePrice × agingRate)
+ *   (=) Massa Margem Final
+ *   (-) Outros Gastos (outras despesas do time)
+ *   (=) EBITDA
+ *
+ * Preço de venda calculado pela margem comercial:
+ *   salePrice = (purchasePrice × (1 + margin)) / (1 - taxRate)
  */
 
-/**
- * Calcula o DRE completo de uma loja para uma rodada.
- *
- * @param {Object} roundConfig  - { fixedExpenses: Float, variableExpenses: Float }
- * @param {Array}  items        - Array de RoundConfigItem com produto incluído:
- *                                [{ productId, salePrice, salesVolume, product: { purchasePrice } }]
- * @param {Array}  inventory    - Array de Inventory da loja:
- *                                [{ productId, quantity }]
- * @returns {Object} DRE completo: { grossRevenue, costs, expenses, grossProfit, netProfit, netMargin, itemBreakdown }
- */
+function calcularPreco(purchasePrice, margin, taxRate) {
+  if (taxRate >= 1) return purchasePrice * (1 + margin);
+  return (purchasePrice * (1 + margin)) / (1 - taxRate);
+}
+
 function calcularDRE(roundConfig, items, inventory) {
   const inventoryMap = Object.fromEntries(
     inventory.map((inv) => [inv.productId, inv.quantity])
   );
 
   let grossRevenue = 0;
+  let taxes = 0;
   let costs = 0;
+  let totalBreakage = 0;
+  let totalAging = 0;
   const itemBreakdown = [];
 
   for (const item of items) {
     const availableStock = inventoryMap[item.productId] ?? 0;
     const effectiveVolume = Math.min(item.salesVolume, availableStock);
+    const unsold = availableStock - effectiveVolume;
 
-    const itemRevenue = item.salePrice * effectiveVolume;
+    const salePrice = calcularPreco(
+      item.product.purchasePrice,
+      item.margin,
+      item.product.taxRate
+    );
+
+    const itemRevenue = salePrice * effectiveVolume;
+    const itemTax = itemRevenue * item.product.taxRate;
     const itemCost = item.product.purchasePrice * effectiveVolume;
+    const itemBreakage = unsold * item.product.purchasePrice * item.product.breakageRate;
+    const itemAging = unsold * item.product.purchasePrice * item.product.agingRate;
 
     grossRevenue += itemRevenue;
+    taxes += itemTax;
     costs += itemCost;
+    totalBreakage += itemBreakage;
+    totalAging += itemAging;
 
     itemBreakdown.push({
       productId: item.productId,
       plannedVolume: item.salesVolume,
       effectiveVolume,
+      unsold,
       stockLimited: effectiveVolume < item.salesVolume,
+      salePrice,
+      margin: item.margin,
       itemRevenue,
+      itemTax,
       itemCost,
-      itemGrossProfit: itemRevenue - itemCost,
+      itemBreakage,
+      itemAging,
+      itemGrossMargin: itemRevenue - itemTax - itemCost,
     });
   }
 
-  const expenses = roundConfig.fixedExpenses + roundConfig.variableExpenses;
-  const grossProfit = grossRevenue - costs;
-  const netProfit = grossProfit - expenses;
-  const netMargin = grossRevenue !== 0 ? (netProfit / grossRevenue) * 100 : 0;
+  const netRevenue = grossRevenue - taxes;
+  const grossMargin = netRevenue - costs;
+  const netMarginMass = grossMargin - totalBreakage - totalAging;
+  const otherExpenses = roundConfig.otherExpenses ?? 0;
+  const ebitda = netMarginMass - otherExpenses;
+  const ebitdaMargin = netRevenue !== 0 ? (ebitda / netRevenue) * 100 : 0;
 
   return {
     grossRevenue,
+    taxes,
+    netRevenue,
     costs,
-    expenses,
-    grossProfit,
-    netProfit,
-    netMargin,
+    grossMargin,
+    totalBreakage,
+    totalAging,
+    netMarginMass,
+    otherExpenses,
+    ebitda,
+    ebitdaMargin,
     itemBreakdown,
   };
 }
 
-/**
- * Versão preview do cálculo — mesma lógica, sem persistência.
- * Usada pelo endpoint POST /simulation/preview.
- */
 function calcularDREPreview(roundConfig, items, inventory) {
-  const result = calcularDRE(roundConfig, items, inventory);
-  return { ...result, preview: true };
+  return { ...calcularDRE(roundConfig, items, inventory), preview: true };
 }
 
-/**
- * Gera feedback textual baseado no resultado do DRE.
- *
- * @param {Object} dre - Resultado de calcularDRE()
- * @returns {Array<string>} Lista de mensagens de feedback
- */
 function gerarFeedback(dre) {
   const feedbacks = [];
 
-  if (dre.netProfit < 0) {
-    feedbacks.push('Resultado negativo: sua loja teve prejuízo nesta rodada.');
+  if (dre.ebitda < 0) {
+    feedbacks.push('EBITDA negativo: sua loja teve prejuízo nesta rodada.');
   }
 
-  if (dre.costs > dre.grossRevenue) {
+  if (dre.costs > dre.netRevenue) {
     feedbacks.push(
-      'Seu custo de compra superou a receita de vendas. Verifique se o preço de venda está acima do custo.'
+      'Custo de venda superou a receita líquida. Revise a margem comercial — ela precisa cobrir impostos e gerar lucro.'
     );
   }
 
-  if (dre.expenses > dre.grossProfit) {
+  if (dre.grossMargin < 0) {
     feedbacks.push(
-      'Suas despesas consumiram todo o lucro bruto. Considere reduzir gastos fixos ou variáveis.'
+      'Margem bruta negativa: os impostos e custos consumiram toda a receita líquida.'
+    );
+  }
+
+  if (dre.totalBreakage + dre.totalAging > dre.grossMargin * 0.3) {
+    feedbacks.push(
+      'Quebras e aging representam mais de 30% da margem bruta. Revise o volume de estoque comprado.'
     );
   }
 
   const stockLimitedItems = dre.itemBreakdown.filter((i) => i.stockLimited);
   if (stockLimitedItems.length > 0) {
     feedbacks.push(
-      `${stockLimitedItems.length} produto(s) tiveram volume de vendas limitado pelo estoque disponível. Revise seu Inventory.`
+      `${stockLimitedItems.length} categoria(s) tiveram vendas limitadas pelo estoque. Considere comprar mais unidades.`
     );
   }
 
   if (dre.grossRevenue === 0) {
     feedbacks.push(
-      'Nenhuma receita gerada nesta rodada. Verifique se o estoque estava disponível e os volumes configurados.'
+      'Nenhuma receita gerada. Verifique se o estoque está disponível e os volumes configurados.'
     );
   }
 
   return feedbacks;
 }
 
-module.exports = { calcularDRE, calcularDREPreview, gerarFeedback };
+module.exports = { calcularDRE, calcularDREPreview, gerarFeedback, calcularPreco };

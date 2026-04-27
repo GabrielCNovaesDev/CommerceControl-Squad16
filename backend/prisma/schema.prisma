@@ -59,7 +59,10 @@ model Product {
   id            String   @id @default(uuid())
   name          String
   purchasePrice Float
-  salePrice     Float
+  taxRate       Float    @default(0)
+  breakageRate  Float    @default(0)
+  agingRate     Float    @default(0)
+  mixAvailable  Int      @default(0)
   createdAt     DateTime @default(now())
 
   inventories      Inventory[]
@@ -67,11 +70,10 @@ model Product {
 }
 
 model Inventory {
-  id            String  @id @default(uuid())
-  storeId       String
-  productId     String
-  quantity      Int
-  agingCategory String?
+  id        String @id @default(uuid())
+  storeId   String
+  productId String
+  quantity  Int
 
   store   Store   @relation(fields: [storeId], references: [id])
   product Product @relation(fields: [productId], references: [id])
@@ -94,8 +96,7 @@ model RoundConfig {
   id               String   @id @default(uuid())
   roundId          String
   storeId          String
-  fixedExpenses    Float
-  variableExpenses Float
+  otherExpenses    Float    @default(0)
   submittedAt      DateTime @default(now())
 
   round            Round             @relation(fields: [roundId], references: [id])
@@ -110,7 +111,7 @@ model RoundConfigItem {
   id            String @id @default(uuid())
   roundConfigId String
   productId     String
-  salePrice     Float
+  margin        Float
   salesVolume   Int
 
   roundConfig RoundConfig @relation(fields: [roundConfigId], references: [id])
@@ -120,17 +121,22 @@ model RoundConfigItem {
 }
 
 model FinancialResult {
-  id            String   @id @default(uuid())
-  roundId       String
-  storeId       String
-  roundConfigId String   @unique
-  grossRevenue  Float
-  costs         Float
-  expenses      Float
-  grossProfit   Float
-  netProfit     Float
-  netMargin     Float
-  calculatedAt  DateTime @default(now())
+  id             String   @id @default(uuid())
+  roundId        String
+  storeId        String
+  roundConfigId  String   @unique
+  grossRevenue   Float
+  taxes          Float
+  netRevenue     Float
+  costs          Float
+  grossMargin    Float
+  totalBreakage  Float
+  totalAging     Float
+  netMarginMass  Float
+  otherExpenses  Float
+  ebitda         Float
+  ebitdaMargin   Float
+  calculatedAt   DateTime @default(now())
 
   round       Round       @relation(fields: [roundId], references: [id])
   store       Store       @relation(fields: [storeId], references: [id])

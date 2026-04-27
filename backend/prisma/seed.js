@@ -6,35 +6,62 @@ const prisma = new PrismaClient();
 async function main() {
   console.log('Iniciando seed...');
 
-  // 1. Produtos base
+  // 1. Categorias de produtos conforme regra do cliente
   const produtos = await Promise.all([
     prisma.product.upsert({
-      where: { id: 'prod-arroz' },
+      where: { id: 'cat-pereciveis' },
       update: {},
-      create: { id: 'prod-arroz', name: 'Arroz 5kg', purchasePrice: 12.00, salePrice: 18.00 },
+      create: {
+        id: 'cat-pereciveis',
+        name: 'Perecíveis',
+        purchasePrice: 20.00,
+        taxRate: 0.12,
+        breakageRate: 0.02,
+        agingRate: 0.0583,
+        mixAvailable: 4000,
+      },
     }),
     prisma.product.upsert({
-      where: { id: 'prod-feijao' },
+      where: { id: 'cat-mercearia' },
       update: {},
-      create: { id: 'prod-feijao', name: 'Feijão 1kg', purchasePrice: 4.50, salePrice: 7.50 },
+      create: {
+        id: 'cat-mercearia',
+        name: 'Mercearia',
+        purchasePrice: 30.00,
+        taxRate: 0.07,
+        breakageRate: 0.015,
+        agingRate: 0.0083,
+        mixAvailable: 6000,
+      },
     }),
     prisma.product.upsert({
-      where: { id: 'prod-macarrao' },
+      where: { id: 'cat-eletro' },
       update: {},
-      create: { id: 'prod-macarrao', name: 'Macarrão 500g', purchasePrice: 2.80, salePrice: 4.90 },
+      create: {
+        id: 'cat-eletro',
+        name: 'Eletro',
+        purchasePrice: 500.00,
+        taxRate: 0.25,
+        breakageRate: 0,
+        agingRate: 0.0133,
+        mixAvailable: 700,
+      },
     }),
     prisma.product.upsert({
-      where: { id: 'prod-leite' },
+      where: { id: 'cat-hipel' },
       update: {},
-      create: { id: 'prod-leite', name: 'Leite 1L', purchasePrice: 3.20, salePrice: 5.50 },
-    }),
-    prisma.product.upsert({
-      where: { id: 'prod-oleo' },
-      update: {},
-      create: { id: 'prod-oleo', name: 'Óleo 900ml', purchasePrice: 5.00, salePrice: 8.00 },
+      create: {
+        id: 'cat-hipel',
+        name: 'Hipel',
+        purchasePrice: 45.00,
+        taxRate: 0.17,
+        breakageRate: 0.01,
+        agingRate: 0.0108,
+        mixAvailable: 5000,
+      },
     }),
   ]);
-  console.log(`✓ ${produtos.length} produtos criados`);
+  console.log(`✓ ${produtos.length} categorias de produto criadas`);
 
   // 2. Usuário GAME_MASTER
   const senhaAdmin = await bcrypt.hash('admin123', 10);
@@ -97,7 +124,7 @@ async function main() {
   ]);
   console.log(`✓ Players criados: ${jogadorAlpha.email}, ${jogadorBeta.email}`);
 
-  // 5. Lojas
+  // 5. Lojas — capital inicial R$ 700.000 conforme regra do cliente
   const [lojaAlpha, lojaBeta] = await Promise.all([
     prisma.store.upsert({
       where: { id: 'store-alpha' },
@@ -105,7 +132,7 @@ async function main() {
       create: {
         id: 'store-alpha',
         name: 'Loja Alpha',
-        initialCapital: 10000.00,
+        initialCapital: 700000.00,
         squadId: squadAlpha.id,
       },
     }),
@@ -115,34 +142,28 @@ async function main() {
       create: {
         id: 'store-beta',
         name: 'Loja Beta',
-        initialCapital: 10000.00,
+        initialCapital: 700000.00,
         squadId: squadBeta.id,
       },
     }),
   ]);
   console.log(`✓ Lojas criadas: ${lojaAlpha.name}, ${lojaBeta.name}`);
 
-  // 6. Estoque inicial (100 unidades de cada produto por loja)
+  // 6. Estoque inicial zerado — times compram estoque na 1ª Configuração
   const estoqueEntries = [];
   for (const loja of [lojaAlpha, lojaBeta]) {
     for (const produto of produtos) {
       estoqueEntries.push(
         prisma.inventory.upsert({
-          where: {
-            storeId_productId: { storeId: loja.id, productId: produto.id },
-          },
+          where: { storeId_productId: { storeId: loja.id, productId: produto.id } },
           update: {},
-          create: {
-            storeId: loja.id,
-            productId: produto.id,
-            quantity: 100,
-          },
+          create: { storeId: loja.id, productId: produto.id, quantity: 0 },
         })
       );
     }
   }
-  const estoques = await Promise.all(estoqueEntries);
-  console.log(`✓ ${estoques.length} registros de estoque criados (${estoques.length / 2} por loja)`);
+  await Promise.all(estoqueEntries);
+  console.log('✓ Registros de estoque inicializados com 0 unidades (times compram na 1ª Configuração)');
 
   console.log('\nSeed concluído com sucesso!');
 }

@@ -17,9 +17,22 @@ const productSchema = z.object({
   purchasePrice: z.coerce
     .number({ invalid_type_error: 'Valor inválido' })
     .positive('Deve ser positivo'),
-  salePrice: z.coerce
+  taxRate: z.coerce
     .number({ invalid_type_error: 'Valor inválido' })
-    .positive('Deve ser positivo'),
+    .min(0, 'Não pode ser negativo')
+    .max(1, 'Máximo 1 (100%)'),
+  breakageRate: z.coerce
+    .number({ invalid_type_error: 'Valor inválido' })
+    .min(0, 'Não pode ser negativo')
+    .max(1, 'Máximo 1 (100%)'),
+  agingRate: z.coerce
+    .number({ invalid_type_error: 'Valor inválido' })
+    .min(0, 'Não pode ser negativo')
+    .max(1, 'Máximo 1 (100%)'),
+  mixAvailable: z.coerce
+    .number({ invalid_type_error: 'Valor inválido' })
+    .int('Deve ser inteiro')
+    .min(0, 'Não pode ser negativo'),
 });
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -28,6 +41,10 @@ function fieldClass(hasError) {
   return `w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500 transition ${
     hasError ? 'border-red-400 bg-red-50' : 'border-gray-300'
   }`;
+}
+
+function formatRate(v) {
+  return `${(v * 100).toFixed(2)}%`;
 }
 
 // ─── Modal — Criar / Editar Produto ──────────────────────────────────────────
@@ -43,13 +60,18 @@ function ProductModal({ product, onSuccess, onCancel }) {
   } = useForm({
     resolver: zodResolver(productSchema),
     defaultValues: product
-      ? { name: product.name, purchasePrice: product.purchasePrice, salePrice: product.salePrice }
-      : {},
+      ? {
+          name: product.name,
+          purchasePrice: product.purchasePrice,
+          taxRate: product.taxRate,
+          breakageRate: product.breakageRate,
+          agingRate: product.agingRate,
+          mixAvailable: product.mixAvailable,
+        }
+      : { taxRate: 0, breakageRate: 0, agingRate: 0, mixAvailable: 0 },
   });
 
   const [serverError, setServerError] = useState('');
-
-  // Show warning when purchasePrice is dirty during edit
   const purchasePriceDirty = isEdit && dirtyFields.purchasePrice;
 
   async function onSubmit(data) {
@@ -66,9 +88,9 @@ function ProductModal({ product, onSuccess, onCancel }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="bg-white rounded-xl shadow-xl border border-gray-200 w-full max-w-md mx-4 p-6 flex flex-col gap-5">
+      <div className="bg-white rounded-xl shadow-xl border border-gray-200 w-full max-w-lg mx-4 p-6 flex flex-col gap-5">
         <h2 className="text-base font-semibold text-gray-900">
-          {isEdit ? 'Editar Produto' : 'Novo Produto'}
+          {isEdit ? 'Editar Categoria' : 'Nova Categoria'}
         </h2>
 
         <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
@@ -98,18 +120,57 @@ function ProductModal({ product, onSuccess, onCancel }) {
             )}
           </div>
 
+          <div className="grid grid-cols-3 gap-3">
+            <div className="flex flex-col gap-1">
+              <label className="text-sm font-medium text-gray-700">Imposto (0–1)</label>
+              <input
+                type="number"
+                step="0.001"
+                min="0"
+                max="1"
+                className={fieldClass(errors.taxRate)}
+                {...register('taxRate')}
+              />
+              {errors.taxRate && <p className="text-xs text-red-600">{errors.taxRate.message}</p>}
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <label className="text-sm font-medium text-gray-700">Quebra (0–1)</label>
+              <input
+                type="number"
+                step="0.001"
+                min="0"
+                max="1"
+                className={fieldClass(errors.breakageRate)}
+                {...register('breakageRate')}
+              />
+              {errors.breakageRate && <p className="text-xs text-red-600">{errors.breakageRate.message}</p>}
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <label className="text-sm font-medium text-gray-700">Aging (0–1)</label>
+              <input
+                type="number"
+                step="0.001"
+                min="0"
+                max="1"
+                className={fieldClass(errors.agingRate)}
+                {...register('agingRate')}
+              />
+              {errors.agingRate && <p className="text-xs text-red-600">{errors.agingRate.message}</p>}
+            </div>
+          </div>
+
           <div className="flex flex-col gap-1">
-            <label className="text-sm font-medium text-gray-700">Preço de venda padrão (R$)</label>
+            <label className="text-sm font-medium text-gray-700">Mix disponível (un.)</label>
             <input
               type="number"
-              step="0.01"
-              min="0.01"
-              className={fieldClass(errors.salePrice)}
-              {...register('salePrice')}
+              min="0"
+              step="1"
+              className={fieldClass(errors.mixAvailable)}
+              {...register('mixAvailable')}
             />
-            {errors.salePrice && (
-              <p className="text-xs text-red-600">{errors.salePrice.message}</p>
-            )}
+            {errors.mixAvailable && <p className="text-xs text-red-600">{errors.mixAvailable.message}</p>}
           </div>
 
           {serverError && (
@@ -123,7 +184,7 @@ function ProductModal({ product, onSuccess, onCancel }) {
               Cancelar
             </Button>
             <Button type="submit" loading={isSubmitting}>
-              {isEdit ? 'Salvar alterações' : 'Criar Produto'}
+              {isEdit ? 'Salvar alterações' : 'Criar Categoria'}
             </Button>
           </div>
         </form>
@@ -141,7 +202,7 @@ function DeleteModal({ product, onConfirm, onCancel, loading, error }) {
         <div>
           <h2 className="text-base font-semibold text-gray-900">Deletar "{product.name}"?</h2>
           <p className="text-sm text-gray-500 mt-1.5">
-            Esta ação removerá o produto permanentemente e não pode ser desfeita.
+            Esta ação removerá a categoria permanentemente e não pode ser desfeita.
           </p>
         </div>
 
@@ -198,13 +259,13 @@ export default function ProductsManagementPage() {
   function handleCreated(product) {
     setProducts((prev) => [product, ...prev]);
     setCreateOpen(false);
-    toast.success(`Produto "${product.name}" criado com sucesso!`);
+    toast.success(`Categoria "${product.name}" criada com sucesso!`);
   }
 
   function handleUpdated(updated) {
     setProducts((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
     setEditProduct(null);
-    toast.success('Produto atualizado com sucesso!');
+    toast.success('Categoria atualizada com sucesso!');
   }
 
   async function handleDeleteConfirm() {
@@ -215,13 +276,13 @@ export default function ProductsManagementPage() {
       await productService.deleteProduct(deleteProduct.id);
       setProducts((prev) => prev.filter((p) => p.id !== deleteProduct.id));
       setDeleteProduct(null);
-      toast.success('Produto removido.');
+      toast.success('Categoria removida.');
     } catch (err) {
       const status = err.response?.status;
       setDeleteError(
         status === 409
-          ? 'Este produto está em uso e não pode ser removido.'
-          : (err.response?.data?.message ?? 'Erro ao deletar produto')
+          ? 'Esta categoria está em uso e não pode ser removida.'
+          : (err.response?.data?.message ?? 'Erro ao deletar categoria')
       );
     } finally {
       setDeletingProduct(false);
@@ -230,20 +291,20 @@ export default function ProductsManagementPage() {
 
   return (
     <AdminLayout>
-      <div className="max-w-4xl flex flex-col gap-6">
+      <div className="max-w-5xl flex flex-col gap-6">
         {/* Cabeçalho */}
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h1 className="text-xl font-bold text-gray-900">Produtos</h1>
-            <p className="text-sm text-gray-500 mt-0.5">Catálogo de produtos disponíveis na simulação.</p>
+            <h1 className="text-xl font-bold text-gray-900">Categorias de Produto</h1>
+            <p className="text-sm text-gray-500 mt-0.5">Categorias disponíveis na simulação com suas taxas e preços.</p>
           </div>
-          <Button onClick={() => setCreateOpen(true)}>+ Novo Produto</Button>
+          <Button onClick={() => setCreateOpen(true)}>+ Nova Categoria</Button>
         </div>
 
         {/* Busca */}
         <input
           type="text"
-          placeholder="Buscar produto por nome..."
+          placeholder="Buscar categoria por nome..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="w-full max-w-sm rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500 transition"
@@ -258,11 +319,11 @@ export default function ProductsManagementPage() {
           <div className="rounded-xl border border-gray-200 bg-white shadow-sm px-6 py-12 flex flex-col items-center gap-2">
             {products.length === 0 ? (
               <>
-                <p className="text-gray-500 font-medium">Nenhum produto cadastrado.</p>
-                <p className="text-sm text-gray-400">Crie o primeiro produto para começar.</p>
+                <p className="text-gray-500 font-medium">Nenhuma categoria cadastrada.</p>
+                <p className="text-sm text-gray-400">Crie a primeira categoria para começar.</p>
               </>
             ) : (
-              <p className="text-gray-400">Nenhum produto encontrado para "{search}".</p>
+              <p className="text-gray-400">Nenhuma categoria encontrada para "{search}".</p>
             )}
           </div>
         ) : (
@@ -272,7 +333,10 @@ export default function ProductsManagementPage() {
                 <tr className="bg-gray-50 text-left text-xs text-gray-500 border-b border-gray-200">
                   <th className="px-4 py-3 font-semibold">Nome</th>
                   <th className="px-4 py-3 font-semibold text-right">Preço de Compra</th>
-                  <th className="px-4 py-3 font-semibold text-right">Preço de Venda Padrão</th>
+                  <th className="px-4 py-3 font-semibold text-right">Imposto</th>
+                  <th className="px-4 py-3 font-semibold text-right">Quebra</th>
+                  <th className="px-4 py-3 font-semibold text-right">Aging</th>
+                  <th className="px-4 py-3 font-semibold text-right">Mix Disp.</th>
                   <th className="px-4 py-3 font-semibold text-right">Ações</th>
                 </tr>
               </thead>
@@ -286,9 +350,10 @@ export default function ProductsManagementPage() {
                     <td className="px-4 py-3 text-right text-gray-600">
                       {formatCurrency(product.purchasePrice)}
                     </td>
-                    <td className="px-4 py-3 text-right text-gray-600">
-                      {formatCurrency(product.salePrice)}
-                    </td>
+                    <td className="px-4 py-3 text-right text-gray-600">{formatRate(product.taxRate)}</td>
+                    <td className="px-4 py-3 text-right text-gray-600">{formatRate(product.breakageRate)}</td>
+                    <td className="px-4 py-3 text-right text-gray-600">{formatRate(product.agingRate)}</td>
+                    <td className="px-4 py-3 text-right text-gray-600">{product.mixAvailable.toLocaleString('pt-BR')}</td>
                     <td className="px-4 py-3 text-right">
                       <div className="flex items-center justify-end gap-3">
                         <button
@@ -316,8 +381,8 @@ export default function ProductsManagementPage() {
         {!loading && products.length > 0 && (
           <p className="text-xs text-gray-400">
             {filtered.length === products.length
-              ? `${products.length} produto(s)`
-              : `${filtered.length} de ${products.length} produto(s)`}
+              ? `${products.length} categoria(s)`
+              : `${filtered.length} de ${products.length} categoria(s)`}
           </p>
         )}
       </div>

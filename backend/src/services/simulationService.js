@@ -15,22 +15,24 @@ async function processRound(roundId) {
   for (const config of configs) {
     try {
       await prisma.$transaction(async (tx) => {
-        // a. Buscar inventory da loja
         const inventoryList = await tx.inventory.findMany({
           where: { storeId: config.storeId },
         });
 
-        // b. Montar objetos no formato esperado pelo financeService
         const roundConfig = {
-          fixedExpenses: config.fixedExpenses,
-          variableExpenses: config.variableExpenses,
+          otherExpenses: config.otherExpenses,
         };
 
         const items = config.roundConfigItems.map((item) => ({
           productId: item.productId,
-          salePrice: item.salePrice,
+          margin: item.margin,
           salesVolume: item.salesVolume,
-          product: { purchasePrice: item.product.purchasePrice },
+          product: {
+            purchasePrice: item.product.purchasePrice,
+            taxRate: item.product.taxRate,
+            breakageRate: item.product.breakageRate,
+            agingRate: item.product.agingRate,
+          },
         }));
 
         const inventory = inventoryList.map((inv) => ({
@@ -38,25 +40,27 @@ async function processRound(roundId) {
           quantity: inv.quantity,
         }));
 
-        // b. Calcular DRE
         const dre = calcularDRE(roundConfig, items, inventory);
 
-        // c. Persistir FinancialResult
         await tx.financialResult.create({
           data: {
             roundId,
             storeId: config.storeId,
             roundConfigId: config.id,
             grossRevenue: dre.grossRevenue,
+            taxes: dre.taxes,
+            netRevenue: dre.netRevenue,
             costs: dre.costs,
-            expenses: dre.expenses,
-            grossProfit: dre.grossProfit,
-            netProfit: dre.netProfit,
-            netMargin: dre.netMargin,
+            grossMargin: dre.grossMargin,
+            totalBreakage: dre.totalBreakage,
+            totalAging: dre.totalAging,
+            netMarginMass: dre.netMarginMass,
+            otherExpenses: dre.otherExpenses,
+            ebitda: dre.ebitda,
+            ebitdaMargin: dre.ebitdaMargin,
           },
         });
 
-        // 3. Atualizar inventory — descontar effectiveVolume de cada item
         for (const breakdown of dre.itemBreakdown) {
           if (breakdown.effectiveVolume === 0) continue;
 
@@ -79,7 +83,6 @@ async function processRound(roundId) {
       console.log(`[simulationService] Loja ${config.storeId} processada com sucesso.`);
     } catch (err) {
       console.error(`[simulationService] Erro ao processar loja ${config.storeId}:`, err.message);
-      // Rollback automático pela transação; continua para a próxima loja
     }
   }
 }

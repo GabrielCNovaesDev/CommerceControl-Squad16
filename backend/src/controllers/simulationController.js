@@ -12,14 +12,13 @@ const asyncHandler = require('../utils/asyncHandler');
 const prisma = new PrismaClient();
 
 const configSchema = z.object({
-  fixedExpenses: z.number().min(0, 'Despesas fixas não podem ser negativas'),
-  variableExpenses: z.number().min(0, 'Despesas variáveis não podem ser negativas'),
+  otherExpenses: z.number().min(0, 'Outros gastos não podem ser negativos'),
   items: z
     .array(
       z.object({
         productId: z.string().min(1, 'productId é obrigatório'),
-        salePrice: z.number().positive('Preço de venda deve ser positivo'),
-        salesVolume: z.int('Volume deve ser um inteiro').positive('Volume deve ser positivo'),
+        margin: z.number().min(0, 'Margem não pode ser negativa'),
+        salesVolume: z.number().int('Volume deve ser um inteiro').positive('Volume deve ser positivo'),
       })
     )
     .min(1, 'Informe ao menos um produto'),
@@ -59,7 +58,7 @@ async function submitConfig(req, res) {
     return res.status(400).json({ errors: parsed.error.flatten().fieldErrors });
   }
 
-  const { fixedExpenses, variableExpenses, items } = parsed.data;
+  const { otherExpenses, items } = parsed.data;
 
   const productIds = items.map((i) => i.productId);
   const uniqueIds = [...new Set(productIds)];
@@ -76,20 +75,13 @@ async function submitConfig(req, res) {
     });
   }
 
-  const roundConfig = await roundConfigRepository.create(
-    roundId,
-    store.id,
-    fixedExpenses,
-    variableExpenses,
-    items
-  );
+  const roundConfig = await roundConfigRepository.create(roundId, store.id, otherExpenses, items);
 
   return res.status(201).json({
     roundConfigId: roundConfig.id,
     storeId: store.id,
     roundId,
-    fixedExpenses: roundConfig.fixedExpenses,
-    variableExpenses: roundConfig.variableExpenses,
+    otherExpenses: roundConfig.otherExpenses,
     submittedAt: roundConfig.submittedAt,
     items: roundConfig.roundConfigItems,
   });
@@ -112,7 +104,7 @@ async function previewConfig(req, res) {
     return res.status(400).json({ errors: parsed.error.flatten().fieldErrors });
   }
 
-  const { fixedExpenses, variableExpenses, items } = parsed.data;
+  const { otherExpenses, items } = parsed.data;
 
   const productIds = [...new Set(items.map((i) => i.productId))];
   const foundProducts = await Promise.all(productIds.map((id) => productRepository.findById(id)));
@@ -121,19 +113,22 @@ async function previewConfig(req, res) {
     return res.status(400).json({ message: 'Produtos não encontrados', missingProductIds: missingProducts });
   }
 
-  const purchasePriceMap = Object.fromEntries(
-    foundProducts.map((p) => [p.id, p.purchasePrice])
-  );
+  const productMap = Object.fromEntries(foundProducts.map((p) => [p.id, p]));
 
   const inventoryList = await inventoryRepository.findByStoreId(store.id);
 
-  const roundConfig = { fixedExpenses, variableExpenses };
+  const roundConfig = { otherExpenses };
 
   const itemsForEngine = items.map((item) => ({
     productId: item.productId,
-    salePrice: item.salePrice,
+    margin: item.margin,
     salesVolume: item.salesVolume,
-    product: { purchasePrice: purchasePriceMap[item.productId] },
+    product: {
+      purchasePrice: productMap[item.productId].purchasePrice,
+      taxRate: productMap[item.productId].taxRate,
+      breakageRate: productMap[item.productId].breakageRate,
+      agingRate: productMap[item.productId].agingRate,
+    },
   }));
 
   const inventory = inventoryList.map((inv) => ({
@@ -188,7 +183,6 @@ async function getResults(req, res) {
     return res.status(200).json(results);
   }
 
-  // PLAYER — somente resultado da própria loja
   if (!squadId) {
     return res.status(400).json({ message: 'Usuário não pertence a um squad' });
   }

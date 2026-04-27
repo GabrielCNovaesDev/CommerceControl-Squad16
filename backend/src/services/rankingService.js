@@ -15,8 +15,8 @@ async function getRanking(roundId) {
   });
 
   const sorted = results.sort((a, b) => {
-    if (b.netMargin !== a.netMargin) return b.netMargin - a.netMargin;
-    return b.netProfit - a.netProfit;
+    if (b.ebitdaMargin !== a.ebitdaMargin) return b.ebitdaMargin - a.ebitdaMargin;
+    return b.ebitda - a.ebitda;
   });
 
   return sorted.map((result, index) => ({
@@ -24,9 +24,10 @@ async function getRanking(roundId) {
     squadId: result.store.squad.id,
     squadName: result.store.squad.name,
     storeName: result.store.name,
-    netMargin: result.netMargin,
-    netProfit: result.netProfit,
+    ebitdaMargin: result.ebitdaMargin,
+    ebitda: result.ebitda,
     grossRevenue: result.grossRevenue,
+    netRevenue: result.netRevenue,
   }));
 }
 

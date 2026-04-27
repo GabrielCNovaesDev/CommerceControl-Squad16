@@ -15,14 +15,13 @@ import { useToast } from '../hooks/useToast';
 import { formatCurrency } from '../utils/formatters';
 
 const schema = z.object({
-  fixedExpenses: z.coerce.number({ invalid_type_error: 'Valor inválido' }).min(0, 'Não pode ser negativo'),
-  variableExpenses: z.coerce.number({ invalid_type_error: 'Valor inválido' }).min(0, 'Não pode ser negativo'),
+  otherExpenses: z.coerce.number({ invalid_type_error: 'Valor inválido' }).min(0, 'Não pode ser negativo'),
   items: z.array(
     z.object({
       productId: z.string(),
-      salePrice: z.coerce
+      margin: z.coerce
         .number({ invalid_type_error: 'Valor inválido' })
-        .positive('Deve ser positivo'),
+        .min(0, 'Não pode ser negativo'),
       salesVolume: z.coerce
         .number({ invalid_type_error: 'Valor inválido' })
         .int('Deve ser inteiro')
@@ -31,14 +30,19 @@ const schema = z.object({
   ).min(1),
 });
 
+function calcSalePrice(purchasePrice, margin, taxRate) {
+  if (taxRate >= 1) return purchasePrice * (1 + margin);
+  return (purchasePrice * (1 + margin)) / (1 - taxRate);
+}
+
 function ProductRow({ index, product, availableQty, control, register, errors }) {
-  const salePrice = useWatch({ control, name: `items.${index}.salePrice` });
+  const margin = useWatch({ control, name: `items.${index}.margin` });
   const salesVolume = useWatch({ control, name: `items.${index}.salesVolume` });
 
-  // Campo oculto para garantir que productId seja incluído no submit
   register(`items.${index}.productId`);
 
-  const priceWarning = salePrice && Number(salePrice) < product.purchasePrice;
+  const marginNum = Number(margin) || 0;
+  const salePrice = calcSalePrice(product.purchasePrice, marginNum, product.taxRate);
   const volumeWarning = salesVolume && Number(salesVolume) > availableQty;
 
   return (
@@ -47,7 +51,7 @@ function ProductRow({ index, product, availableQty, control, register, errors })
       <div>
         <p className="text-sm font-medium text-gray-900">{product.name}</p>
         <p className="text-xs text-gray-400 mt-0.5">
-          Custo: {formatCurrency(product.purchasePrice)}
+          Custo: {formatCurrency(product.purchasePrice)} · Imposto: {(product.taxRate * 100).toFixed(0)}%
         </p>
       </div>
 
@@ -57,26 +61,23 @@ function ProductRow({ index, product, availableQty, control, register, errors })
         <p className="text-sm font-medium text-gray-700">{availableQty}</p>
       </div>
 
-      {/* Preço de venda */}
+      {/* Margem */}
       <div className="w-32">
-        <label className="text-xs text-gray-500 mb-1 block">Preço venda (R$)</label>
+        <label className="text-xs text-gray-500 mb-1 block">Margem (%)</label>
         <input
           type="number"
-          step="0.01"
+          step="0.1"
           min="0"
           className={`w-full rounded-lg border px-2.5 py-1.5 text-sm outline-none focus:ring-2 focus:ring-blue-500 transition
-            ${priceWarning ? 'border-orange-400 bg-orange-50' : 'border-gray-300'}
-            ${errors?.items?.[index]?.salePrice ? 'border-red-400 bg-red-50' : ''}`}
-          {...register(`items.${index}.salePrice`)}
+            ${errors?.items?.[index]?.margin ? 'border-red-400 bg-red-50' : 'border-gray-300'}`}
+          {...register(`items.${index}.margin`)}
         />
-        {priceWarning && (
-          <p className="text-xs text-orange-600 mt-0.5">Abaixo do custo</p>
+        {errors?.items?.[index]?.margin && (
+          <p className="text-xs text-red-600 mt-0.5">{errors.items[index].margin.message}</p>
         )}
-        {errors?.items?.[index]?.salePrice && (
-          <p className="text-xs text-red-600 mt-0.5">
-            {errors.items[index].salePrice.message}
-          </p>
-        )}
+        <p className="text-xs text-gray-400 mt-0.5">
+          Preço: {formatCurrency(salePrice)}
+        </p>
       </div>
 
       {/* Volume */}
@@ -94,9 +95,7 @@ function ProductRow({ index, product, availableQty, control, register, errors })
           <p className="text-xs text-orange-600 mt-0.5">Acima do estoque</p>
         )}
         {errors?.items?.[index]?.salesVolume && (
-          <p className="text-xs text-red-600 mt-0.5">
-            {errors.items[index].salesVolume.message}
-          </p>
+          <p className="text-xs text-red-600 mt-0.5">{errors.items[index].salesVolume.message}</p>
         )}
       </div>
     </div>
@@ -125,7 +124,7 @@ export default function RoundConfigPage() {
     formState: { errors, isSubmitting },
   } = useForm({
     resolver: zodResolver(schema),
-    defaultValues: { fixedExpenses: 0, variableExpenses: 0, items: [] },
+    defaultValues: { otherExpenses: 0, items: [] },
   });
 
   async function load() {
@@ -141,11 +140,10 @@ export default function RoundConfigPage() {
       setActiveRound(open ?? null);
       setProducts(prods);
       reset({
-        fixedExpenses: 0,
-        variableExpenses: 0,
+        otherExpenses: 0,
         items: prods.map((p) => ({
           productId: p.id,
-          salePrice: p.salePrice,
+          margin: 0.12,
           salesVolume: 1,
         })),
       });
@@ -170,11 +168,10 @@ export default function RoundConfigPage() {
     const values = getValues();
     try {
       const result = await roundService.previewSimulation({
-        fixedExpenses: Number(values.fixedExpenses),
-        variableExpenses: Number(values.variableExpenses),
+        otherExpenses: Number(values.otherExpenses),
         items: values.items.map((item) => ({
           productId: item.productId,
-          salePrice: Number(item.salePrice),
+          margin: Number(item.margin),
           salesVolume: Number(item.salesVolume),
         })),
       });
@@ -187,11 +184,10 @@ export default function RoundConfigPage() {
   async function onSubmit(data) {
     try {
       await roundService.submitConfig(activeRound.id, {
-        fixedExpenses: Number(data.fixedExpenses),
-        variableExpenses: Number(data.variableExpenses),
+        otherExpenses: Number(data.otherExpenses),
         items: data.items.map((item) => ({
           productId: item.productId,
-          salePrice: Number(item.salePrice),
+          margin: Number(item.margin),
           salesVolume: Number(item.salesVolume),
         })),
       });
@@ -250,44 +246,32 @@ export default function RoundConfigPage() {
       <div className="max-w-3xl flex flex-col gap-6">
         <div>
           <h1 className="text-xl font-bold text-gray-900">Configurar Rodada #{activeRound.number}</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Defina sua estratégia para esta rodada.</p>
+          <p className="text-sm text-gray-500 mt-0.5">Defina margem e volume de vendas por categoria.</p>
         </div>
 
         <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-6">
-          {/* Despesas */}
+          {/* Outros gastos */}
           <div className="rounded-xl bg-white border border-gray-200 shadow-sm">
             <div className="px-5 py-4 border-b border-gray-100">
-              <h2 className="text-sm font-semibold text-gray-700">Despesas da Loja</h2>
+              <h2 className="text-sm font-semibold text-gray-700">Outros Gastos da Loja</h2>
             </div>
-            <div className="px-5 py-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="flex flex-col gap-1">
-                <label className="text-sm font-medium text-gray-700">Despesas Fixas R$</label>
+            <div className="px-5 py-4">
+              <div className="flex flex-col gap-1 max-w-xs">
+                <label className="text-sm font-medium text-gray-700">Outros Gastos (R$)</label>
                 <input
                   type="number"
                   step="0.01"
                   min="0"
                   className={`rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 transition
-                    ${errors.fixedExpenses ? 'border-red-400 bg-red-50' : 'border-gray-300'}`}
-                  {...register('fixedExpenses')}
+                    ${errors.otherExpenses ? 'border-red-400 bg-red-50' : 'border-gray-300'}`}
+                  {...register('otherExpenses')}
                 />
-                {errors.fixedExpenses && (
-                  <span className="text-xs text-red-600">{errors.fixedExpenses.message}</span>
+                {errors.otherExpenses && (
+                  <span className="text-xs text-red-600">{errors.otherExpenses.message}</span>
                 )}
-              </div>
-
-              <div className="flex flex-col gap-1">
-                <label className="text-sm font-medium text-gray-700">Despesas Variáveis R$</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  className={`rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 transition
-                    ${errors.variableExpenses ? 'border-red-400 bg-red-50' : 'border-gray-300'}`}
-                  {...register('variableExpenses')}
-                />
-                {errors.variableExpenses && (
-                  <span className="text-xs text-red-600">{errors.variableExpenses.message}</span>
-                )}
+                <p className="text-xs text-gray-400 mt-0.5">
+                  Folha, manutenção, licenças, juros e demais despesas operacionais.
+                </p>
               </div>
             </div>
           </div>
@@ -295,7 +279,10 @@ export default function RoundConfigPage() {
           {/* Produtos */}
           <div className="rounded-xl bg-white border border-gray-200 shadow-sm">
             <div className="px-5 py-4 border-b border-gray-100">
-              <h2 className="text-sm font-semibold text-gray-700">Configuração por Produto</h2>
+              <h2 className="text-sm font-semibold text-gray-700">Margem e Volume por Categoria</h2>
+              <p className="text-xs text-gray-400 mt-0.5">
+                O preço de venda é calculado automaticamente: Custo × (1 + Margem) / (1 − Imposto)
+              </p>
             </div>
             <div className="px-5">
               {products.map((product, index) => (

@@ -4,24 +4,24 @@ import roundService from '../services/roundService';
 import PlayerLayout from '../components/layout/PlayerLayout';
 import Skeleton from '../components/ui/Skeleton';
 import ErrorMessage from '../components/ui/ErrorMessage';
-import { formatCurrency, formatPercent } from '../utils/formatters';
+import { formatCurrency } from '../utils/formatters';
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
 
 function gerarFeedback(dre) {
   const feedbacks = [];
 
-  if (dre.netProfit < 0) {
-    feedbacks.push('Resultado negativo: sua loja teve prejuízo nesta rodada.');
+  if (dre.ebitda < 0) {
+    feedbacks.push('EBITDA negativo: sua loja teve prejuízo nesta rodada.');
   }
-  if (dre.costs > dre.grossRevenue) {
+  if (dre.costs > dre.netRevenue) {
     feedbacks.push(
-      'Seu custo de compra superou a receita de vendas. Verifique se o preço de venda está acima do custo.'
+      'Custo de venda superou a receita líquida. Revise a margem comercial — ela precisa cobrir impostos e gerar lucro.'
     );
   }
-  if (dre.expenses > dre.grossProfit) {
+  if (dre.grossMargin < 0) {
     feedbacks.push(
-      'Suas despesas consumiram todo o lucro bruto. Considere reduzir gastos fixos ou variáveis.'
+      'Margem bruta negativa: os impostos e custos consumiram toda a receita líquida.'
     );
   }
   if (dre.grossRevenue === 0) {
@@ -34,7 +34,7 @@ function gerarFeedback(dre) {
 }
 
 function classifyFeedback(msg) {
-  const errorKeywords = ['prejuízo', 'custo de compra superou'];
+  const errorKeywords = ['prejuízo', 'negativo', 'custo de venda superou'];
   return errorKeywords.some((kw) => msg.toLowerCase().includes(kw)) ? 'error' : 'warning';
 }
 
@@ -61,69 +61,73 @@ function RoundSelector({ rounds, selectedId, onChange }) {
   );
 }
 
-function SummaryCard({ netProfit, netMargin }) {
-  const isPositive = netProfit >= 0;
+function SummaryCard({ ebitda, ebitdaMargin }) {
+  const isPositive = ebitda >= 0;
 
   return (
     <div className="rounded-xl border border-gray-200 bg-white shadow-sm px-6 py-5 flex items-center justify-between">
       <div>
         <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">
-          Lucro Líquido
+          EBITDA
         </p>
         <p className={`text-3xl font-bold ${isPositive ? 'text-green-600' : 'text-red-600'}`}>
-          {isPositive ? '' : '- '}{formatCurrency(Math.abs(netProfit))}
+          {isPositive ? '' : '- '}{formatCurrency(Math.abs(ebitda))}
         </p>
       </div>
       <div className="text-right">
         <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">
-          Margem Líquida
+          Margem EBITDA
         </p>
         <p className={`text-2xl font-semibold ${isPositive ? 'text-green-600' : 'text-red-600'}`}>
-          {formatPercent(netMargin)}
+          {ebitdaMargin.toFixed(2)}%
         </p>
       </div>
     </div>
   );
 }
 
-function DRETable({ result }) {
-  const rows = [
-    { label: 'Receita Bruta', value: result.grossRevenue, sign: '' },
-    { label: '(-) Custos', value: result.costs, sign: '- ' },
-    { label: '(=) Lucro Bruto', value: result.grossProfit, highlight: true },
-    { label: '(-) Despesas', value: result.expenses, sign: '- ' },
-    { label: '(=) Lucro Líquido', value: result.netProfit, highlight: true },
-  ];
+function DRERow({ label, value, highlight, subtotal, sign = '' }) {
+  const isNegative = value < 0;
+  const colorClass = highlight
+    ? isNegative ? 'text-red-600' : 'text-green-700'
+    : subtotal
+    ? isNegative ? 'text-red-500' : 'text-blue-700'
+    : 'text-gray-700';
 
+  return (
+    <div
+      className={`flex justify-between items-center px-4 py-2.5 text-sm border-b border-gray-50 last:border-0
+        ${highlight ? 'font-semibold bg-gray-50' : subtotal ? 'font-medium bg-blue-50/40' : ''}`}
+    >
+      <span className="text-gray-600">{label}</span>
+      <span className={colorClass}>
+        {sign}{formatCurrency(Math.abs(value))}
+      </span>
+    </div>
+  );
+}
+
+function DRETable({ result }) {
   return (
     <div>
       <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
         DRE — Demonstrativo de Resultado
       </h3>
       <div className="rounded-lg border border-gray-200 overflow-hidden">
-        {rows.map(({ label, value, highlight, sign = '' }) => {
-          const isNegative = value < 0;
-          const colorClass = highlight
-            ? isNegative ? 'text-red-600' : 'text-green-700'
-            : 'text-gray-700';
-
-          return (
-            <div
-              key={label}
-              className={`flex justify-between items-center px-4 py-2.5 text-sm border-b border-gray-50 last:border-0
-                ${highlight ? 'font-semibold bg-gray-50' : ''}`}
-            >
-              <span className="text-gray-600">{label}</span>
-              <span className={colorClass}>
-                {sign}{formatCurrency(Math.abs(value))}
-              </span>
-            </div>
-          );
-        })}
+        <DRERow label="Receita Bruta" value={result.grossRevenue} />
+        <DRERow label="(-) Impostos" value={result.taxes} sign="- " />
+        <DRERow label="(=) Receita Líquida" value={result.netRevenue} subtotal />
+        <DRERow label="(-) Custo de Venda" value={result.costs} sign="- " />
+        <DRERow label="(=) Massa Margem Líquida (PDV)" value={result.grossMargin} subtotal />
+        <DRERow label="(-) Quebras" value={result.totalBreakage} sign="- " />
+        <DRERow label="(-) Aging" value={result.totalAging} sign="- " />
+        <DRERow label="(=) Massa Margem Final" value={result.netMarginMass} subtotal />
+        <DRERow label="(-) Outros Gastos" value={result.otherExpenses} sign="- " />
+        <DRERow label="(=) EBITDA" value={result.ebitda} highlight />
         <div className="flex justify-between items-center px-4 py-2.5 text-sm bg-gray-50 border-t border-gray-100">
-          <span className="text-gray-500">Margem Líquida</span>
-          <span className={`font-semibold ${result.netMargin < 0 ? 'text-red-600' : 'text-green-700'}`}>
-            {formatPercent(result.netMargin)}
+          <span className="text-gray-500">Margem EBITDA (% Rec. Líquida)</span>
+          <span className={`font-semibold ${result.ebitdaMargin < 0 ? 'text-red-600' : 'text-green-700'}`}>
+            {result.ebitdaMargin.toFixed(2)}%
           </span>
         </div>
       </div>
@@ -137,40 +141,27 @@ function ProductBreakdownTable({ roundConfigItems }) {
   return (
     <div>
       <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
-        Receita Bruta por Produto
+        Configuração por Categoria
       </h3>
       <div className="overflow-x-auto rounded-lg border border-gray-200">
         <table className="w-full text-sm">
           <thead>
             <tr className="bg-gray-50 text-left text-xs text-gray-500">
-              <th className="px-3 py-2 font-medium">Produto</th>
-              <th className="px-3 py-2 font-medium text-right">Preço venda</th>
+              <th className="px-3 py-2 font-medium">Categoria</th>
+              <th className="px-3 py-2 font-medium text-right">Margem config.</th>
               <th className="px-3 py-2 font-medium text-right">Vol. config.</th>
-              <th className="px-3 py-2 font-medium text-right">Receita</th>
-              <th className="px-3 py-2 font-medium text-right">Custo</th>
-              <th className="px-3 py-2 font-medium text-right">Margem unit.</th>
             </tr>
           </thead>
           <tbody>
-            {roundConfigItems.map((item) => {
-              const revenue = item.salePrice * item.salesVolume;
-              const cost = item.product.purchasePrice * item.salesVolume;
-              const unitMargin = item.salePrice - item.product.purchasePrice;
-              const isNegativeMargin = unitMargin < 0;
-
-              return (
-                <tr key={item.productId} className="border-t border-gray-100 bg-white">
-                  <td className="px-3 py-2 text-gray-800 font-medium">{item.product.name}</td>
-                  <td className="px-3 py-2 text-right text-gray-600">{formatCurrency(item.salePrice)}</td>
-                  <td className="px-3 py-2 text-right text-gray-600">{item.salesVolume}</td>
-                  <td className="px-3 py-2 text-right text-gray-700">{formatCurrency(revenue)}</td>
-                  <td className="px-3 py-2 text-right text-gray-700">{formatCurrency(cost)}</td>
-                  <td className={`px-3 py-2 text-right font-medium ${isNegativeMargin ? 'text-red-600' : 'text-green-700'}`}>
-                    {isNegativeMargin ? '- ' : ''}{formatCurrency(Math.abs(unitMargin))}
-                  </td>
-                </tr>
-              );
-            })}
+            {roundConfigItems.map((item) => (
+              <tr key={item.productId} className="border-t border-gray-100 bg-white">
+                <td className="px-3 py-2 text-gray-800 font-medium">{item.product.name}</td>
+                <td className="px-3 py-2 text-right text-gray-600">
+                  {(item.margin * 100).toFixed(1)}%
+                </td>
+                <td className="px-3 py-2 text-right text-gray-600">{item.salesVolume}</td>
+              </tr>
+            ))}
           </tbody>
         </table>
       </div>
@@ -245,7 +236,6 @@ export default function ResultsPage() {
   const [loadingResult, setLoadingResult] = useState(false);
   const [noResult, setNoResult] = useState(false);
 
-  // Carrega lista de rodadas encerradas
   function loadRounds() {
     setLoadError('');
     setLoadingRounds(true);
@@ -265,7 +255,6 @@ export default function ResultsPage() {
 
   useEffect(() => { loadRounds(); }, []);
 
-  // Carrega resultado e ranking ao mudar a rodada
   useEffect(() => {
     if (!selectedRoundId) return;
 
@@ -281,7 +270,6 @@ export default function ResultsPage() {
       if (resultResp.status === 'fulfilled') {
         setResult(resultResp.value);
 
-        // Determina posição no ranking
         if (rankingResp.status === 'fulfilled') {
           const storeName = resultResp.value.store?.name;
           const entry = rankingResp.value.find((r) => r.storeName === storeName);
@@ -358,7 +346,7 @@ export default function ResultsPage() {
         ) : result ? (
           <>
             {/* Card de resumo */}
-            <SummaryCard netProfit={result.netProfit} netMargin={result.netMargin} />
+            <SummaryCard ebitda={result.ebitda} ebitdaMargin={result.ebitdaMargin} />
 
             {/* Posição no ranking */}
             <RankingCard position={rankingPosition} roundId={selectedRoundId} />
@@ -366,7 +354,7 @@ export default function ResultsPage() {
             {/* Tabela DRE */}
             <DRETable result={result} />
 
-            {/* Receita por produto */}
+            {/* Configuração por categoria */}
             {result.roundConfig?.roundConfigItems && (
               <ProductBreakdownTable roundConfigItems={result.roundConfig.roundConfigItems} />
             )}

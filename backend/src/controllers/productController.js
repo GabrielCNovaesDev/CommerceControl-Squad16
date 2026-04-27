@@ -5,13 +5,19 @@ const asyncHandler = require('../utils/asyncHandler');
 const createSchema = z.object({
   name: z.string().min(1, 'Nome é obrigatório'),
   purchasePrice: z.number().positive('Preço de compra deve ser positivo'),
-  salePrice: z.number().positive('Preço de venda deve ser positivo'),
+  taxRate: z.number().min(0).max(1, 'taxRate deve estar entre 0 e 1'),
+  breakageRate: z.number().min(0).max(1, 'breakageRate deve estar entre 0 e 1'),
+  agingRate: z.number().min(0).max(1, 'agingRate deve estar entre 0 e 1'),
+  mixAvailable: z.number().int().min(0, 'mixAvailable não pode ser negativo'),
 });
 
 const updateSchema = z.object({
   name: z.string().min(1).optional(),
   purchasePrice: z.number().positive().optional(),
-  salePrice: z.number().positive().optional(),
+  taxRate: z.number().min(0).max(1).optional(),
+  breakageRate: z.number().min(0).max(1).optional(),
+  agingRate: z.number().min(0).max(1).optional(),
+  mixAvailable: z.number().int().min(0).optional(),
 });
 
 async function listProducts(req, res) {
