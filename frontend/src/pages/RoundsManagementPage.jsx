@@ -36,6 +36,10 @@ const createRoundSchema = z
       .positive('Deve ser positivo'),
     startDate: z.string().min(1, 'Data de início obrigatória'),
     endDate:   z.string().min(1, 'Data de término obrigatória'),
+    demandFactor: z.coerce
+      .number({ invalid_type_error: 'Valor inválido' })
+      .min(0, 'Mínimo 0')
+      .max(1, 'Máximo 1'),
   })
   .refine((d) => new Date(d.endDate) > new Date(d.startDate), {
     message: 'Data de término deve ser após o início',
@@ -51,7 +55,7 @@ function CreateRoundModal({ onSuccess, onCancel, nextNumber }) {
     formState: { errors, isSubmitting },
   } = useForm({
     resolver: zodResolver(createRoundSchema),
-    defaultValues: { number: nextNumber },
+    defaultValues: { number: nextNumber, demandFactor: 0.5 },
   });
   const [serverError, setServerError] = useState('');
 
@@ -59,9 +63,10 @@ function CreateRoundModal({ onSuccess, onCancel, nextNumber }) {
     setServerError('');
     try {
       const round = await roundService.createRound({
-        number:    Number(data.number),
-        startDate: new Date(data.startDate).toISOString(),
-        endDate:   new Date(data.endDate).toISOString(),
+        number:       Number(data.number),
+        startDate:    new Date(data.startDate).toISOString(),
+        endDate:      new Date(data.endDate).toISOString(),
+        demandFactor: Number(data.demandFactor),
       });
       onSuccess(round);
     } catch (err) {
@@ -95,6 +100,27 @@ function CreateRoundModal({ onSuccess, onCancel, nextNumber }) {
             <label className="text-sm font-medium text-gray-700">Data de término</label>
             <input type="datetime-local" className={field(errors.endDate)} {...register('endDate')} />
             {errors.endDate && <p className="text-xs text-red-600">{errors.endDate.message}</p>}
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <label className="text-sm font-medium text-gray-700">
+              Fator de demanda (0–1)
+            </label>
+            <input
+              type="number"
+              step="0.05"
+              min="0"
+              max="1"
+              className={field(errors.demandFactor)}
+              {...register('demandFactor')}
+            />
+            {errors.demandFactor && (
+              <p className="text-xs text-red-600">{errors.demandFactor.message}</p>
+            )}
+            <p className="text-xs text-gray-400">
+              Define a % do mix disponível que compõe a demanda de mercado desta rodada.
+              Ex.: 0.5 = 50% do estoque disponível. Rodada 1 → 0.5 · Rodada 2 → 0.2 · Rodada 3 → 0.3
+            </p>
           </div>
 
           {serverError && (
@@ -184,6 +210,7 @@ function RoundsTable({ rounds, hasOpenRound, onClose }) {
             <th className="px-4 py-3 font-semibold">Data início</th>
             <th className="px-4 py-3 font-semibold">Data término</th>
             <th className="px-4 py-3 font-semibold text-center">Status</th>
+            <th className="px-4 py-3 font-semibold text-center">Demanda</th>
             <th className="px-4 py-3 font-semibold text-center">Configs</th>
             <th className="px-4 py-3 font-semibold text-right">Ação</th>
           </tr>
@@ -198,6 +225,11 @@ function RoundsTable({ rounds, hasOpenRound, onClose }) {
                 <td className="px-4 py-3 text-gray-600">{formatDateTime(round.endDate)}</td>
                 <td className="px-4 py-3 text-center">
                   {badge && <Badge variant={badge.variant}>{badge.label}</Badge>}
+                </td>
+                <td className="px-4 py-3 text-center text-gray-700 text-xs">
+                  {round.demandFactor != null
+                    ? `${(round.demandFactor * 100).toFixed(0)}%`
+                    : '—'}
                 </td>
                 <td className="px-4 py-3 text-center text-gray-700">
                   {round.submittedConfigsCount ?? '—'}

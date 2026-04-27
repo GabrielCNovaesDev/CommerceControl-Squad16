@@ -61,17 +61,25 @@ function RoundSelector({ rounds, selectedId, onChange }) {
   );
 }
 
-function SummaryCard({ ebitda, ebitdaMargin }) {
+function SummaryCard({ ebitda, ebitdaMargin, demandShare }) {
   const isPositive = ebitda >= 0;
 
   return (
-    <div className="rounded-xl border border-gray-200 bg-white shadow-sm px-6 py-5 flex items-center justify-between">
+    <div className="rounded-xl border border-gray-200 bg-white shadow-sm px-6 py-5 flex items-center justify-between gap-6">
       <div>
         <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">
           EBITDA
         </p>
         <p className={`text-3xl font-bold ${isPositive ? 'text-green-600' : 'text-red-600'}`}>
           {isPositive ? '' : '- '}{formatCurrency(Math.abs(ebitda))}
+        </p>
+      </div>
+      <div className="text-center">
+        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">
+          Participação de Mercado
+        </p>
+        <p className="text-2xl font-semibold text-blue-600">
+          {(demandShare * 100).toFixed(1)}%
         </p>
       </div>
       <div className="text-right">
@@ -346,7 +354,11 @@ export default function ResultsPage() {
         ) : result ? (
           <>
             {/* Card de resumo */}
-            <SummaryCard ebitda={result.ebitda} ebitdaMargin={result.ebitdaMargin} />
+            <SummaryCard
+              ebitda={result.ebitda}
+              ebitdaMargin={result.ebitdaMargin}
+              demandShare={result.demandShare ?? 0}
+            />
 
             {/* Posição no ranking */}
             <RankingCard position={rankingPosition} roundId={selectedRoundId} />

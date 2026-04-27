@@ -23,7 +23,8 @@ function calcularPreco(purchasePrice, margin, taxRate) {
   return (purchasePrice * (1 + margin)) / (1 - taxRate);
 }
 
-function calcularDRE(roundConfig, items, inventory) {
+// allocationMap: { [productId]: allocatedUnits } — when provided, overrides salesVolume
+function calcularDRE(roundConfig, items, inventory, allocationMap = null) {
   const inventoryMap = Object.fromEntries(
     inventory.map((inv) => [inv.productId, inv.quantity])
   );
@@ -37,7 +38,8 @@ function calcularDRE(roundConfig, items, inventory) {
 
   for (const item of items) {
     const availableStock = inventoryMap[item.productId] ?? 0;
-    const effectiveVolume = Math.min(item.salesVolume, availableStock);
+    const allocated = allocationMap ? (allocationMap[item.productId] ?? 0) : item.salesVolume;
+    const effectiveVolume = Math.min(allocated, availableStock);
     const unsold = availableStock - effectiveVolume;
 
     const salePrice = calcularPreco(

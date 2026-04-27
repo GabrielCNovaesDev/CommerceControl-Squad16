@@ -32,6 +32,7 @@ function sortByEbitda(results) {
 function exportToCsv(rows) {
   const headers = [
     'Posição', 'Squad', 'Loja',
+    'Part. Mercado (%)',
     'Receita Bruta', 'Impostos', 'Receita Líquida',
     'Custos', 'Massa Mg Líquida', 'Quebras', 'Aging',
     'Massa Mg Final', 'Outros Gastos', 'EBITDA', 'Margem EBITDA (%)',
@@ -48,6 +49,7 @@ function exportToCsv(rows) {
       i + 1,
       escape(r.store.squad?.name ?? '—'),
       escape(r.store.name),
+      ((r.demandShare ?? 0) * 100).toFixed(2),
       r.grossRevenue.toFixed(2),
       r.taxes.toFixed(2),
       r.netRevenue.toFixed(2),
@@ -104,6 +106,7 @@ function ResultsTable({ sorted }) {
             <th className="px-3 py-3 font-semibold text-right">Rec. Bruta</th>
             <th className="px-3 py-3 font-semibold text-right">Rec. Líquida</th>
             <th className="px-3 py-3 font-semibold text-right">Massa Mg Final</th>
+            <th className="px-3 py-3 font-semibold text-right">Part. Mercado</th>
             <th className="px-3 py-3 font-semibold text-right">EBITDA</th>
             <th className="px-3 py-3 font-semibold text-right">Margem EBITDA</th>
           </tr>
@@ -123,6 +126,9 @@ function ResultsTable({ sorted }) {
               <td className="px-3 py-2.5 text-right text-gray-700">{formatCurrency(r.grossRevenue)}</td>
               <td className="px-3 py-2.5 text-right text-gray-700">{formatCurrency(r.netRevenue)}</td>
               <td className="px-3 py-2.5 text-right text-gray-700">{formatCurrency(r.netMarginMass)}</td>
+              <td className="px-3 py-2.5 text-right text-blue-700 font-medium">
+                {((r.demandShare ?? 0) * 100).toFixed(1)}%
+              </td>
               <td className={`px-3 py-2.5 text-right font-semibold ${r.ebitda >= 0 ? 'text-green-700' : 'text-red-600'}`}>
                 {r.ebitda >= 0 ? '' : '- '}{formatCurrency(Math.abs(r.ebitda))}
               </td>

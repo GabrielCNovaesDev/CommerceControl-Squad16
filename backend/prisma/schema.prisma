@@ -82,11 +82,12 @@ model Inventory {
 }
 
 model Round {
-  id        String      @id @default(uuid())
-  number    Int
-  startDate DateTime
-  endDate   DateTime
-  status    RoundStatus @default(OPEN)
+  id           String      @id @default(uuid())
+  number       Int
+  startDate    DateTime
+  endDate      DateTime
+  status       RoundStatus @default(OPEN)
+  demandFactor Float       @default(0.5)
 
   roundConfigs     RoundConfig[]
   financialResults FinancialResult[]
@@ -136,6 +137,7 @@ model FinancialResult {
   otherExpenses  Float
   ebitda         Float
   ebitdaMargin   Float
+  demandShare    Float    @default(0)
   calculatedAt   DateTime @default(now())
 
   round       Round       @relation(fields: [roundId], references: [id])
