@@ -5,6 +5,7 @@ const storeRepository = require('../repositories/storeRepository');
 const productRepository = require('../repositories/productRepository');
 const inventoryRepository = require('../repositories/inventoryRepository');
 const { calcularDREPreview, gerarFeedback } = require('../services/financeService');
+const { calcPayroll, calcInterest, calcCsat } = require('../services/simulationService');
 const rankingService = require('../services/rankingService');
 const { PrismaClient } = require('@prisma/client');
 const asyncHandler = require('../utils/asyncHandler');
@@ -13,6 +14,9 @@ const prisma = new PrismaClient();
 
 const configSchema = z.object({
   otherExpenses: z.number().min(0, 'Outros gastos não podem ser negativos'),
+  cashierOperators: z.number().int('Deve ser inteiro').min(0, 'Não pode ser negativo').default(10),
+  serviceOperators: z.number().int('Deve ser inteiro').min(0, 'Não pode ser negativo').default(5),
+  quizScore: z.number().min(0, 'Mínimo 0').max(1, 'Máximo 1').default(1.0),
   items: z
     .array(
       z.object({
@@ -58,7 +62,7 @@ async function submitConfig(req, res) {
     return res.status(400).json({ errors: parsed.error.flatten().fieldErrors });
   }
 
-  const { otherExpenses, items } = parsed.data;
+  const { otherExpenses, cashierOperators, serviceOperators, quizScore, items } = parsed.data;
 
   const productIds = items.map((i) => i.productId);
   const uniqueIds = [...new Set(productIds)];
@@ -75,13 +79,21 @@ async function submitConfig(req, res) {
     });
   }
 
-  const roundConfig = await roundConfigRepository.create(roundId, store.id, otherExpenses, items);
+  const roundConfig = await roundConfigRepository.create(
+    roundId,
+    store.id,
+    { otherExpenses, cashierOperators, serviceOperators, quizScore },
+    items
+  );
 
   return res.status(201).json({
     roundConfigId: roundConfig.id,
     storeId: store.id,
     roundId,
     otherExpenses: roundConfig.otherExpenses,
+    cashierOperators: roundConfig.cashierOperators,
+    serviceOperators: roundConfig.serviceOperators,
+    quizScore: roundConfig.quizScore,
     submittedAt: roundConfig.submittedAt,
     items: roundConfig.roundConfigItems,
   });
@@ -104,7 +116,7 @@ async function previewConfig(req, res) {
     return res.status(400).json({ errors: parsed.error.flatten().fieldErrors });
   }
 
-  const { otherExpenses, items } = parsed.data;
+  const { otherExpenses, cashierOperators, serviceOperators, quizScore, items } = parsed.data;
 
   const productIds = [...new Set(items.map((i) => i.productId))];
   const foundProducts = await Promise.all(productIds.map((id) => productRepository.findById(id)));
@@ -117,7 +129,20 @@ async function previewConfig(req, res) {
 
   const inventoryList = await inventoryRepository.findByStoreId(store.id);
 
-  const roundConfig = { otherExpenses };
+  // Compute operator costs and cash validation
+  const configForCalc = { cashierOperators, serviceOperators, quizScore };
+  const payroll = calcPayroll(configForCalc);
+  const csat = calcCsat(configForCalc);
+
+  const stockCost = items.reduce(
+    (sum, item) => sum + item.salesVolume * (productMap[item.productId]?.purchasePrice ?? 0),
+    0
+  );
+  const initialCapital = store.initialCapital;
+  const interestPenalty = calcInterest(stockCost, initialCapital);
+  const totalOtherExpenses = otherExpenses + payroll + interestPenalty;
+
+  const roundConfig = { otherExpenses: totalOtherExpenses };
 
   const itemsForEngine = items.map((item) => ({
     productId: item.productId,
@@ -139,7 +164,17 @@ async function previewConfig(req, res) {
   const dre = calcularDREPreview(roundConfig, itemsForEngine, inventory);
   const feedbacks = gerarFeedback(dre);
 
-  return res.status(200).json({ dre, feedbacks, preview: true });
+  const cashSummary = {
+    initialCapital,
+    stockCost,
+    payroll,
+    interestPenalty,
+    balance: initialCapital - stockCost,
+    cashOk: stockCost <= initialCapital,
+    csat,
+  };
+
+  return res.status(200).json({ dre, feedbacks, cashSummary, preview: true });
 }
 
 async function getRanking(req, res) {

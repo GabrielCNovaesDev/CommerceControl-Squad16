@@ -94,11 +94,14 @@ model Round {
 }
 
 model RoundConfig {
-  id               String   @id @default(uuid())
-  roundId          String
-  storeId          String
-  otherExpenses    Float    @default(0)
-  submittedAt      DateTime @default(now())
+  id                String   @id @default(uuid())
+  roundId           String
+  storeId           String
+  otherExpenses     Float    @default(0)
+  cashierOperators  Int      @default(10)
+  serviceOperators  Int      @default(5)
+  quizScore         Float    @default(1.0)
+  submittedAt       DateTime @default(now())
 
   round            Round             @relation(fields: [roundId], references: [id])
   store            Store             @relation(fields: [storeId], references: [id])

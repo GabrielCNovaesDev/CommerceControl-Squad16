@@ -91,11 +91,32 @@ function calcAvailability(config) {
 }
 
 /**
- * Sprint 2 placeholder — all stores get equal CSAT (1.0).
- * Sprint 3 will implement: (operators / idealOperators) × quizScore.
+ * Computes CSAT for a store.
+ * Formula: min(1, cashierOperators / idealOperators=10) × quizScore
+ * Example: 5 operators → 50%, quiz 0.9 → CSAT = 0.45
  */
-function calcCsat(_config) {
-  return 1.0;
+function calcCsat(config) {
+  const proportion = Math.min(1, (config.cashierOperators ?? 10) / 10);
+  return proportion * (config.quizScore ?? 1.0);
+}
+
+/**
+ * Computes operator payroll.
+ * Caixa: R$1,000/month per operator (ideal = 10)
+ * Serviço: R$1,200/month per operator (ideal = 5)
+ */
+function calcPayroll(config) {
+  return (config.cashierOperators ?? 10) * 1000 +
+         (config.serviceOperators ?? 5) * 1200;
+}
+
+/**
+ * Computes interest penalty when stock cost exceeds available capital.
+ * Rate: 12% monthly on the overage amount.
+ */
+function calcInterest(stockCost, initialCapital) {
+  if (stockCost <= initialCapital) return 0;
+  return (stockCost - initialCapital) * 0.12;
 }
 
 /**
@@ -204,8 +225,6 @@ async function processRound(roundId) {
           quantity,
         }));
 
-        const roundConfig = { otherExpenses: config.otherExpenses };
-
         const items = config.roundConfigItems.map((item) => ({
           productId: item.productId,
           margin: item.margin,
@@ -217,6 +236,18 @@ async function processRound(roundId) {
             agingRate: item.product.agingRate,
           },
         }));
+
+        // Compute stock purchase cost
+        const stockCost = config.roundConfigItems.reduce(
+          (sum, item) => sum + item.salesVolume * item.product.purchasePrice,
+          0
+        );
+
+        const payroll = calcPayroll(config);
+        const interestPenalty = calcInterest(stockCost, config.store.initialCapital);
+        const totalOtherExpenses = config.otherExpenses + payroll + interestPenalty;
+
+        const roundConfig = { otherExpenses: totalOtherExpenses };
 
         const dre = calcularDRE(roundConfig, items, inventoryList, allocationMap);
 
@@ -256,7 +287,8 @@ async function processRound(roundId) {
       console.log(
         `[simulationService] Loja ${config.storeId}: share=${(demandShare * 100).toFixed(1)}%,` +
         ` priceScore=${priceScores[config.storeId]}, availScore=${availScores[config.storeId]},` +
-        ` csatScore=${csatScores[config.storeId]}, total=${totalScores[config.storeId]}`
+        ` csatScore=${csatScores[config.storeId]}, total=${totalScores[config.storeId]},` +
+        ` CSAT=${(calcCsat(config) * 100).toFixed(1)}%, payroll=${calcPayroll(config)}`
       );
     } catch (err) {
       console.error(`[simulationService] Erro ao processar loja ${config.storeId}:`, err.message);
@@ -264,4 +296,4 @@ async function processRound(roundId) {
   }
 }
 
-module.exports = { processRound };
+module.exports = { processRound, calcPayroll, calcInterest, calcCsat };

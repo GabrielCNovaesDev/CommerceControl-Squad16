@@ -9,13 +9,16 @@ function findByRoundAndStore(roundId, storeId) {
   });
 }
 
-async function create(roundId, storeId, otherExpenses, items) {
+async function create(roundId, storeId, { otherExpenses, cashierOperators, serviceOperators, quizScore }, items) {
   return prisma.$transaction(async (tx) => {
     const roundConfig = await tx.roundConfig.create({
       data: {
         roundId,
         storeId,
         otherExpenses,
+        cashierOperators,
+        serviceOperators,
+        quizScore,
         roundConfigItems: {
           create: items.map(({ productId, margin, salesVolume }) => ({
             productId,
@@ -45,6 +48,7 @@ function findAllByRound(roundId) {
               taxRate: true,
               breakageRate: true,
               agingRate: true,
+              mixAvailable: true,
             },
           },
         },
