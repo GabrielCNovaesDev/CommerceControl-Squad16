@@ -156,11 +156,25 @@ export default function StoresDashboardPage() {
   return (
     <PlayerLayout>
       <div className="flex flex-col gap-6 max-w-4xl">
-        <div>
-          <h1 className="text-xl font-bold text-gray-900">{store.name}</h1>
-          <p className="text-sm text-gray-500 mt-0.5">
-            Capital inicial: {formatCurrency(store.initialCapital)}
-          </p>
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-xl font-bold text-gray-900">{store.name}</h1>
+            <p className="text-sm text-gray-500 mt-0.5">
+              Capital inicial: {formatCurrency(store.initialCapital)}
+            </p>
+          </div>
+          {/* Caixa atual */}
+          <div className={`rounded-xl border px-5 py-3 text-right
+            ${store.currentCash >= 0 ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
+            <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Caixa Atual</p>
+            <p className={`text-2xl font-bold mt-0.5
+              ${store.currentCash >= 0 ? 'text-green-700' : 'text-red-700'}`}>
+              {formatCurrency(store.currentCash ?? store.initialCapital)}
+            </p>
+            <p className="text-xs text-gray-400 mt-0.5">
+              {((((store.currentCash ?? store.initialCapital) / store.initialCapital) * 100)).toFixed(1)}% do capital inicial
+            </p>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -203,22 +217,29 @@ export default function StoresDashboardPage() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="text-left text-xs text-gray-400 border-b border-gray-100">
-                      <th className="pb-2 font-medium">Produto</th>
+                      <th className="pb-2 font-medium">Categoria</th>
                       <th className="pb-2 font-medium text-right">Qtd.</th>
+                      <th className="pb-2 font-medium text-right">Disp.</th>
+                      <th className="pb-2 font-medium text-right">Valor</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {inventory.map((item) => (
-                      <tr
-                        key={item.productId}
-                        className="border-b border-gray-50 last:border-0"
-                      >
-                        <td className="py-2 text-gray-700">{item.product.name}</td>
-                        <td className="py-2 text-right font-medium text-gray-900">
-                          {item.quantity}
-                        </td>
-                      </tr>
-                    ))}
+                    {inventory.map((item) => {
+                      const pct = item.product.mixAvailable > 0
+                        ? ((item.quantity / item.product.mixAvailable) * 100).toFixed(0)
+                        : '—';
+                      const val = item.quantity * item.product.purchasePrice;
+                      return (
+                        <tr key={item.productId} className="border-b border-gray-50 last:border-0">
+                          <td className="py-2 text-gray-700">{item.product.name}</td>
+                          <td className="py-2 text-right font-medium text-gray-900">{item.quantity}</td>
+                          <td className="py-2 text-right text-gray-500 text-xs">{pct}%</td>
+                          <td className="py-2 text-right text-gray-500 text-xs">
+                            {formatCurrency(val)}
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>

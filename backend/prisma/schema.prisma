@@ -46,6 +46,7 @@ model Store {
   id             String   @id @default(uuid())
   name           String
   initialCapital Float
+  currentCash    Float    @default(700000)
   squadId        String
   createdAt      DateTime @default(now())
 

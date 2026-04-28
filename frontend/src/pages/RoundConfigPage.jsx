@@ -298,7 +298,7 @@ function LicensingPanel({ register, errors, control }) {
   );
 }
 
-function CashSummaryPanel({ initialCapital, products, control }) {
+function CashSummaryPanel({ initialCapital, currentCash, products, control }) {
   const watchedItems    = useWatch({ control, name: 'items' }) ?? [];
   const capexFields     = useWatch({
     control,
@@ -318,10 +318,11 @@ function CashSummaryPanel({ initialCapital, products, control }) {
     return sum + (product ? (Number(item.salesVolume) || 0) * product.purchasePrice : 0);
   }, 0);
 
+  const budget       = currentCash ?? initialCapital;
   const totalOutlay  = stockCost + capexCost;
-  const balance      = initialCapital - totalOutlay;
-  const isOver       = totalOutlay > initialCapital;
-  const interest     = isOver ? (totalOutlay - initialCapital) * 0.12 : 0;
+  const balance      = budget - totalOutlay;
+  const isOver       = totalOutlay > budget;
+  const interest     = isOver ? (totalOutlay - budget) * 0.12 : 0;
   const licensing    = calcLicensingLocal({ numPdvs, capexSite, capexSeguranca, capexSelfCheckout: capexSCO });
   const maintenance  = capexBalanca ? 0 : 400;
 
@@ -338,9 +339,15 @@ function CashSummaryPanel({ initialCapital, products, control }) {
 
       <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-sm">
         <div className="flex justify-between">
-          <span className="text-gray-500">Capital disponível</span>
-          <span className="font-medium">{formatCurrency(initialCapital)}</span>
+          <span className="text-gray-500">Caixa disponível</span>
+          <span className="font-medium">{formatCurrency(budget)}</span>
         </div>
+        {currentCash != null && currentCash !== initialCapital && (
+          <div className="flex justify-between text-xs">
+            <span className="text-gray-400">Capital inicial</span>
+            <span className="text-gray-400">{formatCurrency(initialCapital)}</span>
+          </div>
+        )}
         <div className="flex justify-between">
           <span className="text-gray-500">Custo do estoque</span>
           <span className={`font-medium ${isOver ? 'text-red-700' : ''}`}>{formatCurrency(stockCost)}</span>
@@ -628,6 +635,7 @@ export default function RoundConfigPage() {
           {store && (
             <CashSummaryPanel
               initialCapital={store.initialCapital}
+              currentCash={store.currentCash}
               products={products}
               control={control}
             />
@@ -694,6 +702,7 @@ export default function RoundConfigPage() {
                   </div>
                   <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-sm">
                     {[
+                      ['Caixa disponível', preview.cashSummary.currentCash ?? preview.cashSummary.initialCapital, false],
                       ['Custo estoque', preview.cashSummary.stockCost, false],
                       ['CAPEX',         preview.cashSummary.capexCost, false],
                       ['Folha',         preview.cashSummary.payroll, false],

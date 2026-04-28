@@ -94,15 +94,66 @@ async function submitConfig(req, res) {
     });
   }
 
-  const roundConfig = await roundConfigRepository.create(
-    roundId,
-    store.id,
-    {
-      otherExpenses, cashierOperators, serviceOperators, quizScore,
-      numPdvs, capexSeguranca, capexBalanca, capexRedes, capexSite, capexSelfCheckout, capexMelhoria,
-    },
-    items
+  const productMap = Object.fromEntries(
+    existingProducts.filter(Boolean).map((p) => [p.id, p])
   );
+
+  // Pre-compute costs for cash deduction
+  const capexConfig = { capexSeguranca, capexBalanca, capexRedes, capexSite, capexSelfCheckout, capexMelhoria };
+  const stockCost = items.reduce(
+    (sum, item) => sum + item.salesVolume * (productMap[item.productId]?.purchasePrice ?? 0),
+    0
+  );
+  const capexCost       = calcCapexCost(capexConfig);
+  const interestPenalty = calcInterest(stockCost + capexCost, store.currentCash);
+  const totalDeduction  = stockCost + capexCost + interestPenalty;
+
+  // Atomic: create config + increment inventory + deduct cash
+  const roundConfig = await prisma.$transaction(async (tx) => {
+    const config = await tx.roundConfig.create({
+      data: {
+        roundId,
+        storeId:          store.id,
+        otherExpenses,
+        cashierOperators,
+        serviceOperators,
+        quizScore,
+        numPdvs,
+        capexSeguranca,
+        capexBalanca,
+        capexRedes,
+        capexSite,
+        capexSelfCheckout,
+        capexMelhoria,
+        roundConfigItems: {
+          create: items.map(({ productId, margin, salesVolume }) => ({
+            productId,
+            margin,
+            salesVolume,
+          })),
+        },
+      },
+      include: { roundConfigItems: true },
+    });
+
+    // Increment inventory by salesVolume (stock purchase)
+    await Promise.all(
+      items.map((item) =>
+        tx.inventory.update({
+          where: { storeId_productId: { storeId: store.id, productId: item.productId } },
+          data: { quantity: { increment: item.salesVolume } },
+        })
+      )
+    );
+
+    // Deduct cash (stockCost + capexCost + interest)
+    await tx.store.update({
+      where: { id: store.id },
+      data: { currentCash: { decrement: totalDeduction } },
+    });
+
+    return config;
+  });
 
   return res.status(201).json({
     roundConfigId:     roundConfig.id,
@@ -120,6 +171,10 @@ async function submitConfig(req, res) {
     capexSelfCheckout: roundConfig.capexSelfCheckout,
     capexMelhoria:     roundConfig.capexMelhoria,
     submittedAt:       roundConfig.submittedAt,
+    stockCost,
+    capexCost,
+    interestPenalty,
+    totalDeduction,
     items:             roundConfig.roundConfigItems,
   });
 }
@@ -155,7 +210,12 @@ async function previewConfig(req, res) {
   }
 
   const productMap = Object.fromEntries(foundProducts.map((p) => [p.id, p]));
-  const inventoryList = await inventoryRepository.findByStoreId(store.id);
+
+  // Fetch current inventory to add to the purchased quantities for the DRE preview
+  const realInventoryList = await inventoryRepository.findByStoreId(store.id);
+  const realInventoryMap  = Object.fromEntries(
+    realInventoryList.map((inv) => [inv.productId, inv.quantity])
+  );
 
   const configForCalc = {
     cashierOperators, serviceOperators, quizScore,
@@ -174,9 +234,10 @@ async function previewConfig(req, res) {
     0
   );
 
-  const initialCapital  = store.initialCapital;
+  // Use currentCash (not initialCapital) — accounts for previous round purchases
+  const currentCash     = store.currentCash;
   const totalOutlay     = stockCost + capexCost;
-  const interestPenalty = calcInterest(totalOutlay, initialCapital);
+  const interestPenalty = calcInterest(totalOutlay, currentCash);
   const totalOtherExpenses = otherExpenses + payroll + licensing + maintenance + interestPenalty;
 
   const roundConfig = { otherExpenses: totalOtherExpenses };
@@ -193,24 +254,27 @@ async function previewConfig(req, res) {
     },
   }));
 
-  const inventory = inventoryList.map((inv) => ({
-    productId: inv.productId,
-    quantity:  inv.quantity,
+  // Preview inventory = existing stock + additional purchase
+  // This ensures round 1 (inventory=0 + salesVolume) and round 2 (leftover + new buy) both work
+  const inventoryForPreview = items.map((item) => ({
+    productId: item.productId,
+    quantity:  (realInventoryMap[item.productId] ?? 0) + item.salesVolume,
   }));
 
-  const dre      = calcularDREPreview(roundConfig, itemsForEngine, inventory);
+  const dre       = calcularDREPreview(roundConfig, itemsForEngine, inventoryForPreview);
   const feedbacks = gerarFeedback(dre);
 
   const cashSummary = {
-    initialCapital,
+    currentCash,
+    initialCapital: store.initialCapital,
     stockCost,
     capexCost,
     payroll,
     licensing,
     maintenance,
     interestPenalty,
-    balance: initialCapital - totalOutlay,
-    cashOk:  totalOutlay <= initialCapital,
+    balance: currentCash - totalOutlay,
+    cashOk:  totalOutlay <= currentCash,
     csat,
     sla,
   };
