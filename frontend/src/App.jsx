@@ -13,6 +13,7 @@ import RankingPage from './pages/RankingPage';
 import AdminDashboardPage from './pages/AdminDashboardPage';
 import RoundsManagementPage from './pages/RoundsManagementPage';
 import SquadsManagementPage from './pages/SquadsManagementPage';
+import UsersManagementPage from './pages/UsersManagementPage';
 import ProductsManagementPage from './pages/ProductsManagementPage';
 import AdminResultsPage from './pages/AdminResultsPage';
 
@@ -84,6 +85,14 @@ export default function App() {
           element={
             <PrivateRoute allowedRoles={['GAME_MASTER']}>
               <SquadsManagementPage />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/admin/users"
+          element={
+            <PrivateRoute allowedRoles={['GAME_MASTER']}>
+              <UsersManagementPage />
             </PrivateRoute>
           }
         />
