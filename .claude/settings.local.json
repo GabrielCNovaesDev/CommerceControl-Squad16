@@ -7,7 +7,18 @@
       "Bash(mkdir -p \"C:/Users/gabid/OneDrive/Desktop/PROGRAMAÇÃO/PROJETO RESIDÊNCIA/backend/src/__tests__/integration\")",
       "Bash(grep -E \"\\\\.\\(js|json\\)$\")",
       "Bash(del \"C:\\\\Users\\\\gabid\\\\OneDrive\\\\Desktop\\\\PROGRAMAÇÃO\\\\PROJETO RESIDÊNCIA\\\\backend\\\\src\\\\services\\\\financeService.test.js\")",
-      "Bash(npm test:*)"
+      "Bash(npm test:*)",
+      "Read(//c/Users/gabid/OneDrive/Desktop/REGRAS DE NEGÓCIO/**)",
+      "Bash(python -c ' *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "Bash(gh pr create --title 'feat: simulação completa — Sprints 1-5 + gerenciamento de usuários admin' --body ' *)",
+      "PowerShell(Get-ChildItem \"C:\\\\Program Files\\\\GitHub CLI\\\\gh.exe\" -ErrorAction SilentlyContinue; Get-ChildItem \"$env:LOCALAPPDATA\\\\Programs\\\\gh\\\\gh.exe\" -ErrorAction SilentlyContinue; Get-ChildItem \"$env:ProgramFiles\\\\gh\\\\gh.exe\" -ErrorAction SilentlyContinue; $env:PATH -split \";\" | Where-Object { Test-Path \"$_\\\\gh.exe\" })",
+      "PowerShell(git config --global credential.helper 2>$null)",
+      "PowerShell($env:GITHUB_TOKEN)",
+      "PowerShell($env:GH_TOKEN)",
+      "PowerShell(git config --global credential.helper; $env:GITHUB_TOKEN; [System.Environment]::GetEnvironmentVariable\\(\"GITHUB_TOKEN\", \"User\"\\))"
     ]
   }
 }

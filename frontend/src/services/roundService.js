@@ -13,6 +13,12 @@ const roundService = {
   closeRound: (id) =>
     api.patch(`/rounds/${id}/close`).then((r) => r.data),
 
+  deleteLastRound: () =>
+    api.delete('/rounds/last').then((r) => r.data),
+
+  resetGame: () =>
+    api.post('/rounds/reset').then((r) => r.data),
+
   submitConfig: (roundId, data) =>
     api.post(`/rounds/${roundId}/config`, data).then((r) => r.data),
 

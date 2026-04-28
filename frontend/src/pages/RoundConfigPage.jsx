@@ -13,6 +13,7 @@ import Skeleton from '../components/ui/Skeleton';
 import ErrorMessage from '../components/ui/ErrorMessage';
 import { useToast } from '../hooks/useToast';
 import { formatCurrency } from '../utils/formatters';
+import { useCountdown } from '../hooks/useCountdown';
 
 // ─── Schema ──────────────────────────────────────────────────────────────────
 
@@ -440,6 +441,22 @@ function ProductRow({ index, product, availableQty, control, register, errors })
   );
 }
 
+// ─── Countdown badge ─────────────────────────────────────────────────────────
+
+function CountdownBadge({ endsAt }) {
+  const { timeLeft, expired } = useCountdown(endsAt);
+  return (
+    <div className={`shrink-0 rounded-xl border px-4 py-2 text-right
+      ${expired ? 'bg-orange-50 border-orange-200' : 'bg-blue-50 border-blue-100'}`}>
+      <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Tempo restante</p>
+      <p className={`text-xl font-mono font-bold tabular-nums mt-0.5
+        ${expired ? 'text-orange-600' : 'text-blue-700'}`}>
+        {expired ? 'Expirado' : timeLeft}
+      </p>
+    </div>
+  );
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function RoundConfigPage() {
@@ -613,11 +630,14 @@ export default function RoundConfigPage() {
   return (
     <PlayerLayout>
       <div className="max-w-3xl flex flex-col gap-6">
-        <div>
-          <h1 className="text-xl font-bold text-gray-900">Configurar Rodada #{activeRound.number}</h1>
-          <p className="text-sm text-gray-500 mt-0.5">
-            Defina margem, volume, operadores, CAPEX e estratégia de caixa.
-          </p>
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-xl font-bold text-gray-900">Configurar Rodada #{activeRound.number}</h1>
+            <p className="text-sm text-gray-500 mt-0.5">
+              Defina margem, volume, operadores, CAPEX e estratégia de caixa.
+            </p>
+          </div>
+          {activeRound.endsAt && <CountdownBadge endsAt={activeRound.endsAt} />}
         </div>
 
         <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-6">

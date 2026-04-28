@@ -83,12 +83,13 @@ model Inventory {
 }
 
 model Round {
-  id           String      @id @default(uuid())
-  number       Int
-  startDate    DateTime
-  endDate      DateTime
-  status       RoundStatus @default(OPEN)
-  demandFactor Float       @default(0.5)
+  id            String      @id @default(uuid())
+  number        Int
+  durationHours Int         @default(1)
+  endsAt        DateTime
+  status        RoundStatus @default(OPEN)
+  demandFactor  Float       @default(0.5)
+  createdAt     DateTime    @default(now())
 
   roundConfigs     RoundConfig[]
   financialResults FinancialResult[]
