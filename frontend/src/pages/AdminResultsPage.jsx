@@ -11,7 +11,7 @@ import Badge from '../components/ui/Badge';
 import Skeleton from '../components/ui/Skeleton';
 import ErrorMessage from '../components/ui/ErrorMessage';
 import { useToast } from '../hooks/useToast';
-import { formatCurrency, formatPercent } from '../utils/formatters';
+import { formatCurrency } from '../utils/formatters';
 
 // ─── Paleta de squads para o gráfico de linhas ───────────────────────────────
 
@@ -22,18 +22,20 @@ const LINE_COLORS = [
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function sortByMargin(results) {
+function sortByEbitda(results) {
   return [...results].sort((a, b) => {
-    if (b.netMargin !== a.netMargin) return b.netMargin - a.netMargin;
-    return b.netProfit - a.netProfit;
+    if (b.ebitdaMargin !== a.ebitdaMargin) return b.ebitdaMargin - a.ebitdaMargin;
+    return b.ebitda - a.ebitda;
   });
 }
 
 function exportToCsv(rows) {
   const headers = [
     'Posição', 'Squad', 'Loja',
-    'Receita Bruta', 'Custos', 'Lucro Bruto',
-    'Despesas', 'Lucro Líquido', 'Margem Líquida (%)',
+    'Part. Mercado (%)',
+    'Receita Bruta', 'Impostos', 'Receita Líquida',
+    'Custos', 'Massa Mg Líquida', 'Quebras', 'Aging',
+    'Massa Mg Final', 'Outros Gastos', 'EBITDA', 'Margem EBITDA (%)',
   ];
 
   const escape = (v) => {
@@ -47,12 +49,18 @@ function exportToCsv(rows) {
       i + 1,
       escape(r.store.squad?.name ?? '—'),
       escape(r.store.name),
+      ((r.demandShare ?? 0) * 100).toFixed(2),
       r.grossRevenue.toFixed(2),
+      r.taxes.toFixed(2),
+      r.netRevenue.toFixed(2),
       r.costs.toFixed(2),
-      r.grossProfit.toFixed(2),
-      r.expenses.toFixed(2),
-      r.netProfit.toFixed(2),
-      r.netMargin.toFixed(2),
+      r.grossMargin.toFixed(2),
+      r.totalBreakage.toFixed(2),
+      r.totalAging.toFixed(2),
+      r.netMarginMass.toFixed(2),
+      r.otherExpenses.toFixed(2),
+      r.ebitda.toFixed(2),
+      r.ebitdaMargin.toFixed(2),
     ].join(',')),
   ];
 
@@ -96,11 +104,11 @@ function ResultsTable({ sorted }) {
             <th className="px-3 py-3 font-semibold">Squad</th>
             <th className="px-3 py-3 font-semibold">Loja</th>
             <th className="px-3 py-3 font-semibold text-right">Rec. Bruta</th>
-            <th className="px-3 py-3 font-semibold text-right">Custos</th>
-            <th className="px-3 py-3 font-semibold text-right">Luc. Bruto</th>
-            <th className="px-3 py-3 font-semibold text-right">Despesas</th>
-            <th className="px-3 py-3 font-semibold text-right">Luc. Líquido</th>
-            <th className="px-3 py-3 font-semibold text-right">Margem</th>
+            <th className="px-3 py-3 font-semibold text-right">Rec. Líquida</th>
+            <th className="px-3 py-3 font-semibold text-right">Massa Mg Final</th>
+            <th className="px-3 py-3 font-semibold text-right">Part. Mercado</th>
+            <th className="px-3 py-3 font-semibold text-right">EBITDA</th>
+            <th className="px-3 py-3 font-semibold text-right">Margem EBITDA</th>
           </tr>
         </thead>
         <tbody>
@@ -116,14 +124,16 @@ function ResultsTable({ sorted }) {
               </td>
               <td className="px-3 py-2.5 text-gray-600">{r.store.name}</td>
               <td className="px-3 py-2.5 text-right text-gray-700">{formatCurrency(r.grossRevenue)}</td>
-              <td className="px-3 py-2.5 text-right text-gray-600">{formatCurrency(r.costs)}</td>
-              <td className="px-3 py-2.5 text-right text-gray-700">{formatCurrency(r.grossProfit)}</td>
-              <td className="px-3 py-2.5 text-right text-gray-600">{formatCurrency(r.expenses)}</td>
-              <td className={`px-3 py-2.5 text-right font-semibold ${r.netProfit >= 0 ? 'text-green-700' : 'text-red-600'}`}>
-                {r.netProfit >= 0 ? '' : '- '}{formatCurrency(Math.abs(r.netProfit))}
+              <td className="px-3 py-2.5 text-right text-gray-700">{formatCurrency(r.netRevenue)}</td>
+              <td className="px-3 py-2.5 text-right text-gray-700">{formatCurrency(r.netMarginMass)}</td>
+              <td className="px-3 py-2.5 text-right text-blue-700 font-medium">
+                {((r.demandShare ?? 0) * 100).toFixed(1)}%
               </td>
-              <td className={`px-3 py-2.5 text-right font-semibold ${r.netMargin >= 0 ? 'text-green-700' : 'text-red-600'}`}>
-                {formatPercent(r.netMargin)}
+              <td className={`px-3 py-2.5 text-right font-semibold ${r.ebitda >= 0 ? 'text-green-700' : 'text-red-600'}`}>
+                {r.ebitda >= 0 ? '' : '- '}{formatCurrency(Math.abs(r.ebitda))}
+              </td>
+              <td className={`px-3 py-2.5 text-right font-semibold ${r.ebitdaMargin >= 0 ? 'text-green-700' : 'text-red-600'}`}>
+                {r.ebitdaMargin.toFixed(2)}%
               </td>
             </tr>
           ))}
@@ -133,10 +143,10 @@ function ResultsTable({ sorted }) {
   );
 }
 
-function MarginBarChart({ data }) {
+function EbitdaBarChart({ data }) {
   return (
     <div>
-      <h3 className="text-sm font-semibold text-gray-700 mb-3">Margem Líquida por Squad</h3>
+      <h3 className="text-sm font-semibold text-gray-700 mb-3">Margem EBITDA por Squad</h3>
       <ResponsiveContainer width="100%" height={280}>
         <BarChart data={data} margin={{ top: 8, right: 8, left: 8, bottom: 8 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
@@ -152,15 +162,15 @@ function MarginBarChart({ data }) {
             axisLine={false}
           />
           <Tooltip
-            formatter={(v) => [`${v.toFixed(2)}%`, 'Margem Líquida']}
+            formatter={(v) => [`${v.toFixed(2)}%`, 'Margem EBITDA']}
             contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #e5e7eb' }}
           />
           <ReferenceLine y={0} stroke="#9ca3af" strokeDasharray="4 2" />
-          <Bar dataKey="netMargin" radius={[4, 4, 0, 0]}>
+          <Bar dataKey="ebitdaMargin" radius={[4, 4, 0, 0]}>
             {data.map((entry, i) => (
               <Cell
                 key={i}
-                fill={entry.netMargin >= 0 ? '#10b981' : '#ef4444'}
+                fill={entry.ebitdaMargin >= 0 ? '#10b981' : '#ef4444'}
                 fillOpacity={0.85}
               />
             ))}
@@ -171,10 +181,10 @@ function MarginBarChart({ data }) {
   );
 }
 
-function MarginLineChart({ historyData, squadNames }) {
+function EbitdaLineChart({ historyData, squadNames }) {
   return (
     <div>
-      <h3 className="text-sm font-semibold text-gray-700 mb-3">Evolução da Margem por Rodada</h3>
+      <h3 className="text-sm font-semibold text-gray-700 mb-3">Evolução da Margem EBITDA por Rodada</h3>
       <ResponsiveContainer width="100%" height={280}>
         <LineChart margin={{ top: 8, right: 8, left: 8, bottom: 8 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
@@ -203,7 +213,7 @@ function MarginLineChart({ historyData, squadNames }) {
             <Line
               key={name}
               data={historyData.filter((d) => d.squadName === name)}
-              dataKey="netMargin"
+              dataKey="ebitdaMargin"
               name={name}
               stroke={LINE_COLORS[i % LINE_COLORS.length]}
               strokeWidth={2}
@@ -232,7 +242,6 @@ export default function AdminResultsPage() {
   const [loadingResults, setLoadingResults] = useState(false);
   const [loadingHistory, setLoadingHistory] = useState(false);
 
-  // Carrega lista de rodadas
   function loadRounds() {
     setLoadError('');
     setLoadingRounds(true);
@@ -251,14 +260,12 @@ export default function AdminResultsPage() {
 
   useEffect(() => { loadRounds(); }, []);
 
-  // Atualiza query param quando seletor muda
   useEffect(() => {
     if (selectedRoundId) {
       setSearchParams({ roundId: selectedRoundId }, { replace: true });
     }
   }, [selectedRoundId]);
 
-  // Carrega resultados da rodada selecionada
   useEffect(() => {
     if (!selectedRoundId) return;
 
@@ -277,7 +284,6 @@ export default function AdminResultsPage() {
       .finally(() => setLoadingResults(false));
   }, [selectedRoundId, allRounds]);
 
-  // Carrega histórico para o gráfico de linha (todas as rodadas CLOSED)
   useEffect(() => {
     const closedRounds = allRounds.filter((r) => r.status === 'CLOSED');
     if (closedRounds.length < 2) {
@@ -299,7 +305,7 @@ export default function AdminResultsPage() {
           points.push({
             round,
             squadName: r.store.squad?.name ?? r.store.name,
-            netMargin: r.netMargin,
+            ebitdaMargin: r.ebitdaMargin,
           });
         });
       });
@@ -310,12 +316,12 @@ export default function AdminResultsPage() {
   // ── Dados derivados ───────────────────────────────────────────────────────
 
   const selectedRound = allRounds.find((r) => r.id === selectedRoundId);
-  const sorted = useMemo(() => sortByMargin(results), [results]);
+  const sorted = useMemo(() => sortByEbitda(results), [results]);
 
   const barData = useMemo(() =>
     sorted.map((r) => ({
       squad: r.store.squad?.name ?? r.store.name,
-      netMargin: r.netMargin,
+      ebitdaMargin: r.ebitdaMargin,
     })),
   [sorted]);
 
@@ -421,7 +427,7 @@ export default function AdminResultsPage() {
             {/* Gráfico de barras */}
             {sorted.length > 0 && (
               <div className="rounded-xl border border-gray-200 bg-white shadow-sm p-5">
-                <MarginBarChart data={barData} />
+                <EbitdaBarChart data={barData} />
               </div>
             )}
 
@@ -433,7 +439,7 @@ export default function AdminResultsPage() {
                     Carregando histórico...
                   </div>
                 ) : historyData.length > 0 ? (
-                  <MarginLineChart historyData={historyData} squadNames={squadNames} />
+                  <EbitdaLineChart historyData={historyData} squadNames={squadNames} />
                 ) : null}
               </div>
             )}

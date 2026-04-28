@@ -5,6 +5,10 @@ const storeRepository = require('../repositories/storeRepository');
 const productRepository = require('../repositories/productRepository');
 const inventoryRepository = require('../repositories/inventoryRepository');
 const { calcularDREPreview, gerarFeedback } = require('../services/financeService');
+const {
+  calcPayroll, calcInterest, calcCsat,
+  calcSla, calcLicensing, calcMaintenance, calcCapexCost,
+} = require('../services/simulationService');
 const rankingService = require('../services/rankingService');
 const { PrismaClient } = require('@prisma/client');
 const asyncHandler = require('../utils/asyncHandler');
@@ -12,14 +16,24 @@ const asyncHandler = require('../utils/asyncHandler');
 const prisma = new PrismaClient();
 
 const configSchema = z.object({
-  fixedExpenses: z.number().min(0, 'Despesas fixas não podem ser negativas'),
-  variableExpenses: z.number().min(0, 'Despesas variáveis não podem ser negativas'),
+  otherExpenses:     z.number().min(0, 'Outros gastos não podem ser negativos'),
+  cashierOperators:  z.number().int('Deve ser inteiro').min(0, 'Não pode ser negativo').default(10),
+  serviceOperators:  z.number().int('Deve ser inteiro').min(0, 'Não pode ser negativo').default(5),
+  quizScore:         z.number().min(0, 'Mínimo 0').max(1, 'Máximo 1').default(1.0),
+  // CAPEX & Licensing
+  numPdvs:           z.number().int('Deve ser inteiro').min(0).default(6),
+  capexSeguranca:    z.boolean().default(false),
+  capexBalanca:      z.boolean().default(false),
+  capexRedes:        z.boolean().default(false),
+  capexSite:         z.boolean().default(false),
+  capexSelfCheckout: z.boolean().default(false),
+  capexMelhoria:     z.boolean().default(false),
   items: z
     .array(
       z.object({
-        productId: z.string().min(1, 'productId é obrigatório'),
-        salePrice: z.number().positive('Preço de venda deve ser positivo'),
-        salesVolume: z.int('Volume deve ser um inteiro').positive('Volume deve ser positivo'),
+        productId:   z.string().min(1, 'productId é obrigatório'),
+        margin:      z.number().min(0, 'Margem não pode ser negativa'),
+        salesVolume: z.number().int('Volume deve ser um inteiro').positive('Volume deve ser positivo'),
       })
     )
     .min(1, 'Informe ao menos um produto'),
@@ -59,7 +73,11 @@ async function submitConfig(req, res) {
     return res.status(400).json({ errors: parsed.error.flatten().fieldErrors });
   }
 
-  const { fixedExpenses, variableExpenses, items } = parsed.data;
+  const {
+    otherExpenses, cashierOperators, serviceOperators, quizScore,
+    numPdvs, capexSeguranca, capexBalanca, capexRedes, capexSite, capexSelfCheckout, capexMelhoria,
+    items,
+  } = parsed.data;
 
   const productIds = items.map((i) => i.productId);
   const uniqueIds = [...new Set(productIds)];
@@ -76,22 +94,88 @@ async function submitConfig(req, res) {
     });
   }
 
-  const roundConfig = await roundConfigRepository.create(
-    roundId,
-    store.id,
-    fixedExpenses,
-    variableExpenses,
-    items
+  const productMap = Object.fromEntries(
+    existingProducts.filter(Boolean).map((p) => [p.id, p])
   );
 
+  // Pre-compute costs for cash deduction
+  const capexConfig = { capexSeguranca, capexBalanca, capexRedes, capexSite, capexSelfCheckout, capexMelhoria };
+  const stockCost = items.reduce(
+    (sum, item) => sum + item.salesVolume * (productMap[item.productId]?.purchasePrice ?? 0),
+    0
+  );
+  const capexCost       = calcCapexCost(capexConfig);
+  const interestPenalty = calcInterest(stockCost + capexCost, store.currentCash);
+  const totalDeduction  = stockCost + capexCost + interestPenalty;
+
+  // Atomic: create config + increment inventory + deduct cash
+  const roundConfig = await prisma.$transaction(async (tx) => {
+    const config = await tx.roundConfig.create({
+      data: {
+        roundId,
+        storeId:          store.id,
+        otherExpenses,
+        cashierOperators,
+        serviceOperators,
+        quizScore,
+        numPdvs,
+        capexSeguranca,
+        capexBalanca,
+        capexRedes,
+        capexSite,
+        capexSelfCheckout,
+        capexMelhoria,
+        roundConfigItems: {
+          create: items.map(({ productId, margin, salesVolume }) => ({
+            productId,
+            margin,
+            salesVolume,
+          })),
+        },
+      },
+      include: { roundConfigItems: true },
+    });
+
+    // Increment inventory by salesVolume (stock purchase)
+    await Promise.all(
+      items.map((item) =>
+        tx.inventory.update({
+          where: { storeId_productId: { storeId: store.id, productId: item.productId } },
+          data: { quantity: { increment: item.salesVolume } },
+        })
+      )
+    );
+
+    // Deduct cash (stockCost + capexCost + interest)
+    await tx.store.update({
+      where: { id: store.id },
+      data: { currentCash: { decrement: totalDeduction } },
+    });
+
+    return config;
+  });
+
   return res.status(201).json({
-    roundConfigId: roundConfig.id,
-    storeId: store.id,
+    roundConfigId:     roundConfig.id,
+    storeId:           store.id,
     roundId,
-    fixedExpenses: roundConfig.fixedExpenses,
-    variableExpenses: roundConfig.variableExpenses,
-    submittedAt: roundConfig.submittedAt,
-    items: roundConfig.roundConfigItems,
+    otherExpenses:     roundConfig.otherExpenses,
+    cashierOperators:  roundConfig.cashierOperators,
+    serviceOperators:  roundConfig.serviceOperators,
+    quizScore:         roundConfig.quizScore,
+    numPdvs:           roundConfig.numPdvs,
+    capexSeguranca:    roundConfig.capexSeguranca,
+    capexBalanca:      roundConfig.capexBalanca,
+    capexRedes:        roundConfig.capexRedes,
+    capexSite:         roundConfig.capexSite,
+    capexSelfCheckout: roundConfig.capexSelfCheckout,
+    capexMelhoria:     roundConfig.capexMelhoria,
+    submittedAt:       roundConfig.submittedAt,
+    stockCost,
+    capexCost,
+    interestPenalty,
+    totalDeduction,
+    items:             roundConfig.roundConfigItems,
   });
 }
 
@@ -112,7 +196,11 @@ async function previewConfig(req, res) {
     return res.status(400).json({ errors: parsed.error.flatten().fieldErrors });
   }
 
-  const { fixedExpenses, variableExpenses, items } = parsed.data;
+  const {
+    otherExpenses, cashierOperators, serviceOperators, quizScore,
+    numPdvs, capexSeguranca, capexBalanca, capexRedes, capexSite, capexSelfCheckout, capexMelhoria,
+    items,
+  } = parsed.data;
 
   const productIds = [...new Set(items.map((i) => i.productId))];
   const foundProducts = await Promise.all(productIds.map((id) => productRepository.findById(id)));
@@ -121,30 +209,77 @@ async function previewConfig(req, res) {
     return res.status(400).json({ message: 'Produtos não encontrados', missingProductIds: missingProducts });
   }
 
-  const purchasePriceMap = Object.fromEntries(
-    foundProducts.map((p) => [p.id, p.purchasePrice])
+  const productMap = Object.fromEntries(foundProducts.map((p) => [p.id, p]));
+
+  // Fetch current inventory to add to the purchased quantities for the DRE preview
+  const realInventoryList = await inventoryRepository.findByStoreId(store.id);
+  const realInventoryMap  = Object.fromEntries(
+    realInventoryList.map((inv) => [inv.productId, inv.quantity])
   );
 
-  const inventoryList = await inventoryRepository.findByStoreId(store.id);
+  const configForCalc = {
+    cashierOperators, serviceOperators, quizScore,
+    numPdvs, capexSeguranca, capexBalanca, capexRedes, capexSite, capexSelfCheckout, capexMelhoria,
+  };
 
-  const roundConfig = { fixedExpenses, variableExpenses };
+  const csat        = calcCsat(configForCalc);
+  const sla         = calcSla(serviceOperators);
+  const payroll     = calcPayroll(configForCalc);
+  const licensing   = calcLicensing(configForCalc);
+  const maintenance = calcMaintenance(configForCalc);
+  const capexCost   = calcCapexCost(configForCalc);
+
+  const stockCost = items.reduce(
+    (sum, item) => sum + item.salesVolume * (productMap[item.productId]?.purchasePrice ?? 0),
+    0
+  );
+
+  // Use currentCash (not initialCapital) — accounts for previous round purchases
+  const currentCash     = store.currentCash;
+  const totalOutlay     = stockCost + capexCost;
+  const interestPenalty = calcInterest(totalOutlay, currentCash);
+  const totalOtherExpenses = otherExpenses + payroll + licensing + maintenance + interestPenalty;
+
+  const roundConfig = { otherExpenses: totalOtherExpenses };
 
   const itemsForEngine = items.map((item) => ({
-    productId: item.productId,
-    salePrice: item.salePrice,
+    productId:   item.productId,
+    margin:      item.margin,
     salesVolume: item.salesVolume,
-    product: { purchasePrice: purchasePriceMap[item.productId] },
+    product: {
+      purchasePrice: productMap[item.productId].purchasePrice,
+      taxRate:       productMap[item.productId].taxRate,
+      breakageRate:  productMap[item.productId].breakageRate,
+      agingRate:     productMap[item.productId].agingRate,
+    },
   }));
 
-  const inventory = inventoryList.map((inv) => ({
-    productId: inv.productId,
-    quantity: inv.quantity,
+  // Preview inventory = existing stock + additional purchase
+  // This ensures round 1 (inventory=0 + salesVolume) and round 2 (leftover + new buy) both work
+  const inventoryForPreview = items.map((item) => ({
+    productId: item.productId,
+    quantity:  (realInventoryMap[item.productId] ?? 0) + item.salesVolume,
   }));
 
-  const dre = calcularDREPreview(roundConfig, itemsForEngine, inventory);
+  const dre       = calcularDREPreview(roundConfig, itemsForEngine, inventoryForPreview);
   const feedbacks = gerarFeedback(dre);
 
-  return res.status(200).json({ dre, feedbacks, preview: true });
+  const cashSummary = {
+    currentCash,
+    initialCapital: store.initialCapital,
+    stockCost,
+    capexCost,
+    payroll,
+    licensing,
+    maintenance,
+    interestPenalty,
+    balance: currentCash - totalOutlay,
+    cashOk:  totalOutlay <= currentCash,
+    csat,
+    sla,
+  };
+
+  return res.status(200).json({ dre, feedbacks, cashSummary, preview: true });
 }
 
 async function getRanking(req, res) {
@@ -188,7 +323,6 @@ async function getResults(req, res) {
     return res.status(200).json(results);
   }
 
-  // PLAYER — somente resultado da própria loja
   if (!squadId) {
     return res.status(400).json({ message: 'Usuário não pertence a um squad' });
   }

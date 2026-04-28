@@ -46,6 +46,7 @@ model Store {
   id             String   @id @default(uuid())
   name           String
   initialCapital Float
+  currentCash    Float    @default(700000)
   squadId        String
   createdAt      DateTime @default(now())
 
@@ -59,7 +60,10 @@ model Product {
   id            String   @id @default(uuid())
   name          String
   purchasePrice Float
-  salePrice     Float
+  taxRate       Float    @default(0)
+  breakageRate  Float    @default(0)
+  agingRate     Float    @default(0)
+  mixAvailable  Int      @default(0)
   createdAt     DateTime @default(now())
 
   inventories      Inventory[]
@@ -67,11 +71,10 @@ model Product {
 }
 
 model Inventory {
-  id            String  @id @default(uuid())
-  storeId       String
-  productId     String
-  quantity      Int
-  agingCategory String?
+  id        String @id @default(uuid())
+  storeId   String
+  productId String
+  quantity  Int
 
   store   Store   @relation(fields: [storeId], references: [id])
   product Product @relation(fields: [productId], references: [id])
@@ -80,23 +83,34 @@ model Inventory {
 }
 
 model Round {
-  id        String      @id @default(uuid())
-  number    Int
-  startDate DateTime
-  endDate   DateTime
-  status    RoundStatus @default(OPEN)
+  id           String      @id @default(uuid())
+  number       Int
+  startDate    DateTime
+  endDate      DateTime
+  status       RoundStatus @default(OPEN)
+  demandFactor Float       @default(0.5)
 
   roundConfigs     RoundConfig[]
   financialResults FinancialResult[]
 }
 
 model RoundConfig {
-  id               String   @id @default(uuid())
-  roundId          String
-  storeId          String
-  fixedExpenses    Float
-  variableExpenses Float
-  submittedAt      DateTime @default(now())
+  id                String   @id @default(uuid())
+  roundId           String
+  storeId           String
+  otherExpenses     Float    @default(0)
+  cashierOperators  Int      @default(10)
+  serviceOperators  Int      @default(5)
+  quizScore         Float    @default(1.0)
+  // CAPEX selections (one-time investment deducted from store capital)
+  numPdvs           Int      @default(6)
+  capexSeguranca    Boolean  @default(false)
+  capexBalanca      Boolean  @default(false)
+  capexRedes        Boolean  @default(false)
+  capexSite         Boolean  @default(false)
+  capexSelfCheckout Boolean  @default(false)
+  capexMelhoria     Boolean  @default(false)
+  submittedAt       DateTime @default(now())
 
   round            Round             @relation(fields: [roundId], references: [id])
   store            Store             @relation(fields: [storeId], references: [id])
@@ -110,7 +124,7 @@ model RoundConfigItem {
   id            String @id @default(uuid())
   roundConfigId String
   productId     String
-  salePrice     Float
+  margin        Float
   salesVolume   Int
 
   roundConfig RoundConfig @relation(fields: [roundConfigId], references: [id])
@@ -120,17 +134,23 @@ model RoundConfigItem {
 }
 
 model FinancialResult {
-  id            String   @id @default(uuid())
-  roundId       String
-  storeId       String
-  roundConfigId String   @unique
-  grossRevenue  Float
-  costs         Float
-  expenses      Float
-  grossProfit   Float
-  netProfit     Float
-  netMargin     Float
-  calculatedAt  DateTime @default(now())
+  id             String   @id @default(uuid())
+  roundId        String
+  storeId        String
+  roundConfigId  String   @unique
+  grossRevenue   Float
+  taxes          Float
+  netRevenue     Float
+  costs          Float
+  grossMargin    Float
+  totalBreakage  Float
+  totalAging     Float
+  netMarginMass  Float
+  otherExpenses  Float
+  ebitda         Float
+  ebitdaMargin   Float
+  demandShare    Float    @default(0)
+  calculatedAt   DateTime @default(now())
 
   round       Round       @relation(fields: [roundId], references: [id])
   store       Store       @relation(fields: [storeId], references: [id])

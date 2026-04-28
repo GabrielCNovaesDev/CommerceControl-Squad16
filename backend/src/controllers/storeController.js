@@ -41,7 +41,11 @@ async function createStore(req, res) {
     return res.status(409).json({ message: 'Este squad já possui uma loja' });
   }
 
-  const store = await storeRepository.create({ ...parsed.data, squadId });
+  const store = await storeRepository.create({
+    ...parsed.data,
+    squadId,
+    currentCash: parsed.data.initialCapital,
+  });
 
   const products = await productRepository.findAll();
   if (products.length > 0) {
