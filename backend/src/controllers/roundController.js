@@ -4,9 +4,10 @@ const simulationService = require('../services/simulationService');
 const asyncHandler = require('../utils/asyncHandler');
 
 const createSchema = z.object({
-  number: z.int('Número deve ser um inteiro').positive('Número deve ser positivo'),
+  number: z.number().int('Número deve ser um inteiro').positive('Número deve ser positivo'),
   startDate: z.coerce.date({ message: 'startDate inválida' }),
   endDate: z.coerce.date({ message: 'endDate inválida' }),
+  demandFactor: z.number().min(0, 'Fator de demanda não pode ser negativo').max(1, 'Fator de demanda máximo é 1').default(0.5),
 });
 
 async function listRounds(req, res) {

@@ -5,6 +5,7 @@ const navLinks = [
   { to: '/admin', label: 'Dashboard', end: true },
   { to: '/admin/rounds', label: 'Rodadas' },
   { to: '/admin/squads', label: 'Squads' },
+  { to: '/admin/users', label: 'Usuários' },
   { to: '/admin/products', label: 'Produtos' },
   { to: '/admin/results', label: 'Resultados' },
 ];

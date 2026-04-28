@@ -422,7 +422,6 @@ export default function SquadsManagementPage() {
   }
 
   function handleAddUser(squadId) {
-    setActionError('');
     setAddUserTo(squadId);
   }
 

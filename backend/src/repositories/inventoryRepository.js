@@ -7,7 +7,7 @@ function findByStoreId(storeId) {
     where: { storeId },
     include: {
       product: {
-        select: { id: true, name: true, purchasePrice: true, salePrice: true },
+        select: { id: true, name: true, purchasePrice: true, taxRate: true, mixAvailable: true },
       },
     },
   });
@@ -18,7 +18,7 @@ function findByStoreAndProduct(storeId, productId) {
     where: { storeId_productId: { storeId, productId } },
     include: {
       product: {
-        select: { id: true, name: true, purchasePrice: true, salePrice: true },
+        select: { id: true, name: true, purchasePrice: true, taxRate: true, mixAvailable: true },
       },
     },
   });
@@ -30,7 +30,7 @@ function updateQuantity(storeId, productId, quantity) {
     data: { quantity },
     include: {
       product: {
-        select: { id: true, name: true, purchasePrice: true, salePrice: true },
+        select: { id: true, name: true, purchasePrice: true, taxRate: true, mixAvailable: true },
       },
     },
   });
