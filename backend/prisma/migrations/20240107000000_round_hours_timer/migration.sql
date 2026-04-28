@@ -1,0 +1,6 @@
+-- AlterTable Round: replace startDate/endDate with durationHours + endsAt
+ALTER TABLE "Round" ADD COLUMN "durationHours" INTEGER NOT NULL DEFAULT 1;
+ALTER TABLE "Round" ADD COLUMN "endsAt" TIMESTAMP(3) NOT NULL DEFAULT now();
+ALTER TABLE "Round" ADD COLUMN "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE "Round" DROP COLUMN IF EXISTS "startDate";
+ALTER TABLE "Round" DROP COLUMN IF EXISTS "endDate";

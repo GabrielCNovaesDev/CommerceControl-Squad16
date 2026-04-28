@@ -14,6 +14,7 @@ import Skeleton from '../components/ui/Skeleton';
 import ErrorMessage from '../components/ui/ErrorMessage';
 import { useToast } from '../hooks/useToast';
 import { formatCurrency } from '../utils/formatters';
+import { useCountdown } from '../hooks/useCountdown';
 
 const ROUND_STATUS_BADGE = {
   OPEN: { label: 'Aberta', variant: 'green' },
@@ -153,6 +154,23 @@ export default function StoresDashboardPage() {
 
   const roundBadge = activeRound ? ROUND_STATUS_BADGE[activeRound.status] : null;
 
+  function RoundTimer({ endsAt }) {
+    const { timeLeft, expired } = useCountdown(endsAt);
+    if (expired) {
+      return (
+        <div className="rounded-lg bg-orange-50 border border-orange-200 px-3 py-2 text-center">
+          <p className="text-xs text-orange-600 font-medium">Tempo esgotado — aguardando encerramento</p>
+        </div>
+      );
+    }
+    return (
+      <div className="rounded-lg bg-blue-50 border border-blue-100 px-3 py-2 flex items-center justify-between">
+        <span className="text-xs text-blue-500 font-medium">Tempo restante</span>
+        <span className="text-lg font-mono font-bold text-blue-700 tabular-nums">{timeLeft}</span>
+      </div>
+    );
+  }
+
   return (
     <PlayerLayout>
       <div className="flex flex-col gap-6 max-w-4xl">
@@ -190,6 +208,9 @@ export default function StoresDashboardPage() {
                     <Badge variant={roundBadge.variant}>{roundBadge.label}</Badge>
                   )}
                 </div>
+                {activeRound.status === 'OPEN' && activeRound.endsAt && (
+                  <RoundTimer endsAt={activeRound.endsAt} />
+                )}
                 <Button
                   onClick={() => navigate('/store/round')}
                   disabled={activeRound.status !== 'OPEN'}
