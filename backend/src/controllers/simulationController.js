@@ -5,7 +5,10 @@ const storeRepository = require('../repositories/storeRepository');
 const productRepository = require('../repositories/productRepository');
 const inventoryRepository = require('../repositories/inventoryRepository');
 const { calcularDREPreview, gerarFeedback } = require('../services/financeService');
-const { calcPayroll, calcInterest, calcCsat } = require('../services/simulationService');
+const {
+  calcPayroll, calcInterest, calcCsat,
+  calcSla, calcLicensing, calcMaintenance, calcCapexCost,
+} = require('../services/simulationService');
 const rankingService = require('../services/rankingService');
 const { PrismaClient } = require('@prisma/client');
 const asyncHandler = require('../utils/asyncHandler');
@@ -13,15 +16,23 @@ const asyncHandler = require('../utils/asyncHandler');
 const prisma = new PrismaClient();
 
 const configSchema = z.object({
-  otherExpenses: z.number().min(0, 'Outros gastos não podem ser negativos'),
-  cashierOperators: z.number().int('Deve ser inteiro').min(0, 'Não pode ser negativo').default(10),
-  serviceOperators: z.number().int('Deve ser inteiro').min(0, 'Não pode ser negativo').default(5),
-  quizScore: z.number().min(0, 'Mínimo 0').max(1, 'Máximo 1').default(1.0),
+  otherExpenses:     z.number().min(0, 'Outros gastos não podem ser negativos'),
+  cashierOperators:  z.number().int('Deve ser inteiro').min(0, 'Não pode ser negativo').default(10),
+  serviceOperators:  z.number().int('Deve ser inteiro').min(0, 'Não pode ser negativo').default(5),
+  quizScore:         z.number().min(0, 'Mínimo 0').max(1, 'Máximo 1').default(1.0),
+  // CAPEX & Licensing
+  numPdvs:           z.number().int('Deve ser inteiro').min(0).default(6),
+  capexSeguranca:    z.boolean().default(false),
+  capexBalanca:      z.boolean().default(false),
+  capexRedes:        z.boolean().default(false),
+  capexSite:         z.boolean().default(false),
+  capexSelfCheckout: z.boolean().default(false),
+  capexMelhoria:     z.boolean().default(false),
   items: z
     .array(
       z.object({
-        productId: z.string().min(1, 'productId é obrigatório'),
-        margin: z.number().min(0, 'Margem não pode ser negativa'),
+        productId:   z.string().min(1, 'productId é obrigatório'),
+        margin:      z.number().min(0, 'Margem não pode ser negativa'),
         salesVolume: z.number().int('Volume deve ser um inteiro').positive('Volume deve ser positivo'),
       })
     )
@@ -62,7 +73,11 @@ async function submitConfig(req, res) {
     return res.status(400).json({ errors: parsed.error.flatten().fieldErrors });
   }
 
-  const { otherExpenses, cashierOperators, serviceOperators, quizScore, items } = parsed.data;
+  const {
+    otherExpenses, cashierOperators, serviceOperators, quizScore,
+    numPdvs, capexSeguranca, capexBalanca, capexRedes, capexSite, capexSelfCheckout, capexMelhoria,
+    items,
+  } = parsed.data;
 
   const productIds = items.map((i) => i.productId);
   const uniqueIds = [...new Set(productIds)];
@@ -82,20 +97,30 @@ async function submitConfig(req, res) {
   const roundConfig = await roundConfigRepository.create(
     roundId,
     store.id,
-    { otherExpenses, cashierOperators, serviceOperators, quizScore },
+    {
+      otherExpenses, cashierOperators, serviceOperators, quizScore,
+      numPdvs, capexSeguranca, capexBalanca, capexRedes, capexSite, capexSelfCheckout, capexMelhoria,
+    },
     items
   );
 
   return res.status(201).json({
-    roundConfigId: roundConfig.id,
-    storeId: store.id,
+    roundConfigId:     roundConfig.id,
+    storeId:           store.id,
     roundId,
-    otherExpenses: roundConfig.otherExpenses,
-    cashierOperators: roundConfig.cashierOperators,
-    serviceOperators: roundConfig.serviceOperators,
-    quizScore: roundConfig.quizScore,
-    submittedAt: roundConfig.submittedAt,
-    items: roundConfig.roundConfigItems,
+    otherExpenses:     roundConfig.otherExpenses,
+    cashierOperators:  roundConfig.cashierOperators,
+    serviceOperators:  roundConfig.serviceOperators,
+    quizScore:         roundConfig.quizScore,
+    numPdvs:           roundConfig.numPdvs,
+    capexSeguranca:    roundConfig.capexSeguranca,
+    capexBalanca:      roundConfig.capexBalanca,
+    capexRedes:        roundConfig.capexRedes,
+    capexSite:         roundConfig.capexSite,
+    capexSelfCheckout: roundConfig.capexSelfCheckout,
+    capexMelhoria:     roundConfig.capexMelhoria,
+    submittedAt:       roundConfig.submittedAt,
+    items:             roundConfig.roundConfigItems,
   });
 }
 
@@ -116,7 +141,11 @@ async function previewConfig(req, res) {
     return res.status(400).json({ errors: parsed.error.flatten().fieldErrors });
   }
 
-  const { otherExpenses, cashierOperators, serviceOperators, quizScore, items } = parsed.data;
+  const {
+    otherExpenses, cashierOperators, serviceOperators, quizScore,
+    numPdvs, capexSeguranca, capexBalanca, capexRedes, capexSite, capexSelfCheckout, capexMelhoria,
+    items,
+  } = parsed.data;
 
   const productIds = [...new Set(items.map((i) => i.productId))];
   const foundProducts = await Promise.all(productIds.map((id) => productRepository.findById(id)));
@@ -126,52 +155,64 @@ async function previewConfig(req, res) {
   }
 
   const productMap = Object.fromEntries(foundProducts.map((p) => [p.id, p]));
-
   const inventoryList = await inventoryRepository.findByStoreId(store.id);
 
-  // Compute operator costs and cash validation
-  const configForCalc = { cashierOperators, serviceOperators, quizScore };
-  const payroll = calcPayroll(configForCalc);
-  const csat = calcCsat(configForCalc);
+  const configForCalc = {
+    cashierOperators, serviceOperators, quizScore,
+    numPdvs, capexSeguranca, capexBalanca, capexRedes, capexSite, capexSelfCheckout, capexMelhoria,
+  };
+
+  const csat        = calcCsat(configForCalc);
+  const sla         = calcSla(serviceOperators);
+  const payroll     = calcPayroll(configForCalc);
+  const licensing   = calcLicensing(configForCalc);
+  const maintenance = calcMaintenance(configForCalc);
+  const capexCost   = calcCapexCost(configForCalc);
 
   const stockCost = items.reduce(
     (sum, item) => sum + item.salesVolume * (productMap[item.productId]?.purchasePrice ?? 0),
     0
   );
-  const initialCapital = store.initialCapital;
-  const interestPenalty = calcInterest(stockCost, initialCapital);
-  const totalOtherExpenses = otherExpenses + payroll + interestPenalty;
+
+  const initialCapital  = store.initialCapital;
+  const totalOutlay     = stockCost + capexCost;
+  const interestPenalty = calcInterest(totalOutlay, initialCapital);
+  const totalOtherExpenses = otherExpenses + payroll + licensing + maintenance + interestPenalty;
 
   const roundConfig = { otherExpenses: totalOtherExpenses };
 
   const itemsForEngine = items.map((item) => ({
-    productId: item.productId,
-    margin: item.margin,
+    productId:   item.productId,
+    margin:      item.margin,
     salesVolume: item.salesVolume,
     product: {
       purchasePrice: productMap[item.productId].purchasePrice,
-      taxRate: productMap[item.productId].taxRate,
-      breakageRate: productMap[item.productId].breakageRate,
-      agingRate: productMap[item.productId].agingRate,
+      taxRate:       productMap[item.productId].taxRate,
+      breakageRate:  productMap[item.productId].breakageRate,
+      agingRate:     productMap[item.productId].agingRate,
     },
   }));
 
   const inventory = inventoryList.map((inv) => ({
     productId: inv.productId,
-    quantity: inv.quantity,
+    quantity:  inv.quantity,
   }));
 
-  const dre = calcularDREPreview(roundConfig, itemsForEngine, inventory);
+  const dre      = calcularDREPreview(roundConfig, itemsForEngine, inventory);
   const feedbacks = gerarFeedback(dre);
 
   const cashSummary = {
     initialCapital,
     stockCost,
+    capexCost,
     payroll,
+    licensing,
+    maintenance,
     interestPenalty,
-    balance: initialCapital - stockCost,
-    cashOk: stockCost <= initialCapital,
+    balance: initialCapital - totalOutlay,
+    cashOk:  totalOutlay <= initialCapital,
     csat,
+    sla,
   };
 
   return res.status(200).json({ dre, feedbacks, cashSummary, preview: true });

@@ -111,12 +111,70 @@ function calcPayroll(config) {
 }
 
 /**
- * Computes interest penalty when stock cost exceeds available capital.
+ * Computes interest penalty when total outlay exceeds available capital.
  * Rate: 12% monthly on the overage amount.
+ * totalOutlay = stockCost + capexCost
  */
-function calcInterest(stockCost, initialCapital) {
-  if (stockCost <= initialCapital) return 0;
-  return (stockCost - initialCapital) * 0.12;
+function calcInterest(totalOutlay, initialCapital) {
+  if (totalOutlay <= initialCapital) return 0;
+  return (totalOutlay - initialCapital) * 0.12;
+}
+
+// ─── Sprint 4: CAPEX, SLA, Licensing, Maintenance ────────────────────────────
+
+/** CAPEX one-time investment costs (R$). */
+const CAPEX_COSTS = {
+  capexSeguranca:    50000,
+  capexBalanca:      75000,
+  capexRedes:        80000,
+  capexSite:         65000,
+  capexSelfCheckout: 80000,
+  capexMelhoria:     45000,
+};
+
+/**
+ * Total CAPEX investment selected by the store.
+ */
+function calcCapexCost(config) {
+  return Object.entries(CAPEX_COSTS).reduce(
+    (sum, [key, cost]) => sum + (config[key] ? cost : 0),
+    0
+  );
+}
+
+/**
+ * SLA (dias de resolução de serviço) based on number of service operators.
+ * Source: official table — 0→6, 1→5, 2→4, 3→3, 4→2, 5→1.
+ * Also shows how long a CAPEX-risk event stops sales (N + SLA days).
+ */
+function calcSla(serviceOperators) {
+  const table = [6, 5, 4, 3, 2, 1]; // index = operators (0–5, capped)
+  return table[Math.min(serviceOperators ?? 5, 5)];
+}
+
+/**
+ * Monthly software licensing costs (auto-computed).
+ * - Sistema Operacional: 5 users × R$120
+ * - PDVs: numPdvs × R$80
+ * - Self Checkout: +4 units × R$80 if capexSelfCheckout
+ * - Site: R$500/mês (+30% if capexSite → R$650)
+ * - Sistemas de Segurança: R$500/mês (+20% if capexSeguranca → R$600)
+ */
+function calcLicensing(config) {
+  const so           = 5 * 120;                                    // R$600 fixed
+  const pdvs         = (config.numPdvs ?? 6) * 80;
+  const selfCheckout = config.capexSelfCheckout ? 4 * 80 : 0;    // R$320 if CAPEX
+  const site         = config.capexSite ? 650 : 500;
+  const security     = config.capexSeguranca ? 600 : 500;
+  return so + pdvs + selfCheckout + site + security;
+}
+
+/**
+ * Monthly equipment maintenance fee.
+ * R$400 unless CAPEX Balança/Freezer was approved (new equipment → warranty).
+ */
+function calcMaintenance(config) {
+  return config.capexBalanca ? 0 : 400;
 }
 
 /**
@@ -237,15 +295,18 @@ async function processRound(roundId) {
           },
         }));
 
-        // Compute stock purchase cost
+        // Compute stock purchase cost and CAPEX outlay
         const stockCost = config.roundConfigItems.reduce(
           (sum, item) => sum + item.salesVolume * item.product.purchasePrice,
           0
         );
-
-        const payroll = calcPayroll(config);
-        const interestPenalty = calcInterest(stockCost, config.store.initialCapital);
-        const totalOtherExpenses = config.otherExpenses + payroll + interestPenalty;
+        const capexCost  = calcCapexCost(config);
+        const payroll    = calcPayroll(config);
+        const licensing  = calcLicensing(config);
+        const maintenance = calcMaintenance(config);
+        const interestPenalty = calcInterest(stockCost + capexCost, config.store.initialCapital);
+        const totalOtherExpenses =
+          config.otherExpenses + payroll + licensing + maintenance + interestPenalty;
 
         const roundConfig = { otherExpenses: totalOtherExpenses };
 
@@ -288,7 +349,9 @@ async function processRound(roundId) {
         `[simulationService] Loja ${config.storeId}: share=${(demandShare * 100).toFixed(1)}%,` +
         ` priceScore=${priceScores[config.storeId]}, availScore=${availScores[config.storeId]},` +
         ` csatScore=${csatScores[config.storeId]}, total=${totalScores[config.storeId]},` +
-        ` CSAT=${(calcCsat(config) * 100).toFixed(1)}%, payroll=${calcPayroll(config)}`
+        ` CSAT=${(calcCsat(config) * 100).toFixed(1)}%, SLA=${calcSla(config.serviceOperators)},` +
+        ` payroll=${calcPayroll(config)}, licensing=${calcLicensing(config)},` +
+        ` capex=${calcCapexCost(config)}`
       );
     } catch (err) {
       console.error(`[simulationService] Erro ao processar loja ${config.storeId}:`, err.message);
@@ -296,4 +359,14 @@ async function processRound(roundId) {
   }
 }
 
-module.exports = { processRound, calcPayroll, calcInterest, calcCsat };
+module.exports = {
+  processRound,
+  calcPayroll,
+  calcInterest,
+  calcCsat,
+  calcSla,
+  calcLicensing,
+  calcMaintenance,
+  calcCapexCost,
+  CAPEX_COSTS,
+};
