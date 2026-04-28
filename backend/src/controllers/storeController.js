@@ -1,10 +1,8 @@
 const { z } = require('zod');
 const storeRepository = require('../repositories/storeRepository');
 const productRepository = require('../repositories/productRepository');
-const { PrismaClient } = require('@prisma/client');
+const prisma = require('../utils/prisma');
 const asyncHandler = require('../utils/asyncHandler');
-
-const prisma = new PrismaClient();
 
 const createSchema = z.object({
   name: z.string().min(1, 'Nome é obrigatório'),

@@ -10,10 +10,8 @@ const {
   calcSla, calcLicensing, calcMaintenance, calcCapexCost,
 } = require('../services/simulationService');
 const rankingService = require('../services/rankingService');
-const { PrismaClient } = require('@prisma/client');
+const prisma = require('../utils/prisma');
 const asyncHandler = require('../utils/asyncHandler');
-
-const prisma = new PrismaClient();
 
 const configSchema = z.object({
   otherExpenses:     z.number().min(0, 'Outros gastos não podem ser negativos'),

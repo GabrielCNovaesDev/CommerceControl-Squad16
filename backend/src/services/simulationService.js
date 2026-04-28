@@ -1,8 +1,6 @@
-const { PrismaClient } = require('@prisma/client');
+const prisma = require('../utils/prisma');
 const { calcularDRE, calcularPreco } = require('./financeService');
 const roundConfigRepository = require('../repositories/roundConfigRepository');
-
-const prisma = new PrismaClient();
 
 // ─── Demand distribution helpers ─────────────────────────────────────────────
 

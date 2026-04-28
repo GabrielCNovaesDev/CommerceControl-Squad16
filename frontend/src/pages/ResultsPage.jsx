@@ -8,25 +8,37 @@ import { formatCurrency } from '../utils/formatters';
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
 
-function gerarFeedback(dre) {
+function gerarFeedback(result) {
   const feedbacks = [];
 
-  if (dre.ebitda < 0) {
+  if (result.ebitda < 0) {
     feedbacks.push('EBITDA negativo: sua loja teve prejuízo nesta rodada.');
   }
-  if (dre.costs > dre.netRevenue) {
+  if (result.costs > result.netRevenue) {
     feedbacks.push(
       'Custo de venda superou a receita líquida. Revise a margem comercial — ela precisa cobrir impostos e gerar lucro.'
     );
   }
-  if (dre.grossMargin < 0) {
+  if (result.grossMargin < 0) {
     feedbacks.push(
       'Margem bruta negativa: os impostos e custos consumiram toda a receita líquida.'
     );
   }
-  if (dre.grossRevenue === 0) {
+  if (result.grossRevenue === 0) {
     feedbacks.push(
       'Nenhuma receita gerada nesta rodada. Verifique se o estoque estava disponível e os volumes configurados.'
+    );
+  }
+
+  const items = result.roundConfig?.roundConfigItems ?? [];
+  const stockLimited = items.filter(
+    (item) => item.salesVolume > 0 && item.product?.purchasePrice != null
+  );
+  if (stockLimited.length > 0 && result.grossRevenue < stockLimited.reduce(
+    (sum, item) => sum + item.salePrice * item.salesVolume, 0
+  )) {
+    feedbacks.push(
+      'Um ou mais produtos tiveram volume de vendas limitado pelo estoque disponível. Revise seu estoque.'
     );
   }
 

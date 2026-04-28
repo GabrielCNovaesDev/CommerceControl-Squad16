@@ -2,7 +2,8 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const bcrypt = require('bcryptjs');
-const { PrismaClient } = require('@prisma/client');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
 
 const authRoutes = require('./routes/authRoutes');
 const userRoutes = require('./routes/userRoutes');
@@ -14,18 +15,41 @@ const roundRoutes = require('./routes/roundRoutes');
 const simulationRoutes = require('./routes/simulationRoutes');
 const errorMiddleware = require('./middlewares/errorMiddleware');
 
-const prisma = new PrismaClient();
+const prisma = require('./utils/prisma');
 
 const app = express();
 
-app.use(cors());
+const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || 'http://localhost:5173')
+  .split(',')
+  .map((o) => o.trim());
+
+app.use(helmet());
+
+app.use(cors({
+  origin: (origin, callback) => {
+    if (!origin || ALLOWED_ORIGINS.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true,
+}));
 app.use(express.json());
+
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: process.env.NODE_ENV === 'test' ? 1000 : 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Muitas tentativas de login. Tente novamente em 15 minutos.' },
+});
 
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', message: 'Simulador Estratégico de Loja - API running' });
 });
 
-app.use('/auth', authRoutes);
+app.use('/auth', loginLimiter, authRoutes);
 app.use('/users', userRoutes);
 app.use('/products', productRoutes);
 app.use('/squads', squadRoutes);

@@ -4,6 +4,10 @@ const bcrypt = require('bcryptjs');
 const prisma = new PrismaClient();
 
 async function main() {
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('Seed não deve ser executado em produção. Use variáveis de ambiente para criar o primeiro admin.');
+  }
+
   console.log('Iniciando seed...');
 
   // 1. Categorias de produtos conforme regra do cliente

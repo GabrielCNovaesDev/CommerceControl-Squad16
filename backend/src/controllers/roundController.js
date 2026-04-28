@@ -69,7 +69,12 @@ async function closeRound(req, res) {
 
   await roundRepository.updateStatus(id, 'PROCESSING');
 
-  await simulationService.processRound(id);
+  try {
+    await simulationService.processRound(id);
+  } catch (err) {
+    await roundRepository.updateStatus(id, 'OPEN');
+    throw err;
+  }
 
   await roundRepository.updateStatus(id, 'CLOSED');
 
