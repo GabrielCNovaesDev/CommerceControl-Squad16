@@ -2,12 +2,13 @@
   "name": "backend",
   "version": "1.0.0",
   "description": "Simulador Estratégico de Loja - Cencosud",
-  "main": "src/server.js",
+  "main": "dist/server.js",
   "type": "commonjs",
   "scripts": {
-    "start": "node src/server.js",
-    "dev": "nodemon src/server.js",
-    "dev:local": "dotenv -e .env.local -- nodemon src/server.js",
+    "start": "node dist/server.js",
+    "dev": "ts-node -r tsconfig-paths/register src/server.ts",
+    "dev:local": "dotenv -e .env.local -- ts-node -r tsconfig-paths/register src/server.ts",
+    "build": "tsc",
     "setup:local": "prisma generate --schema=prisma/schema.local.prisma && dotenv -e .env.local -- prisma db push --schema=prisma/schema.local.prisma && dotenv -e .env.local -- node prisma/seed.js",
     "migrate": "prisma migrate dev",
     "seed": "node prisma/seed.js",
@@ -34,11 +35,21 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/cors": "^2.8.17",
+    "@types/express": "^5.0.1",
+    "@types/jsonwebtoken": "^9.0.9",
+    "@types/node": "^22.15.3",
+    "@types/supertest": "^6.0.3",
     "dotenv-cli": "^7.4.4",
     "jest": "^30.3.0",
     "jest-mock-extended": "^4.0.0",
     "nodemon": "^3.1.14",
     "prisma": "^5.22.0",
-    "supertest": "^7.2.2"
+    "supertest": "^7.2.2",
+    "ts-jest": "^29.4.0",
+    "ts-node": "^10.9.2",
+    "tsconfig-paths": "^4.2.0",
+    "typescript": "^5.8.3"
   }
 }
