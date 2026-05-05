@@ -16,6 +16,7 @@ import SquadsManagementPage from './pages/SquadsManagementPage';
 import UsersManagementPage from './pages/UsersManagementPage';
 import ProductsManagementPage from './pages/ProductsManagementPage';
 import AdminResultsPage from './pages/AdminResultsPage';
+import TutorialsPage from './pages/TutorialsPage';
 
 export default function App() {
   return (
@@ -109,6 +110,16 @@ export default function App() {
           element={
             <PrivateRoute allowedRoles={['GAME_MASTER']}>
               <AdminResultsPage />
+            </PrivateRoute>
+          }
+        />
+
+        {/* Tutoriais — acessível por PLAYER e GAME_MASTER */}
+        <Route
+          path="/tutorials"
+          element={
+            <PrivateRoute allowedRoles={['PLAYER', 'GAME_MASTER']}>
+              <TutorialsPage />
             </PrivateRoute>
           }
         />
