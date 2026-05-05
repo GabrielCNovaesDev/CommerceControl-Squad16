@@ -1,5 +1,6 @@
 import prisma from '../utils/prisma';
-import { RoundStatus } from '@prisma/client';
+
+type RoundStatus = 'OPEN' | 'PROCESSING' | 'CLOSED';
 
 const roundInclude = {
   _count: { select: { roundConfigs: true } },

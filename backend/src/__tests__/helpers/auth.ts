@@ -1,5 +1,6 @@
 import jwt from 'jsonwebtoken';
-import { UserRole } from '@prisma/client';
+
+type UserRole = 'GAME_MASTER' | 'PLAYER' | 'OBSERVER';
 
 interface SignTokenOptions {
   userId?: string;

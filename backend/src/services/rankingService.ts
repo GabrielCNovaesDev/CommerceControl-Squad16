@@ -1,4 +1,4 @@
-import prisma from '../utils/prisma';
+import prisma, { toNum } from '../utils/prisma';
 
 export interface RankingEntry {
   position: number;
@@ -26,10 +26,10 @@ export async function getRanking(roundId: string): Promise<RankingEntry[]> {
   // Converte Decimal → number na fronteira com o Prisma
   const normalized = results.map((r) => ({
     ...r,
-    ebitdaMargin: r.ebitdaMargin.toNumber(),
-    ebitda: r.ebitda.toNumber(),
-    grossRevenue: r.grossRevenue.toNumber(),
-    netRevenue: r.netRevenue.toNumber(),
+    ebitdaMargin: toNum(r.ebitdaMargin),
+    ebitda: toNum(r.ebitda),
+    grossRevenue: toNum(r.grossRevenue),
+    netRevenue: toNum(r.netRevenue),
   }));
 
   const sorted = normalized.sort((a, b) => {

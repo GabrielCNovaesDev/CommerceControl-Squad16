@@ -39,7 +39,7 @@ interface CreateRoundData {
 
 const roundService = {
   getRounds: (): Promise<Round[]> =>
-    api.get('/rounds').then((r) => r.data),
+    api.get('/rounds').then((r) => r.data?.content ?? r.data),
 
   getRound: (id: string): Promise<Round> =>
     api.get(`/rounds/${id}`).then((r) => r.data),

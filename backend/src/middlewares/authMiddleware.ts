@@ -1,7 +1,23 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-import { UserRole } from '@prisma/client';
 import { sendError } from '../utils/errorResponse';
+
+type UserRole = 'GAME_MASTER' | 'PLAYER' | 'OBSERVER';
+
+export interface AuthUser {
+  id: string;
+  role: UserRole;
+  squadId: string | null;
+}
+
+// Extend Express Request globally so all controllers can access req.user
+declare global {
+  namespace Express {
+    interface Request {
+      user?: AuthUser;
+    }
+  }
+}
 
 interface JwtPayload {
   userId: string;

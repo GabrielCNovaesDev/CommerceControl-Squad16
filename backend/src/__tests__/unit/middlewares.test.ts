@@ -2,7 +2,8 @@ import jwt from 'jsonwebtoken';
 import authMiddleware from '../../middlewares/authMiddleware';
 import roleMiddleware from '../../middlewares/roleMiddleware';
 import { Request, Response } from 'express';
-import { UserRole } from '@prisma/client';
+
+type UserRole = 'GAME_MASTER' | 'PLAYER' | 'OBSERVER';
 
 function mockRes(): Partial<Response> {
   const res: Partial<Response> = {};

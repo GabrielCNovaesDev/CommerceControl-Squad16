@@ -3,7 +3,7 @@ import { Squad } from '../types';
 
 const squadService = {
   getSquads: (): Promise<Squad[]> =>
-    api.get('/squads').then((r) => r.data),
+    api.get('/squads').then((r) => r.data?.content ?? r.data),
 
   createSquad: (data: { name: string }): Promise<Squad> =>
     api.post('/squads', data).then((r) => r.data),

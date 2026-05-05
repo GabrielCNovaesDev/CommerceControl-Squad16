@@ -12,7 +12,7 @@ import {
   submitStoreConfig,
 } from '../services/simulationService';
 import { getRanking } from '../services/rankingService';
-import prisma from '../utils/prisma';
+import prisma, { toNum } from '../utils/prisma';
 import asyncHandler from '../utils/asyncHandler';
 import { sendError } from '../utils/errorResponse';
 
@@ -105,7 +105,7 @@ async function submitConfig(req: Request, res: Response): Promise<void> {
   const result = await submitStoreConfig({
     roundId,
     storeId: store.id,
-    currentCash: store.currentCash.toNumber(),
+    currentCash: toNum(store.currentCash),
     otherExpenses,
     cashierOperators,
     serviceOperators,
@@ -121,7 +121,7 @@ async function submitConfig(req: Request, res: Response): Promise<void> {
       productId: item.productId,
       margin: item.margin,
       salesVolume: item.salesVolume,
-      purchasePrice: productMap[item.productId]?.purchasePrice.toNumber() ?? 0,
+      purchasePrice: productMap[item.productId]?.purchasePrice ? toNum(productMap[item.productId]!.purchasePrice) : 0,
     })),
   });
 
@@ -190,11 +190,11 @@ async function previewConfig(req: Request, res: Response): Promise<void> {
   const capexCost   = calcCapexCost(configForCalc);
 
   const stockCost = items.reduce(
-    (sum, item) => sum + item.salesVolume * (productMap[item.productId]?.purchasePrice.toNumber() ?? 0),
+    (sum, item) => sum + item.salesVolume * (productMap[item.productId]?.purchasePrice ? toNum(productMap[item.productId]!.purchasePrice) : 0),
     0
   );
 
-  const currentCash     = store.currentCash.toNumber();
+  const currentCash     = toNum(store.currentCash);
   const totalOutlay     = stockCost + capexCost;
   const interestPenalty = calcInterest(totalOutlay, currentCash);
   const totalOtherExpenses = otherExpenses + payroll + licensing + maintenance + interestPenalty;
@@ -206,10 +206,10 @@ async function previewConfig(req: Request, res: Response): Promise<void> {
     margin:      item.margin,
     salesVolume: item.salesVolume,
     product: {
-      purchasePrice: productMap[item.productId].purchasePrice.toNumber(),
-      taxRate:       productMap[item.productId].taxRate.toNumber(),
-      breakageRate:  productMap[item.productId].breakageRate.toNumber(),
-      agingRate:     productMap[item.productId].agingRate.toNumber(),
+      purchasePrice: toNum(productMap[item.productId].purchasePrice),
+      taxRate:       toNum(productMap[item.productId].taxRate),
+      breakageRate:  toNum(productMap[item.productId].breakageRate),
+      agingRate:     toNum(productMap[item.productId].agingRate),
     },
   }));
 
@@ -223,7 +223,7 @@ async function previewConfig(req: Request, res: Response): Promise<void> {
 
   const cashSummary = {
     currentCash,
-    initialCapital: store.initialCapital.toNumber(),
+    initialCapital: toNum(store.initialCapital),
     stockCost,
     capexCost,
     payroll,

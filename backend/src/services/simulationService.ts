@@ -1,4 +1,4 @@
-import prisma from '../utils/prisma';
+import prisma, { toNum } from '../utils/prisma';
 import { calcularDRE, calcularPreco } from './financeService';
 import roundConfigRepository from '../repositories/roundConfigRepository';
 
@@ -91,9 +91,9 @@ function calcBasketPrice(config: Awaited<ReturnType<typeof roundConfigRepository
 
   for (const item of config.roundConfigItems) {
     const salePrice = calcularPreco(
-      item.product.purchasePrice.toNumber(),
-      item.margin.toNumber(),
-      item.product.taxRate.toNumber()
+      toNum(item.product.purchasePrice),
+      toNum(item.margin),
+      toNum(item.product.taxRate)
     );
     const qty = config._inventory[item.productId] ?? 0;
     totalValue += salePrice * qty;
@@ -211,7 +211,7 @@ function computeDemandShares(
   const availabilities = configs.map((c) => ({ storeId: c.storeId, value: calcAvailability(c) }));
   const csats = configs.map((c) => ({
     storeId: c.storeId,
-    value: calcCsat({ cashierOperators: c.cashierOperators, quizScore: c.quizScore.toNumber() }),
+    value: calcCsat({ cashierOperators: c.cashierOperators, quizScore: toNum(c.quizScore) }),
   }));
 
   const priceScores = scoreMetric(basketPrices, true);   // lower price = better
@@ -287,7 +287,7 @@ export async function processRound(roundId: string): Promise<void> {
   // Market demand per product = mixAvailable × demandFactor
   const marketDemand: Record<string, number> = {};
   for (const product of products) {
-    marketDemand[product.id] = Math.round(product.mixAvailable * round.demandFactor.toNumber());
+    marketDemand[product.id] = Math.round(product.mixAvailable * toNum(round.demandFactor));
   }
 
   // Compute demand shares
@@ -306,7 +306,7 @@ export async function processRound(roundId: string): Promise<void> {
       const configNum = {
         cashierOperators: config.cashierOperators,
         serviceOperators: config.serviceOperators,
-        quizScore: config.quizScore.toNumber(),
+        quizScore: toNum(config.quizScore),
         numPdvs: config.numPdvs,
         capexSeguranca: config.capexSeguranca,
         capexBalanca: config.capexBalanca,
@@ -319,33 +319,33 @@ export async function processRound(roundId: string): Promise<void> {
       await prisma.$transaction(async (tx) => {
         const inventoryList = Object.entries(config._inventory).map(([productId, quantity]) => ({
           productId,
-          quantity,
+          quantity: quantity as number,
         }));
 
         const items = config.roundConfigItems.map((item) => ({
           productId: item.productId,
-          margin: item.margin.toNumber(),
+          margin: toNum(item.margin),
           salesVolume: item.salesVolume,
           product: {
-            purchasePrice: item.product.purchasePrice.toNumber(),
-            taxRate: item.product.taxRate.toNumber(),
-            breakageRate: item.product.breakageRate.toNumber(),
-            agingRate: item.product.agingRate.toNumber(),
+            purchasePrice: toNum(item.product.purchasePrice),
+            taxRate: toNum(item.product.taxRate),
+            breakageRate: toNum(item.product.breakageRate),
+            agingRate: toNum(item.product.agingRate),
           },
         }));
 
         // Compute stock purchase cost and CAPEX outlay
         const stockCost = config.roundConfigItems.reduce(
-          (sum, item) => sum + item.salesVolume * item.product.purchasePrice.toNumber(),
+          (sum, item) => sum + item.salesVolume * toNum(item.product.purchasePrice),
           0
         );
         const capexCost   = calcCapexCost(configNum);
         const payroll     = calcPayroll(configNum);
         const licensing   = calcLicensing(configNum);
         const maintenance = calcMaintenance(configNum);
-        const interestPenalty = calcInterest(stockCost + capexCost, config.store.initialCapital.toNumber());
+        const interestPenalty = calcInterest(stockCost + capexCost, toNum(config.store.initialCapital));
         const totalOtherExpenses =
-          config.otherExpenses.toNumber() + payroll + licensing + maintenance + interestPenalty;
+          toNum(config.otherExpenses) + payroll + licensing + maintenance + interestPenalty;
 
         const roundConfig = { otherExpenses: totalOtherExpenses };
 

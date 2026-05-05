@@ -26,7 +26,7 @@ export interface BulkCreateResult {
 
 const userService = {
   getUsers: (): Promise<UserRecord[]> =>
-    api.get('/users').then((r) => r.data),
+    api.get('/users').then((r) => r.data?.content ?? r.data),
 
   createUser: (data: CreateUserData): Promise<UserRecord> =>
     api.post('/users', data).then((r) => r.data),

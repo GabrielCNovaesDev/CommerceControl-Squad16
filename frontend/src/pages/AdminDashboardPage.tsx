@@ -23,11 +23,8 @@ const ROUND_STATUS_BADGE: Record<RoundStatus, { label: string; variant: BadgeVar
 
 const createRoundSchema = z.object({
   number: z.coerce.number({ error: 'Número inválido' }).int('Deve ser inteiro').positive('Deve ser positivo'),
-  startDate: z.string().min(1, 'Data de início obrigatória'),
-  endDate: z.string().min(1, 'Data de término obrigatória'),
-}).refine((d) => new Date(d.endDate) > new Date(d.startDate), {
-  message: 'Data de término deve ser após o início',
-  path: ['endDate'],
+  durationHours: z.coerce.number({ error: 'Duração inválida' }).int('Deve ser inteiro').positive('Mínimo 1 hora'),
+  demandFactor: z.coerce.number({ error: 'Valor inválido' }).min(0, 'Mínimo 0').max(1, 'Máximo 1'),
 });
 
 type CreateRoundFormData = z.infer<typeof createRoundSchema>;
@@ -140,7 +137,7 @@ function CreateRoundModal({ onSuccess, onCancel, nextNumber }: {
 }) {
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<CreateRoundFormData, unknown, CreateRoundFormData>({
     resolver: zodResolver(createRoundSchema) as never,
-    defaultValues: { number: nextNumber },
+    defaultValues: { number: nextNumber, durationHours: 2, demandFactor: 0.5 },
   });
   const [serverError, setServerError] = useState('');
 
@@ -149,8 +146,8 @@ function CreateRoundModal({ onSuccess, onCancel, nextNumber }: {
     try {
       const round = await roundService.createRound({
         number: Number(data.number),
-        startDate: new Date(data.startDate).toISOString(),
-        endDate: new Date(data.endDate).toISOString(),
+        durationHours: Number(data.durationHours),
+        demandFactor: Number(data.demandFactor),
       });
       onSuccess(round);
     } catch (err: unknown) {
@@ -180,14 +177,14 @@ function CreateRoundModal({ onSuccess, onCancel, nextNumber }: {
             {errors.number && <p style={{ margin: 0, fontSize: '12px', color: 'var(--cenc-danger)' }}>{errors.number.message}</p>}
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            <label style={{ fontSize: '13px', fontWeight: 600, color: 'var(--cenc-gray-700)' }}>Data de início</label>
-            <input type="datetime-local" style={fieldStyle(!!errors.startDate)} {...register('startDate')} />
-            {errors.startDate && <p style={{ margin: 0, fontSize: '12px', color: 'var(--cenc-danger)' }}>{errors.startDate.message}</p>}
+            <label style={{ fontSize: '13px', fontWeight: 600, color: 'var(--cenc-gray-700)' }}>Duração (horas)</label>
+            <input type="number" min="1" step="1" style={fieldStyle(!!errors.durationHours)} {...register('durationHours')} />
+            {errors.durationHours && <p style={{ margin: 0, fontSize: '12px', color: 'var(--cenc-danger)' }}>{errors.durationHours.message}</p>}
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            <label style={{ fontSize: '13px', fontWeight: 600, color: 'var(--cenc-gray-700)' }}>Data de término</label>
-            <input type="datetime-local" style={fieldStyle(!!errors.endDate)} {...register('endDate')} />
-            {errors.endDate && <p style={{ margin: 0, fontSize: '12px', color: 'var(--cenc-danger)' }}>{errors.endDate.message}</p>}
+            <label style={{ fontSize: '13px', fontWeight: 600, color: 'var(--cenc-gray-700)' }}>Fator de demanda (0–1)</label>
+            <input type="number" step="0.05" min="0" max="1" style={fieldStyle(!!errors.demandFactor)} {...register('demandFactor')} />
+            {errors.demandFactor && <p style={{ margin: 0, fontSize: '12px', color: 'var(--cenc-danger)' }}>{errors.demandFactor.message}</p>}
           </div>
           {serverError && (
             <div style={{ background: '#fee2e2', border: '1px solid #fecaca', borderRadius: '10px', padding: '10px 14px', fontSize: '13px', color: '#b91c1c' }}>

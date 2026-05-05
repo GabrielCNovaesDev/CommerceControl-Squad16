@@ -1,4 +1,4 @@
-const { PrismaClient } = require('@prisma/client');
+const { PrismaClient } = require('../node_modules/.prisma/client-local');
 const bcrypt = require('bcryptjs');
 
 const prisma = new PrismaClient();
@@ -6,46 +6,58 @@ const prisma = new PrismaClient();
 async function main() {
   console.log('Iniciando seed local (SQLite)...');
 
-  // 1. Produtos (schema.local.prisma não tem taxRate/breakageRate/agingRate/mixAvailable)
+  // 1. Produtos com todos os campos necessários
   const produtos = await Promise.all([
     prisma.product.upsert({
       where: { id: 'cat-pereciveis' },
-      update: {},
+      update: { taxRate: 0.12, breakageRate: 0.05, agingRate: 0.08, mixAvailable: 5000 },
       create: {
         id: 'cat-pereciveis',
         name: 'Perecíveis',
         purchasePrice: 20.00,
-        salePrice: 28.00,
+        taxRate: 0.12,
+        breakageRate: 0.05,
+        agingRate: 0.08,
+        mixAvailable: 5000,
       },
     }),
     prisma.product.upsert({
       where: { id: 'cat-mercearia' },
-      update: {},
+      update: { taxRate: 0.10, breakageRate: 0.02, agingRate: 0.03, mixAvailable: 8000 },
       create: {
         id: 'cat-mercearia',
         name: 'Mercearia',
         purchasePrice: 30.00,
-        salePrice: 42.00,
+        taxRate: 0.10,
+        breakageRate: 0.02,
+        agingRate: 0.03,
+        mixAvailable: 8000,
       },
     }),
     prisma.product.upsert({
       where: { id: 'cat-eletro' },
-      update: {},
+      update: { taxRate: 0.15, breakageRate: 0.01, agingRate: 0.02, mixAvailable: 500 },
       create: {
         id: 'cat-eletro',
         name: 'Eletro',
         purchasePrice: 500.00,
-        salePrice: 700.00,
+        taxRate: 0.15,
+        breakageRate: 0.01,
+        agingRate: 0.02,
+        mixAvailable: 500,
       },
     }),
     prisma.product.upsert({
       where: { id: 'cat-hipel' },
-      update: {},
+      update: { taxRate: 0.08, breakageRate: 0.03, agingRate: 0.04, mixAvailable: 3000 },
       create: {
         id: 'cat-hipel',
         name: 'Hipel',
         purchasePrice: 45.00,
-        salePrice: 63.00,
+        taxRate: 0.08,
+        breakageRate: 0.03,
+        agingRate: 0.04,
+        mixAvailable: 3000,
       },
     }),
   ]);
@@ -112,7 +124,8 @@ async function main() {
   ]);
   console.log(`✓ Players criados: ${jogadorAlpha.email}, ${jogadorBeta.email} / senha: player123`);
 
-  // 5. Lojas (schema.local.prisma não tem currentCash)
+  // 5. Lojas com currentCash = initialCapital
+  const CAPITAL_INICIAL = 700000.00;
   const [lojaAlpha, lojaBeta] = await Promise.all([
     prisma.store.upsert({
       where: { id: 'store-alpha' },
@@ -120,7 +133,8 @@ async function main() {
       create: {
         id: 'store-alpha',
         name: 'Loja Alpha',
-        initialCapital: 700000.00,
+        initialCapital: CAPITAL_INICIAL,
+        currentCash: CAPITAL_INICIAL,
         squadId: squadAlpha.id,
       },
     }),
@@ -130,7 +144,8 @@ async function main() {
       create: {
         id: 'store-beta',
         name: 'Loja Beta',
-        initialCapital: 700000.00,
+        initialCapital: CAPITAL_INICIAL,
+        currentCash: CAPITAL_INICIAL,
         squadId: squadBeta.id,
       },
     }),
@@ -151,7 +166,7 @@ async function main() {
     }
   }
   await Promise.all(estoqueEntries);
-  console.log('✓ Estoque inicial zerado (times compram na 1ª Configuração)');
+  console.log('✓ Estoque inicial zerado');
 
   console.log('\n========================================');
   console.log('Seed local concluído! Credenciais:');
@@ -169,3 +184,4 @@ main()
   .finally(async () => {
     await prisma.$disconnect();
   });
+

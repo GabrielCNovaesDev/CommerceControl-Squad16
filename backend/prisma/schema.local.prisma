@@ -1,5 +1,6 @@
 generator client {
   provider = "prisma-client-js"
+  output   = "../node_modules/.prisma/client-local"
 }
 
 datasource db {
@@ -16,8 +17,7 @@ model User {
   leader    Boolean  @default(false)
   squadId   String?
   createdAt DateTime @default(now())
-
-  squad Squad? @relation(fields: [squadId], references: [id])
+  squad     Squad?   @relation(fields: [squadId], references: [id])
 }
 
 model Squad {
@@ -25,102 +25,113 @@ model Squad {
   name      String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
-  users  User[]
-  stores Store[]
+  stores    Store[]
+  users     User[]
 }
 
 model Store {
-  id             String   @id @default(uuid())
-  name           String
-  initialCapital Float
-  squadId        String
-  createdAt      DateTime @default(now())
-
-  squad            Squad             @relation(fields: [squadId], references: [id])
+  id               String            @id @default(uuid())
+  name             String
+  initialCapital   Float
+  currentCash      Float
+  squadId          String
+  createdAt        DateTime          @default(now())
+  financialResults FinancialResult[]
   inventories      Inventory[]
   roundConfigs     RoundConfig[]
-  financialResults FinancialResult[]
+  squad            Squad             @relation(fields: [squadId], references: [id])
 }
 
 model Product {
-  id            String   @id @default(uuid())
-  name          String
-  purchasePrice Float
-  salePrice     Float
-  createdAt     DateTime @default(now())
-
+  id               String            @id @default(uuid())
+  name             String
+  purchasePrice    Float
+  taxRate          Float             @default(0.0)
+  breakageRate     Float             @default(0.0)
+  agingRate        Float             @default(0.0)
+  mixAvailable     Int               @default(1000)
+  createdAt        DateTime          @default(now())
   inventories      Inventory[]
   roundConfigItems RoundConfigItem[]
 }
 
 model Inventory {
-  id            String  @id @default(uuid())
-  storeId       String
-  productId     String
-  quantity      Int
-  agingCategory String?
-
-  store   Store   @relation(fields: [storeId], references: [id])
-  product Product @relation(fields: [productId], references: [id])
+  id        String  @id @default(uuid())
+  storeId   String
+  productId String
+  quantity  Int
+  product   Product @relation(fields: [productId], references: [id])
+  store     Store   @relation(fields: [storeId], references: [id])
 
   @@unique([storeId, productId])
 }
 
 model Round {
-  id        String      @id @default(uuid())
-  number    Int
-  startDate DateTime
-  endDate   DateTime
-  status    String      @default("OPEN")
-
-  roundConfigs     RoundConfig[]
+  id               String            @id @default(uuid())
+  number           Int
+  durationHours    Int               @default(1)
+  demandFactor     Float             @default(0.5)
+  endsAt           DateTime
+  status           String            @default("OPEN")
   financialResults FinancialResult[]
+  roundConfigs     RoundConfig[]
 }
 
 model RoundConfig {
-  id               String   @id @default(uuid())
-  roundId          String
-  storeId          String
-  fixedExpenses    Float
-  variableExpenses Float
-  submittedAt      DateTime @default(now())
-
-  round            Round             @relation(fields: [roundId], references: [id])
-  store            Store             @relation(fields: [storeId], references: [id])
-  roundConfigItems RoundConfigItem[]
-  financialResult  FinancialResult?
+  id                String            @id @default(uuid())
+  roundId           String
+  storeId           String
+  otherExpenses     Float             @default(0)
+  cashierOperators  Int               @default(10)
+  serviceOperators  Int               @default(5)
+  quizScore         Float             @default(1.0)
+  numPdvs           Int               @default(6)
+  capexSeguranca    Boolean           @default(false)
+  capexBalanca      Boolean           @default(false)
+  capexRedes        Boolean           @default(false)
+  capexSite         Boolean           @default(false)
+  capexSelfCheckout Boolean           @default(false)
+  capexMelhoria     Boolean           @default(false)
+  submittedAt       DateTime          @default(now())
+  financialResult   FinancialResult?
+  store             Store             @relation(fields: [storeId], references: [id])
+  round             Round             @relation(fields: [roundId], references: [id])
+  roundConfigItems  RoundConfigItem[]
 
   @@unique([roundId, storeId])
 }
 
 model RoundConfigItem {
-  id            String @id @default(uuid())
+  id            String      @id @default(uuid())
   roundConfigId String
   productId     String
-  salePrice     Float
+  margin        Float
   salesVolume   Int
-
-  roundConfig RoundConfig @relation(fields: [roundConfigId], references: [id])
-  product     Product     @relation(fields: [productId], references: [id])
+  product       Product     @relation(fields: [productId], references: [id])
+  roundConfig   RoundConfig @relation(fields: [roundConfigId], references: [id])
 
   @@unique([roundConfigId, productId])
 }
 
 model FinancialResult {
-  id            String   @id @default(uuid())
+  id            String      @id @default(uuid())
   roundId       String
   storeId       String
-  roundConfigId String   @unique
+  roundConfigId String      @unique
   grossRevenue  Float
+  taxes         Float
+  netRevenue    Float
   costs         Float
-  expenses      Float
-  grossProfit   Float
-  netProfit     Float
-  netMargin     Float
-  calculatedAt  DateTime @default(now())
-
-  round       Round       @relation(fields: [roundId], references: [id])
-  store       Store       @relation(fields: [storeId], references: [id])
-  roundConfig RoundConfig @relation(fields: [roundConfigId], references: [id])
+  grossMargin   Float
+  totalBreakage Float
+  totalAging    Float
+  netMarginMass Float
+  otherExpenses Float
+  ebitda        Float
+  ebitdaMargin  Float
+  demandShare   Float       @default(0)
+  calculatedAt  DateTime    @default(now())
+  roundConfig   RoundConfig @relation(fields: [roundConfigId], references: [id])
+  store         Store       @relation(fields: [storeId], references: [id])
+  round         Round       @relation(fields: [roundId], references: [id])
 }

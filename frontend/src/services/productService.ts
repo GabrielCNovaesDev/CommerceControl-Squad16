@@ -14,7 +14,7 @@ type UpdateProductData = Partial<CreateProductData>;
 
 const productService = {
   getProducts: (): Promise<Product[]> =>
-    api.get('/products').then((r) => r.data),
+    api.get('/products').then((r) => r.data?.content ?? r.data),
 
   createProduct: (data: CreateProductData): Promise<Product> =>
     api.post('/products', data).then((r) => r.data),

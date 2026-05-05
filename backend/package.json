@@ -7,9 +7,9 @@
   "scripts": {
     "start": "node dist/server.js",
     "dev": "ts-node -r tsconfig-paths/register src/server.ts",
-    "dev:local": "dotenv -e .env.local -- ts-node -r tsconfig-paths/register src/server.ts",
+    "dev:local": "dotenv -e .env.local -- ts-node --transpile-only -r tsconfig-paths/register src/server.ts",
     "build": "tsc",
-    "setup:local": "prisma generate --schema=prisma/schema.local.prisma && dotenv -e .env.local -- prisma db push --schema=prisma/schema.local.prisma && dotenv -e .env.local -- node prisma/seed.local.js",
+    "setup:local": "DATABASE_URL=file:./prisma/prisma/local.db prisma generate --schema=prisma/schema.local.prisma && DATABASE_URL=file:./prisma/prisma/local.db prisma db push --schema=prisma/schema.local.prisma --force-reset --skip-generate && DATABASE_URL=file:./prisma/prisma/local.db node prisma/seed.local.js",
     "migrate": "prisma migrate dev",
     "seed": "node prisma/seed.js",
     "test": "jest",
@@ -25,7 +25,9 @@
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",
+    "@prisma/client-local": "file:./node_modules/.prisma/client-local",
     "bcryptjs": "^3.0.3",
+    "commercecontrol-squad16": "file:..",
     "cors": "^2.8.6",
     "dotenv": "^17.3.1",
     "express": "^5.2.1",
