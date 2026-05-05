@@ -9,7 +9,7 @@
     "dev": "ts-node -r tsconfig-paths/register src/server.ts",
     "dev:local": "dotenv -e .env.local -- ts-node --transpile-only -r tsconfig-paths/register src/server.ts",
     "build": "tsc",
-    "setup:local": "cross-env DATABASE_URL=file:./prisma/prisma/local.db prisma generate --schema=prisma/schema.local.prisma && cross-env DATABASE_URL=file:./prisma/prisma/local.db prisma db push --schema=prisma/schema.local.prisma --force-reset --skip-generate && cross-env DATABASE_URL=file:./prisma/prisma/local.db node prisma/seed.local.js",
+    "setup:local": "node scripts/create-env-local.js && cross-env DATABASE_URL=file:./prisma/local.db prisma generate --schema=prisma/schema.local.prisma && cross-env DATABASE_URL=file:./prisma/local.db prisma db push --schema=prisma/schema.local.prisma --force-reset --skip-generate && cross-env DATABASE_URL=file:./prisma/local.db node prisma/seed.local.js",
     "migrate": "prisma migrate dev",
     "seed": "node prisma/seed.js",
     "test": "jest",
