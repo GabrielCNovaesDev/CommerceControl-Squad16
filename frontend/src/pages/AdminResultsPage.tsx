@@ -151,6 +151,48 @@ function EbitdaLineChart({ historyData, squadNames }: { historyData: LineDataPoi
   );
 }
 
+function AiReportsSection({ results }: { results: FinancialResult[] }) {
+  const withReports = results.filter((r) => r.aiReport);
+  const withoutReports = results.filter((r) => !r.aiReport);
+
+  if (results.length === 0) return null;
+
+  return (
+    <ChartCard title="✦ Análises da IA por Squad">
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        {withReports.length === 0 && (
+          <div style={{ textAlign: 'center', padding: '24px 0' }}>
+            <p style={{ margin: 0, fontSize: '13px', color: 'var(--cenc-gray-400)' }}>
+              Análises não disponíveis para esta rodada.{' '}
+              <span style={{ color: '#ea580c', fontWeight: 600 }}>Esta funcionalidade está em fase de desenvolvimento.</span>
+            </p>
+          </div>
+        )}
+        {withReports.map((r) => (
+          <div key={r.id} style={{ borderRadius: 12, border: '1px solid var(--cenc-blue-200)', background: '#f8faff', padding: '16px 20px' }}>
+            <p style={{ margin: '0 0 10px', fontSize: '13px', fontWeight: 700, color: 'var(--cenc-blue-700)' }}>
+              {r.store?.squad?.name ?? r.store?.name ?? '—'}
+            </p>
+            <div style={{ fontSize: '13px', color: 'var(--cenc-gray-700)', lineHeight: 1.6 }}>
+              {r.aiReport!.split('\n').map((line, i) => {
+                if (line.startsWith('### ')) return <p key={i} style={{ margin: '12px 0 4px', fontWeight: 700, fontSize: '13px', color: 'var(--cenc-gray-800)' }}>{line.replace('### ', '')}</p>;
+                if (line.startsWith('- ')) return <li key={i} style={{ marginLeft: 16, fontSize: '13px' }}>{line.replace('- ', '')}</li>;
+                if (line.trim() === '') return null;
+                return <p key={i} style={{ margin: '0 0 6px', fontSize: '13px' }}>{line}</p>;
+              })}
+            </div>
+          </div>
+        ))}
+        {withoutReports.length > 0 && withReports.length > 0 && (
+          <p style={{ margin: 0, fontSize: '12px', color: 'var(--cenc-gray-400)' }}>
+            {withoutReports.length} squad(s) sem análise disponível: {withoutReports.map((r) => r.store?.squad?.name ?? '—').join(', ')}
+          </p>
+        )}
+      </div>
+    </ChartCard>
+  );
+}
+
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 export default function AdminResultsPage() {
@@ -290,6 +332,8 @@ export default function AdminResultsPage() {
                 </div>
               ) : historyData.length > 0 ? <EbitdaLineChart historyData={historyData} squadNames={squadNames} /> : null
             )}
+
+            {sorted.length > 0 && <AiReportsSection results={sorted} />}
           </>
         )}
       </div>

@@ -138,6 +138,7 @@ export interface FinancialResult {
   ebitda: number;
   ebitdaMargin: number;
   demandShare: number;
+  aiReport?: string | null;
   store?: {
     id: string;
     name: string;

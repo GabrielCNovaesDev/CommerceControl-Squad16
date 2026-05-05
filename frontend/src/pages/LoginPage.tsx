@@ -186,7 +186,7 @@ export default function LoginPage() {
           <div
             className="rounded-2xl p-8"
             style={{
-              background: 'white',
+              background: 'var(--cenc-surface)',
               border: '1px solid var(--cenc-gray-200)',
               boxShadow: '0 4px 32px rgba(0,48,135,0.08)',
             }}
@@ -205,7 +205,7 @@ export default function LoginPage() {
                   className="input-cenc w-full rounded-xl px-4 py-2.5 text-sm transition-all"
                   style={{
                     border: `1.5px solid ${errors.email ? 'var(--cenc-danger)' : 'var(--cenc-gray-300)'}`,
-                    background: errors.email ? 'var(--cenc-danger-bg)' : 'white',
+                    background: errors.email ? 'var(--cenc-danger-bg)' : 'var(--cenc-surface)',
                     color: 'var(--cenc-gray-900)',
                     outline: 'none',
                   }}
@@ -231,7 +231,7 @@ export default function LoginPage() {
                     className="input-cenc w-full rounded-xl px-4 py-2.5 pr-11 text-sm transition-all"
                     style={{
                       border: `1.5px solid ${errors.password ? 'var(--cenc-danger)' : 'var(--cenc-gray-300)'}`,
-                      background: errors.password ? 'var(--cenc-danger-bg)' : 'white',
+                      background: errors.password ? 'var(--cenc-danger-bg)' : 'var(--cenc-surface)',
                       color: 'var(--cenc-gray-900)',
                       outline: 'none',
                     }}

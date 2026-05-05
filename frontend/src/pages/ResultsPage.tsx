@@ -279,6 +279,46 @@ function RankingCard({ position, roundId }: { position: number | null; roundId: 
   );
 }
 
+function AiReportCard({ aiReport }: { aiReport?: string | null }) {
+  if (!aiReport) {
+    return (
+      <div className="rounded-xl border border-gray-200 bg-white shadow-sm px-5 py-4">
+        <div className="flex items-center gap-2 mb-3">
+          <span className="text-lg">✦</span>
+          <h3 className="text-sm font-semibold text-gray-700">Análise da IA</h3>
+          <span className="ml-auto text-xs font-medium text-orange-600 bg-orange-50 px-2 py-0.5 rounded-full border border-orange-200">
+            Em desenvolvimento
+          </span>
+        </div>
+        <p className="text-sm text-gray-400">
+          Análise não disponível para esta rodada. Esta funcionalidade está em fase de desenvolvimento.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-xl border border-blue-200 bg-white shadow-sm px-5 py-4">
+      <div className="flex items-center gap-2 mb-3">
+        <span className="text-lg">✦</span>
+        <h3 className="text-sm font-semibold text-blue-700">Análise da IA</h3>
+      </div>
+      <div className="prose prose-sm max-w-none text-gray-700">
+        {aiReport.split('\n').map((line, i) => {
+          if (line.startsWith('### ')) {
+            return <h4 key={i} className="text-sm font-bold text-gray-800 mt-4 mb-2">{line.replace('### ', '')}</h4>;
+          }
+          if (line.startsWith('- ')) {
+            return <li key={i} className="text-sm ml-4">{line.replace('- ', '')}</li>;
+          }
+          if (line.trim() === '') return null;
+          return <p key={i} className="text-sm mb-2">{line}</p>;
+        })}
+      </div>
+    </div>
+  );
+}
+
 // ─── Componente principal ───────────────────────────────────────────────────
 
 export default function ResultsPage() {
@@ -420,6 +460,9 @@ export default function ResultsPage() {
 
             {/* Alertas */}
             <FeedbackList feedbacks={feedbacks} />
+
+            {/* Relatório de IA */}
+            <AiReportCard aiReport={result.aiReport} />
           </>
         ) : null}
       </div>

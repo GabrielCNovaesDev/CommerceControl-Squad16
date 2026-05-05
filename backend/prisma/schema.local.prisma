@@ -131,6 +131,7 @@ model FinancialResult {
   ebitda        Float
   ebitdaMargin  Float
   demandShare   Float       @default(0)
+  aiReport      String?
   calculatedAt  DateTime    @default(now())
   roundConfig   RoundConfig @relation(fields: [roundConfigId], references: [id])
   store         Store       @relation(fields: [storeId], references: [id])

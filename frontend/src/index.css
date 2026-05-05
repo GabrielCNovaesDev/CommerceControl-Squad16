@@ -43,9 +43,35 @@
   --cenc-info: #0066ff;
   --cenc-info-bg: #e8f1ff;
 
+  /* Surface (cards, headers, inputs) */
+  --cenc-surface: #ffffff;
+
   /* Sidebar */
   --sidebar-width: 240px;
   --header-height: 60px;
+}
+
+/* ─── Dark Mode ──────────────────────────────────────────────────────────── */
+
+html.dark {
+  --cenc-gray-50:  #0f1117;
+  --cenc-gray-100: #1a1f2e;
+  --cenc-gray-200: #252b3b;
+  --cenc-gray-300: #323a4f;
+  --cenc-gray-400: #6b7280;
+  --cenc-gray-500: #9ca3af;
+  --cenc-gray-600: #c4c9d4;
+  --cenc-gray-700: #d1d5db;
+  --cenc-gray-800: #e5e7eb;
+  --cenc-gray-900: #f3f4f6;
+  --cenc-gray-950: #f9fafb;
+
+  --cenc-surface: #1a1f2e;
+
+  --cenc-success-bg: #052e16;
+  --cenc-warning-bg: #1c1400;
+  --cenc-danger-bg:  #1f0707;
+  --cenc-info-bg:    #0a1628;
 }
 
 *, *::before, *::after {

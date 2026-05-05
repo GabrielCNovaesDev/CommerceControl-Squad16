@@ -1,6 +1,7 @@
 import prisma, { toNum } from '../utils/prisma';
 import { calcularDRE, calcularPreco } from './financeService';
 import roundConfigRepository from '../repositories/roundConfigRepository';
+import { generateAiReport } from './aiReportService';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -417,6 +418,132 @@ export async function processRound(roundId: string): Promise<void> {
       throw err;
     }
   }
+
+  // ─── Gerar relatórios de IA para cada loja (após todos os DREs persistidos) ──
+  await generateAiReportsForRound(roundId, enrichedConfigs);
+}
+
+interface EnrichedConfigForAi {
+  storeId: string;
+  roundConfigItems: Array<{ productId: string; margin: { toNumber(): number } | number; salesVolume: number; product: { name: string } }>;
+}
+
+async function generateAiReportsForRound(
+  roundId: string,
+  configs: EnrichedConfigForAi[]
+): Promise<void> {
+  const round = await prisma.round.findUnique({ where: { id: roundId } });
+  if (!round) return;
+
+  interface FinancialResultRow {
+    id: string;
+    storeId: string;
+    grossRevenue: { toNumber(): number };
+    taxes: { toNumber(): number };
+    netRevenue: { toNumber(): number };
+    costs: { toNumber(): number };
+    grossMargin: { toNumber(): number };
+    totalBreakage: { toNumber(): number };
+    totalAging: { toNumber(): number };
+    netMarginMass: { toNumber(): number };
+    otherExpenses: { toNumber(): number };
+    ebitda: { toNumber(): number };
+    ebitdaMargin: { toNumber(): number };
+    demandShare: { toNumber(): number };
+    store: { name: string; squad: { name: string } };
+  }
+
+  const allResults = await prisma.financialResult.findMany({
+    where: { roundId },
+    include: { store: { include: { squad: { select: { name: true } } } } },
+  }) as unknown as FinancialResultRow[];
+
+  const ranking = [...allResults]
+    .sort((a, b) => {
+      if (toNum(b.ebitdaMargin) !== toNum(a.ebitdaMargin)) return toNum(b.ebitdaMargin) - toNum(a.ebitdaMargin);
+      return toNum(b.ebitda) - toNum(a.ebitda);
+    })
+    .map((r, i) => ({
+      position: i + 1,
+      squadName: r.store.squad.name,
+      ebitdaMargin: toNum(r.ebitdaMargin),
+      demandShare: toNum(r.demandShare),
+    }));
+
+  await Promise.allSettled(
+    allResults.map(async (result) => {
+      try {
+        const config = configs.find((c) => c.storeId === result.storeId);
+        if (!config) return;
+
+        interface HistoryRow {
+          ebitda: { toNumber(): number };
+          ebitdaMargin: { toNumber(): number };
+          grossRevenue: { toNumber(): number };
+          demandShare: { toNumber(): number };
+          round: { number: number };
+        }
+
+        const history = await prisma.financialResult.findMany({
+          where: { storeId: result.storeId, roundId: { not: roundId } },
+          include: { round: { select: { number: true } } },
+          orderBy: { calculatedAt: 'asc' },
+          take: 3,
+        }) as unknown as HistoryRow[];
+
+        const report = await generateAiReport({
+          squadName: result.store.squad.name,
+          storeName: result.store.name,
+          roundNumber: round.number,
+          dre: {
+            grossRevenue: toNum(result.grossRevenue),
+            taxes: toNum(result.taxes),
+            netRevenue: toNum(result.netRevenue),
+            costs: toNum(result.costs),
+            grossMargin: toNum(result.grossMargin),
+            totalBreakage: toNum(result.totalBreakage),
+            totalAging: toNum(result.totalAging),
+            netMarginMass: toNum(result.netMarginMass),
+            otherExpenses: toNum(result.otherExpenses),
+            ebitda: toNum(result.ebitda),
+            ebitdaMargin: toNum(result.ebitdaMargin),
+            demandShare: toNum(result.demandShare),
+          },
+          decisions: config.roundConfigItems.map((item) => ({
+            categoryName: item.product.name,
+            margin: toNum(item.margin),
+            salesVolume: item.salesVolume,
+          })),
+          history: history.map((h) => ({
+            roundNumber: h.round.number,
+            ebitda: toNum(h.ebitda),
+            ebitdaMargin: toNum(h.ebitdaMargin),
+            grossRevenue: toNum(h.grossRevenue),
+            demandShare: toNum(h.demandShare),
+          })),
+          ranking,
+        });
+
+        if (report) {
+          await prisma.financialResult.update({
+            where: { id: result.id },
+            data: { aiReport: report },
+          });
+        }
+      } catch (err) {
+        const error = err as Error;
+        console.error(JSON.stringify({
+          level: 'error',
+          service: 'simulationService',
+          message: 'Falha ao gerar relatório IA para loja',
+          storeId: result.storeId,
+          error: error.message,
+          timestamp: new Date().toISOString(),
+        }));
+      }
+    })
+  );
+  console.info(JSON.stringify({ level: 'info', service: 'aiReportService', message: 'Geração de relatórios IA concluída', roundId, timestamp: new Date().toISOString() }));
 }
 
 // ─── Submit store config ───────────────────────────────────────────────────────

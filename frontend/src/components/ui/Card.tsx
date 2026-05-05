@@ -34,7 +34,7 @@ export default function Card({
     <div
       className={`${hover ? 'card-hover' : ''} ${className}`}
       style={{
-        background: 'white',
+        background: 'var(--cenc-surface)',
         borderRadius: '14px',
         border: '1px solid var(--cenc-gray-200)',
         boxShadow: '0 1px 6px rgba(0,0,0,0.05)',

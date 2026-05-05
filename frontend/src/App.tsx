@@ -1,6 +1,8 @@
+import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import PrivateRoute from './components/layout/PrivateRoute';
 import Toast from './components/ui/Toast';
+import useThemeStore from './store/themeStore';
 
 import LoginPage from './pages/LoginPage';
 import UnauthorizedPage from './pages/UnauthorizedPage';
@@ -19,6 +21,12 @@ import AdminResultsPage from './pages/AdminResultsPage';
 import TutorialsPage from './pages/TutorialsPage';
 
 export default function App() {
+  const { isDark } = useThemeStore();
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', isDark);
+  }, [isDark]);
+
   return (
     <BrowserRouter>
       <Toast />

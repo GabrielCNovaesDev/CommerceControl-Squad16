@@ -153,6 +153,7 @@ model FinancialResult {
   ebitda        Decimal  @db.Decimal(18, 2)
   ebitdaMargin  Decimal  @db.Decimal(8, 6)
   demandShare   Decimal  @default(0) @db.Decimal(8, 6)
+  aiReport      String?
   calculatedAt  DateTime @default(now())
 
   round       Round       @relation(fields: [roundId], references: [id])
