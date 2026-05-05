@@ -6,7 +6,6 @@ import { z } from 'zod';
 import storeService from '../services/storeService';
 import roundService from '../services/roundService';
 import PlayerLayout from '../components/layout/PlayerLayout';
-import Card from '../components/ui/Card';
 import Badge from '../components/ui/Badge';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
@@ -25,29 +24,30 @@ const ROUND_STATUS_BADGE: Record<RoundStatus, { label: string; variant: 'green' 
 
 const createStoreSchema = z.object({
   name: z.string().min(1, 'Nome é obrigatório'),
-  initialCapital: z.coerce
-    .number({ error: 'Informe um valor numérico' })
-    .positive('O capital deve ser positivo'),
+  initialCapital: z.coerce.number({ error: 'Informe um valor numérico' }).positive('O capital deve ser positivo'),
 });
-
 type CreateStoreFormData = z.infer<typeof createStoreSchema>;
+
+// ─── Timer ────────────────────────────────────────────────────────────────────
 
 function RoundTimer({ endsAt }: { endsAt: string }) {
   const { timeLeft, expired } = useCountdown(endsAt);
   if (expired) {
     return (
-      <div className="rounded-lg bg-orange-50 border border-orange-200 px-3 py-2 text-center">
-        <p className="text-xs text-orange-600 font-medium">Tempo esgotado — aguardando encerramento</p>
+      <div style={{ borderRadius: 10, background: '#fff7ed', border: '1px solid #fed7aa', padding: '10px 14px', textAlign: 'center' }}>
+        <p style={{ margin: 0, fontSize: '12px', color: '#c2410c', fontWeight: 600 }}>Tempo esgotado — aguardando encerramento</p>
       </div>
     );
   }
   return (
-    <div className="rounded-lg bg-blue-50 border border-blue-100 px-3 py-2 flex items-center justify-between">
-      <span className="text-xs text-blue-500 font-medium">Tempo restante</span>
-      <span className="text-lg font-mono font-bold text-blue-700 tabular-nums">{timeLeft}</span>
+    <div style={{ borderRadius: 10, background: 'var(--cenc-blue-50)', border: '1px solid var(--cenc-blue-100)', padding: '10px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      <span style={{ fontSize: '12px', color: 'var(--cenc-blue-500)', fontWeight: 600 }}>Tempo restante</span>
+      <span style={{ fontSize: '20px', fontFamily: 'monospace', fontWeight: 800, color: 'var(--cenc-blue-700)', letterSpacing: '0.05em' }}>{timeLeft}</span>
     </div>
   );
 }
+
+// ─── Main ─────────────────────────────────────────────────────────────────────
 
 export default function StoresDashboardPage() {
   const navigate = useNavigate();
@@ -59,31 +59,23 @@ export default function StoresDashboardPage() {
   const [loadError, setLoadError] = useState('');
   const [creating, setCreating] = useState(false);
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors, isSubmitting },
-  } = useForm<CreateStoreFormData, unknown, CreateStoreFormData>({ resolver: zodResolver(createStoreSchema) as never });
+  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<CreateStoreFormData, unknown, CreateStoreFormData>({
+    resolver: zodResolver(createStoreSchema) as never,
+  });
 
   async function load() {
     setLoadError('');
     try {
       const s = await storeService.getMyStore();
       setStore(s);
-      const [inv, rounds] = await Promise.all([
-        storeService.getInventory(s.id),
-        roundService.getRounds(),
-      ]);
+      const [inv, rounds] = await Promise.all([storeService.getInventory(s.id), roundService.getRounds()]);
       setInventory(inv);
       const open = rounds.find((r: Round) => r.status === 'OPEN' || r.status === 'PROCESSING');
       setActiveRound(open ?? null);
     } catch (err: unknown) {
       const axiosErr = err as { response?: { status?: number } };
-      if (axiosErr.response?.status === 404) {
-        setStore(null);
-      } else {
-        setLoadError('Não foi possível carregar os dados da loja.');
-      }
+      if (axiosErr.response?.status === 404) setStore(null);
+      else setLoadError('Não foi possível carregar os dados da loja.');
     } finally {
       setLoading(false);
     }
@@ -106,171 +98,175 @@ export default function StoresDashboardPage() {
   if (loading) {
     return (
       <PlayerLayout>
-        <div className="max-w-4xl flex flex-col gap-4">
-          <Skeleton variant="line" className="w-48 h-6" />
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Skeleton variant="card" />
-            <Skeleton variant="card" />
+        <div style={{ maxWidth: 800, display: 'flex', flexDirection: 'column', gap: 20 }}>
+          <Skeleton variant="line" width="200px" height="28px" />
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+            <Skeleton variant="stat" /><Skeleton variant="stat" />
           </div>
+          <Skeleton variant="table" rows={4} />
         </div>
       </PlayerLayout>
     );
   }
 
   if (loadError) {
-    return (
-      <PlayerLayout>
-        <ErrorMessage message={loadError} onRetry={() => { setLoading(true); load(); }} />
-      </PlayerLayout>
-    );
+    return <PlayerLayout><ErrorMessage message={loadError} onRetry={() => { setLoading(true); load(); }} /></PlayerLayout>;
   }
 
-  // Sem loja — exibir formulário de criação
+  // No store yet
   if (!store) {
     return (
       <PlayerLayout>
-        <div className="max-w-sm mx-auto mt-12">
-          <Card title="Criar sua loja">
-            {!creating ? (
-              <div className="flex flex-col items-center gap-4 py-4">
-                <p className="text-sm text-gray-500 text-center">
-                  Seu squad ainda não possui uma loja. Crie uma para começar.
-                </p>
-                <Button onClick={() => setCreating(true)}>Criar Loja</Button>
+        <div style={{ maxWidth: 420, margin: '48px auto' }} className="animate-fade-in">
+          <div style={{ background: 'white', borderRadius: 20, border: '1px solid var(--cenc-gray-200)', boxShadow: '0 4px 24px rgba(0,48,135,0.08)', overflow: 'hidden' }}>
+            <div style={{ padding: '24px 28px', borderBottom: '1px solid var(--cenc-gray-100)', background: 'linear-gradient(135deg, var(--cenc-blue-900), var(--cenc-blue-700))', textAlign: 'center' }}>
+              <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
+                </svg>
               </div>
-            ) : (
-              <form onSubmit={handleSubmit(onCreateStore)} className="flex flex-col gap-4">
-                <Input
-                  label="Nome da loja"
-                  placeholder="Ex: Supermercado Alpha"
-                  error={errors.name?.message}
-                  {...register('name')}
-                />
-                <Input
-                  label="Capital inicial (R$)"
-                  type="number"
-                  step="0.01"
-                  placeholder="10000.00"
-                  error={errors.initialCapital?.message}
-                  {...register('initialCapital')}
-                />
-                <div className="flex gap-2 mt-1">
-                  <Button type="submit" loading={isSubmitting} className="flex-1">
-                    Criar
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    onClick={() => setCreating(false)}
-                  >
-                    Cancelar
-                  </Button>
+              <h2 style={{ margin: 0, fontSize: '18px', fontWeight: 700, color: 'white' }}>Criar sua Loja</h2>
+              <p style={{ margin: '6px 0 0', fontSize: '13px', color: 'rgba(255,255,255,0.7)' }}>Seu squad ainda não possui uma loja</p>
+            </div>
+            <div style={{ padding: '24px 28px' }}>
+              {!creating ? (
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16, padding: '8px 0' }}>
+                  <p style={{ margin: 0, fontSize: '13px', color: 'var(--cenc-gray-500)', textAlign: 'center' }}>
+                    Crie uma loja para começar a participar das rodadas de simulação.
+                  </p>
+                  <Button onClick={() => setCreating(true)} icon={
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                  }>Criar Loja</Button>
                 </div>
-              </form>
-            )}
-          </Card>
+              ) : (
+                <form onSubmit={handleSubmit(onCreateStore)} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                  <Input label="Nome da loja" placeholder="Ex: Supermercado Alpha" error={errors.name?.message} {...register('name')} />
+                  <Input label="Capital inicial (R$)" type="number" step="0.01" placeholder="10000.00" error={errors.initialCapital?.message} {...register('initialCapital')} />
+                  <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
+                    <Button type="submit" loading={isSubmitting} style={{ flex: 1 }}>Criar</Button>
+                    <Button type="button" variant="secondary" onClick={() => setCreating(false)}>Cancelar</Button>
+                  </div>
+                </form>
+              )}
+            </div>
+          </div>
         </div>
       </PlayerLayout>
     );
   }
 
   const roundBadge = activeRound ? ROUND_STATUS_BADGE[activeRound.status] : null;
+  const cashPct = ((store.currentCash ?? store.initialCapital) / store.initialCapital) * 100;
+  const cashPositive = (store.currentCash ?? store.initialCapital) >= 0;
 
   return (
     <PlayerLayout>
-      <div className="flex flex-col gap-6 max-w-4xl">
-        <div className="flex items-start justify-between gap-4">
+      <div style={{ maxWidth: 860, display: 'flex', flexDirection: 'column', gap: 24 }} className="page-enter">
+
+        {/* Store header */}
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
           <div>
-            <h1 className="text-xl font-bold text-gray-900">{store.name}</h1>
-            <p className="text-sm text-gray-500 mt-0.5">
-              Capital inicial: {formatCurrency(store.initialCapital)}
-            </p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+              <div style={{ width: 40, height: 40, borderRadius: 12, background: 'linear-gradient(135deg, var(--cenc-blue-700), var(--cenc-blue-500))', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
+                </svg>
+              </div>
+              <h1 style={{ margin: 0, fontSize: '22px', fontWeight: 800, color: 'var(--cenc-gray-900)' }}>{store.name}</h1>
+            </div>
+            <p style={{ margin: 0, fontSize: '13px', color: 'var(--cenc-gray-500)' }}>Capital inicial: {formatCurrency(store.initialCapital)}</p>
           </div>
-          {/* Caixa atual */}
-          <div className={`rounded-xl border px-5 py-3 text-right
-            ${store.currentCash >= 0 ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
-            <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Caixa Atual</p>
-            <p className={`text-2xl font-bold mt-0.5
-              ${store.currentCash >= 0 ? 'text-green-700' : 'text-red-700'}`}>
+
+          {/* Cash card */}
+          <div style={{
+            borderRadius: 14, padding: '14px 20px', textAlign: 'right',
+            background: cashPositive ? '#f0fdf4' : '#fff1f2',
+            border: `1px solid ${cashPositive ? '#86efac' : '#fca5a5'}`,
+          }}>
+            <p style={{ margin: 0, fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--cenc-gray-400)' }}>Caixa Atual</p>
+            <p style={{ margin: '4px 0 2px', fontSize: '28px', fontWeight: 800, color: cashPositive ? '#15803d' : '#b91c1c', lineHeight: 1 }}>
               {formatCurrency(store.currentCash ?? store.initialCapital)}
             </p>
-            <p className="text-xs text-gray-400 mt-0.5">
-              {(((store.currentCash ?? store.initialCapital) / store.initialCapital) * 100).toFixed(1)}% do capital inicial
+            <p style={{ margin: 0, fontSize: '12px', color: cashPositive ? '#16a34a' : '#dc2626' }}>
+              {cashPct.toFixed(1)}% do capital inicial
             </p>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {/* Card — Rodada atual */}
-          <Card title="Rodada atual">
-            {activeRound ? (
-              <div className="flex flex-col gap-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">
-                    Rodada #{activeRound.number}
-                  </span>
-                  {roundBadge && (
-                    <Badge variant={roundBadge.variant}>{roundBadge.label}</Badge>
-                  )}
-                </div>
-                {activeRound.status === 'OPEN' && activeRound.endsAt && (
-                  <RoundTimer endsAt={activeRound.endsAt} />
-                )}
-                <Button
-                  onClick={() => navigate('/store/round')}
-                  disabled={activeRound.status !== 'OPEN'}
-                  className="w-full"
-                >
-                  Configurar Rodada
-                </Button>
-                {activeRound.status !== 'OPEN' && (
-                  <p className="text-xs text-gray-400 text-center">
-                    Configuração disponível somente em rodadas abertas
-                  </p>
-                )}
-              </div>
-            ) : (
-              <p className="text-sm text-gray-400">Nenhuma rodada ativa no momento.</p>
-            )}
-          </Card>
+        {/* Cards grid */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 16 }}>
 
-          {/* Card — Resumo do estoque */}
-          <Card title="Estoque disponível">
-            {inventory.length === 0 ? (
-              <p className="text-sm text-gray-400">Estoque não disponível.</p>
-            ) : (
-              <div className="overflow-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="text-left text-xs text-gray-400 border-b border-gray-100">
-                      <th className="pb-2 font-medium">Categoria</th>
-                      <th className="pb-2 font-medium text-right">Qtd.</th>
-                      <th className="pb-2 font-medium text-right">Disp.</th>
-                      <th className="pb-2 font-medium text-right">Valor</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {inventory.map((item) => {
-                      const pct = item.product.mixAvailable > 0
-                        ? ((item.quantity / item.product.mixAvailable) * 100).toFixed(0)
-                        : '—';
-                      const val = item.quantity * item.product.purchasePrice;
-                      return (
-                        <tr key={item.productId} className="border-b border-gray-50 last:border-0">
-                          <td className="py-2 text-gray-700">{item.product.name}</td>
-                          <td className="py-2 text-right font-medium text-gray-900">{item.quantity}</td>
-                          <td className="py-2 text-right text-gray-500 text-xs">{pct}%</td>
-                          <td className="py-2 text-right text-gray-500 text-xs">
-                            {formatCurrency(val)}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </Card>
+          {/* Round card */}
+          <div style={{ background: 'white', borderRadius: 16, border: '1px solid var(--cenc-gray-200)', boxShadow: '0 2px 8px rgba(0,0,0,0.05)', overflow: 'hidden' }}>
+            <div style={{ padding: '14px 20px', borderBottom: '1px solid var(--cenc-gray-100)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <h2 style={{ margin: 0, fontSize: '13px', fontWeight: 700, color: 'var(--cenc-gray-700)' }}>Rodada Atual</h2>
+              {roundBadge && <Badge variant={roundBadge.variant} dot pulse={activeRound?.status === 'OPEN'}>{roundBadge.label}</Badge>}
+            </div>
+            <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {activeRound ? (
+                <>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontSize: '32px', fontWeight: 800, color: 'var(--cenc-gray-900)' }}>#{activeRound.number}</span>
+                  </div>
+                  {activeRound.status === 'OPEN' && activeRound.endsAt && <RoundTimer endsAt={activeRound.endsAt} />}
+                  <Button onClick={() => navigate('/store/round')} disabled={activeRound.status !== 'OPEN'} style={{ width: '100%' }}
+                    icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>}
+                  >
+                    Configurar Rodada
+                  </Button>
+                  {activeRound.status !== 'OPEN' && (
+                    <p style={{ margin: 0, fontSize: '12px', color: 'var(--cenc-gray-400)', textAlign: 'center' }}>
+                      Configuração disponível somente em rodadas abertas
+                    </p>
+                  )}
+                </>
+              ) : (
+                <div style={{ padding: '16px 0', textAlign: 'center' }}>
+                  <p style={{ margin: 0, fontSize: '13px', color: 'var(--cenc-gray-400)' }}>Nenhuma rodada ativa no momento.</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Inventory card */}
+          <div style={{ background: 'white', borderRadius: 16, border: '1px solid var(--cenc-gray-200)', boxShadow: '0 2px 8px rgba(0,0,0,0.05)', overflow: 'hidden' }}>
+            <div style={{ padding: '14px 20px', borderBottom: '1px solid var(--cenc-gray-100)' }}>
+              <h2 style={{ margin: 0, fontSize: '13px', fontWeight: 700, color: 'var(--cenc-gray-700)' }}>Estoque Disponível</h2>
+            </div>
+            <div style={{ padding: '0' }}>
+              {inventory.length === 0 ? (
+                <div style={{ padding: '32px 20px', textAlign: 'center' }}>
+                  <p style={{ margin: 0, fontSize: '13px', color: 'var(--cenc-gray-400)' }}>Estoque não disponível.</p>
+                </div>
+              ) : (
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                    <thead>
+                      <tr style={{ borderBottom: '1px solid var(--cenc-gray-100)' }}>
+                        {['Categoria', 'Qtd.', 'Disp.', 'Valor'].map((h, i) => (
+                          <th key={h} style={{ padding: '10px 16px', fontWeight: 600, fontSize: '11px', color: 'var(--cenc-gray-400)', textTransform: 'uppercase', letterSpacing: '0.06em', textAlign: i === 0 ? 'left' : 'right' }}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {inventory.map((item) => {
+                        const pct = item.product.mixAvailable > 0 ? ((item.quantity / item.product.mixAvailable) * 100).toFixed(0) : '—';
+                        const val = item.quantity * item.product.purchasePrice;
+                        return (
+                          <tr key={item.productId} className="table-row-hover" style={{ borderTop: '1px solid var(--cenc-gray-50)' }}>
+                            <td style={{ padding: '10px 16px', color: 'var(--cenc-gray-700)', fontWeight: 500 }}>{item.product.name}</td>
+                            <td style={{ padding: '10px 16px', textAlign: 'right', fontWeight: 700, color: 'var(--cenc-gray-900)' }}>{item.quantity}</td>
+                            <td style={{ padding: '10px 16px', textAlign: 'right', fontSize: '12px', color: 'var(--cenc-gray-500)' }}>{pct}%</td>
+                            <td style={{ padding: '10px 16px', textAlign: 'right', fontSize: '12px', color: 'var(--cenc-gray-500)' }}>{formatCurrency(val)}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       </div>
     </PlayerLayout>

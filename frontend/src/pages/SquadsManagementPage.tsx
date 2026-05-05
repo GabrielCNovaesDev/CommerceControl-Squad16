@@ -10,38 +10,25 @@ import Skeleton from '../components/ui/Skeleton';
 import ErrorMessage from '../components/ui/ErrorMessage';
 import { useToast } from '../hooks/useToast';
 import type { Squad, SquadUser, UserRecord, UserRole } from '../types';
+import React from 'react';
 
-// ─── Helpers ────────────────────────────────────────────────────────────────
+const MODAL_OVERLAY: React.CSSProperties = { position:'fixed',inset:0,zIndex:50,display:'flex',alignItems:'center',justifyContent:'center',background:'rgba(0,0,0,0.45)',backdropFilter:'blur(4px)' };
+const MODAL_BOX: React.CSSProperties = { background:'white',borderRadius:20,boxShadow:'0 24px 64px rgba(0,0,0,0.18)',border:'1px solid var(--cenc-gray-200)',width:'100%',maxWidth:440,margin:'0 16px',padding:28,display:'flex',flexDirection:'column',gap:20 };
+const fs = (hasError: boolean): React.CSSProperties => ({ borderRadius:10,border:`1.5px solid ${hasError?'var(--cenc-danger)':'var(--cenc-gray-300)'}`,padding:'10px 14px',fontSize:14,color:'var(--cenc-gray-900)',background:hasError?'var(--cenc-danger-bg)':'white',width:'100%',boxSizing:'border-box',outline:'none' });
 
 const ROLE_LABEL: Record<UserRole, string> = { PLAYER: 'Jogador', GAME_MASTER: 'Game Master', OBSERVER: 'Observador' };
 
-function fieldClass(hasError: boolean) {
-  return `w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500 transition ${
-    hasError ? 'border-red-400 bg-red-50' : 'border-gray-300'
-  }`;
-}
-
-// ─── Modal genérico de confirmação ──────────────────────────────────────────
-
-function ConfirmModal({
-  title, message, confirmLabel = 'Confirmar', variant = 'danger', onConfirm, onCancel, loading,
-}: {
-  title: string;
-  message: string;
-  confirmLabel?: string;
-  variant?: 'danger' | 'primary' | 'secondary';
-  onConfirm: () => void;
-  onCancel: () => void;
-  loading: boolean;
+function ConfirmModal({ title, message, confirmLabel = 'Confirmar', variant = 'danger', onConfirm, onCancel, loading }: {
+  title: string; message: string; confirmLabel?: string; variant?: 'danger' | 'primary' | 'secondary'; onConfirm: () => void; onCancel: () => void; loading: boolean;
 }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="bg-white rounded-xl shadow-xl border border-gray-200 w-full max-w-md mx-4 p-6 flex flex-col gap-5">
+    <div style={MODAL_OVERLAY}>
+      <div className="animate-scale-in" style={MODAL_BOX}>
         <div>
-          <h2 className="text-base font-semibold text-gray-900">{title}</h2>
-          <p className="text-sm text-gray-500 mt-1.5 leading-relaxed">{message}</p>
+          <h2 style={{ margin:0,fontSize:16,fontWeight:700,color:'var(--cenc-gray-900)' }}>{title}</h2>
+          <p style={{ margin:'6px 0 0',fontSize:13,color:'var(--cenc-gray-500)',lineHeight:1.5 }}>{message}</p>
         </div>
-        <div className="flex gap-3 justify-end">
+        <div style={{ display:'flex',gap:10,justifyContent:'flex-end' }}>
           <Button type="button" variant="secondary" onClick={onCancel} disabled={loading}>Cancelar</Button>
           <Button type="button" variant={variant} onClick={onConfirm} loading={loading}>{confirmLabel}</Button>
         </div>
@@ -73,17 +60,20 @@ function CreateSquadModal({ onSuccess, onCancel }: { onSuccess: (s: Squad) => vo
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="bg-white rounded-xl shadow-xl border border-gray-200 w-full max-w-sm mx-4 p-6 flex flex-col gap-5">
-        <h2 className="text-base font-semibold text-gray-900">Novo Squad</h2>
-        <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
-          <div className="flex flex-col gap-1">
-            <label className="text-sm font-medium text-gray-700">Nome do squad</label>
-            <input className={fieldClass(!!errors.name)} {...register('name')} autoFocus />
-            {errors.name && <p className="text-xs text-red-600">{errors.name.message}</p>}
+    <div style={MODAL_OVERLAY}>
+      <div className="animate-scale-in" style={MODAL_BOX}>
+        <div>
+          <h2 style={{ margin:0,fontSize:16,fontWeight:700,color:'var(--cenc-gray-900)' }}>Novo Squad</h2>
+          <p style={{ margin:'4px 0 0',fontSize:13,color:'var(--cenc-gray-500)' }}>Crie um novo squad para a simulação.</p>
+        </div>
+        <form onSubmit={handleSubmit(onSubmit)} style={{ display:'flex',flexDirection:'column',gap:14 }}>
+          <div style={{ display:'flex',flexDirection:'column',gap:6 }}>
+            <label style={{ fontSize:13,fontWeight:600,color:'var(--cenc-gray-700)' }}>Nome do squad</label>
+            <input className="input-cenc" style={fs(!!errors.name)} {...register('name')} autoFocus />
+            {errors.name && <p style={{ margin:0,fontSize:12,color:'var(--cenc-danger)' }}>{errors.name.message}</p>}
           </div>
-          {serverError && <p className="rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-600">{serverError}</p>}
-          <div className="flex gap-3 justify-end">
+          {serverError && <div style={{ borderRadius:10,background:'var(--cenc-danger-bg)',border:'1px solid #fecaca',padding:'10px 14px',fontSize:13,color:'var(--cenc-danger)' }}>{serverError}</div>}
+          <div style={{ display:'flex',gap:10,justifyContent:'flex-end' }}>
             <Button type="button" variant="secondary" onClick={onCancel} disabled={isSubmitting}>Cancelar</Button>
             <Button type="submit" loading={isSubmitting}>Criar Squad</Button>
           </div>
@@ -114,17 +104,19 @@ function EditSquadModal({ squad, onSuccess, onCancel }: { squad: Squad; onSucces
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="bg-white rounded-xl shadow-xl border border-gray-200 w-full max-w-sm mx-4 p-6 flex flex-col gap-5">
-        <h2 className="text-base font-semibold text-gray-900">Editar Squad</h2>
-        <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
-          <div className="flex flex-col gap-1">
-            <label className="text-sm font-medium text-gray-700">Nome do squad</label>
-            <input className={fieldClass(!!errors.name)} {...register('name')} autoFocus />
-            {errors.name && <p className="text-xs text-red-600">{errors.name.message}</p>}
+    <div style={MODAL_OVERLAY}>
+      <div className="animate-scale-in" style={MODAL_BOX}>
+        <div>
+          <h2 style={{ margin:0,fontSize:16,fontWeight:700,color:'var(--cenc-gray-900)' }}>Editar Squad</h2>
+        </div>
+        <form onSubmit={handleSubmit(onSubmit)} style={{ display:'flex',flexDirection:'column',gap:14 }}>
+          <div style={{ display:'flex',flexDirection:'column',gap:6 }}>
+            <label style={{ fontSize:13,fontWeight:600,color:'var(--cenc-gray-700)' }}>Nome do squad</label>
+            <input className="input-cenc" style={fs(!!errors.name)} {...register('name')} autoFocus />
+            {errors.name && <p style={{ margin:0,fontSize:12,color:'var(--cenc-danger)' }}>{errors.name.message}</p>}
           </div>
-          {serverError && <p className="rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-600">{serverError}</p>}
-          <div className="flex gap-3 justify-end">
+          {serverError && <div style={{ borderRadius:10,background:'var(--cenc-danger-bg)',border:'1px solid #fecaca',padding:'10px 14px',fontSize:13,color:'var(--cenc-danger)' }}>{serverError}</div>}
+          <div style={{ display:'flex',gap:10,justifyContent:'flex-end' }}>
             <Button type="button" variant="secondary" onClick={onCancel} disabled={isSubmitting}>Cancelar</Button>
             <Button type="submit" loading={isSubmitting}>Salvar</Button>
           </div>
@@ -168,44 +160,47 @@ function CreateUserModal({ squads, onSuccess, onCancel }: { squads: Squad[]; onS
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="bg-white rounded-xl shadow-xl border border-gray-200 w-full max-w-md mx-4 p-6 flex flex-col gap-5">
-        <h2 className="text-base font-semibold text-gray-900">Novo Usuário</h2>
-        <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
-          <div className="grid grid-cols-2 gap-3">
-            <div className="flex flex-col gap-1 col-span-2">
-              <label className="text-sm font-medium text-gray-700">Nome</label>
-              <input className={fieldClass(!!errors.name)} {...register('name')} autoFocus />
-              {errors.name && <p className="text-xs text-red-600">{errors.name.message}</p>}
+    <div style={MODAL_OVERLAY}>
+      <div className="animate-scale-in" style={{ ...MODAL_BOX, maxWidth: 480 }}>
+        <div>
+          <h2 style={{ margin:0,fontSize:16,fontWeight:700,color:'var(--cenc-gray-900)' }}>Novo Usuário</h2>
+          <p style={{ margin:'4px 0 0',fontSize:13,color:'var(--cenc-gray-500)' }}>Crie uma nova conta de acesso.</p>
+        </div>
+        <form onSubmit={handleSubmit(onSubmit)} style={{ display:'flex',flexDirection:'column',gap:14 }}>
+          <div style={{ display:'grid',gridTemplateColumns:'1fr 1fr',gap:12 }}>
+            <div style={{ display:'flex',flexDirection:'column',gap:6,gridColumn:'1/-1' }}>
+              <label style={{ fontSize:13,fontWeight:600,color:'var(--cenc-gray-700)' }}>Nome</label>
+              <input className="input-cenc" style={fs(!!errors.name)} {...register('name')} autoFocus />
+              {errors.name && <p style={{ margin:0,fontSize:12,color:'var(--cenc-danger)' }}>{errors.name.message}</p>}
             </div>
-            <div className="flex flex-col gap-1 col-span-2">
-              <label className="text-sm font-medium text-gray-700">Email</label>
-              <input type="email" className={fieldClass(!!errors.email)} {...register('email')} />
-              {errors.email && <p className="text-xs text-red-600">{errors.email.message}</p>}
+            <div style={{ display:'flex',flexDirection:'column',gap:6,gridColumn:'1/-1' }}>
+              <label style={{ fontSize:13,fontWeight:600,color:'var(--cenc-gray-700)' }}>Email</label>
+              <input type="email" className="input-cenc" style={fs(!!errors.email)} {...register('email')} />
+              {errors.email && <p style={{ margin:0,fontSize:12,color:'var(--cenc-danger)' }}>{errors.email.message}</p>}
             </div>
-            <div className="flex flex-col gap-1 col-span-2">
-              <label className="text-sm font-medium text-gray-700">Senha</label>
-              <input type="password" className={fieldClass(!!errors.password)} {...register('password')} />
-              {errors.password && <p className="text-xs text-red-600">{errors.password.message}</p>}
+            <div style={{ display:'flex',flexDirection:'column',gap:6,gridColumn:'1/-1' }}>
+              <label style={{ fontSize:13,fontWeight:600,color:'var(--cenc-gray-700)' }}>Senha</label>
+              <input type="password" className="input-cenc" style={fs(!!errors.password)} {...register('password')} />
+              {errors.password && <p style={{ margin:0,fontSize:12,color:'var(--cenc-danger)' }}>{errors.password.message}</p>}
             </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-sm font-medium text-gray-700">Papel</label>
-              <select className={fieldClass(!!errors.role)} {...register('role')}>
+            <div style={{ display:'flex',flexDirection:'column',gap:6 }}>
+              <label style={{ fontSize:13,fontWeight:600,color:'var(--cenc-gray-700)' }}>Papel</label>
+              <select className="input-cenc" style={fs(!!errors.role)} {...register('role')}>
                 <option value="PLAYER">Jogador</option>
                 <option value="GAME_MASTER">Game Master</option>
               </select>
-              {errors.role && <p className="text-xs text-red-600">{errors.role.message}</p>}
+              {errors.role && <p style={{ margin:0,fontSize:12,color:'var(--cenc-danger)' }}>{errors.role.message}</p>}
             </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-sm font-medium text-gray-700">Squad (opcional)</label>
-              <select className={fieldClass(false)} {...register('squadId')}>
+            <div style={{ display:'flex',flexDirection:'column',gap:6 }}>
+              <label style={{ fontSize:13,fontWeight:600,color:'var(--cenc-gray-700)' }}>Squad (opcional)</label>
+              <select className="input-cenc" style={fs(false)} {...register('squadId')}>
                 <option value="">Sem squad</option>
                 {squads.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
             </div>
           </div>
-          {serverError && <p className="rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-600">{serverError}</p>}
-          <div className="flex gap-3 justify-end">
+          {serverError && <div style={{ borderRadius:10,background:'var(--cenc-danger-bg)',border:'1px solid #fecaca',padding:'10px 14px',fontSize:13,color:'var(--cenc-danger)' }}>{serverError}</div>}
+          <div style={{ display:'flex',gap:10,justifyContent:'flex-end' }}>
             <Button type="button" variant="secondary" onClick={onCancel} disabled={isSubmitting}>Cancelar</Button>
             <Button type="submit" loading={isSubmitting}>Criar Usuário</Button>
           </div>
@@ -246,33 +241,27 @@ function AddUserModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="bg-white rounded-xl shadow-xl border border-gray-200 w-full max-w-sm mx-4 p-6 flex flex-col gap-5">
+    <div style={MODAL_OVERLAY}>
+      <div className="animate-scale-in" style={MODAL_BOX}>
         <div>
-          <h2 className="text-base font-semibold text-gray-900">Adicionar membro</h2>
-          <p className="text-sm text-gray-500 mt-0.5">Squad: {squadName}</p>
+          <h2 style={{ margin:0,fontSize:16,fontWeight:700,color:'var(--cenc-gray-900)' }}>Adicionar membro</h2>
+          <p style={{ margin:'4px 0 0',fontSize:13,color:'var(--cenc-gray-500)' }}>Squad: <strong>{squadName}</strong></p>
         </div>
         {freeUsers.length === 0 ? (
-          <p className="text-sm text-gray-400 italic">Não há usuários sem squad disponíveis.</p>
+          <p style={{ margin:0,fontSize:13,color:'var(--cenc-gray-400)',fontStyle:'italic' }}>Não há usuários sem squad disponíveis.</p>
         ) : (
-          <div className="flex flex-col gap-1">
-            <label className="text-sm font-medium text-gray-700">Selecionar usuário</label>
-            <select
-              value={selectedUserId}
-              onChange={(e) => setSelectedUserId(e.target.value)}
-              className={fieldClass(false)}
-            >
+          <div style={{ display:'flex',flexDirection:'column',gap:6 }}>
+            <label style={{ fontSize:13,fontWeight:600,color:'var(--cenc-gray-700)' }}>Selecionar usuário</label>
+            <select value={selectedUserId} onChange={(e) => setSelectedUserId(e.target.value)} className="input-cenc" style={fs(false)}>
               <option value="">Escolha um usuário...</option>
               {freeUsers.map((u) => (
-                <option key={u.id} value={u.id}>
-                  {u.name} ({u.email}) — {ROLE_LABEL[u.role] ?? u.role}
-                </option>
+                <option key={u.id} value={u.id}>{u.name} ({u.email}) — {ROLE_LABEL[u.role] ?? u.role}</option>
               ))}
             </select>
           </div>
         )}
-        {serverError && <p className="rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-600">{serverError}</p>}
-        <div className="flex gap-3 justify-end">
+        {serverError && <div style={{ borderRadius:10,background:'var(--cenc-danger-bg)',border:'1px solid #fecaca',padding:'10px 14px',fontSize:13,color:'var(--cenc-danger)' }}>{serverError}</div>}
+        <div style={{ display:'flex',gap:10,justifyContent:'flex-end' }}>
           <Button type="button" variant="secondary" onClick={onCancel} disabled={loading}>Cancelar</Button>
           {freeUsers.length > 0 && (
             <Button type="button" onClick={handleAdd} loading={loading} disabled={!selectedUserId}>Adicionar</Button>
@@ -285,63 +274,41 @@ function AddUserModal({
 
 // ─── Linha expandida — membros ───────────────────────────────────────────────
 
-function MembersPanel({
-  squad, onRemoveUser, onAddUser,
-}: {
-  squad: Squad;
-  onRemoveUser: (user: SquadUser, squadId: string) => void;
-  onAddUser: (squadId: string) => void;
+function MembersPanel({ squad, onRemoveUser, onAddUser }: {
+  squad: Squad; onRemoveUser: (user: SquadUser, squadId: string) => void; onAddUser: (squadId: string) => void;
 }) {
   const members = squad.users ?? [];
-
   return (
-    <div className="bg-gray-50 border-t border-gray-100 px-4 py-3">
-      <div className="flex items-center justify-between mb-2">
-        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Membros</p>
-        <button
-          onClick={() => onAddUser(squad.id)}
-          className="text-xs font-medium text-indigo-600 hover:text-indigo-800 transition-colors"
-        >
-          + Adicionar membro
-        </button>
+    <div style={{ background: 'var(--cenc-gray-50)', borderTop: '1px solid var(--cenc-gray-100)', padding: '12px 16px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+        <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: 'var(--cenc-gray-400)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Membros</p>
+        <button onClick={() => onAddUser(squad.id)} style={{ fontSize: 12, fontWeight: 600, color: 'var(--cenc-blue-600)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>+ Adicionar membro</button>
       </div>
       {members.length === 0 ? (
-        <p className="text-xs text-gray-400 italic py-1">Nenhum membro neste squad.</p>
+        <p style={{ margin: 0, fontSize: 12, color: 'var(--cenc-gray-400)', fontStyle: 'italic' }}>Nenhum membro neste squad.</p>
       ) : (
-        <table className="w-full text-xs">
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
           <thead>
-            <tr className="text-left text-gray-400">
-              <th className="pb-1.5 font-medium">Nome</th>
-              <th className="pb-1.5 font-medium">Email</th>
-              <th className="pb-1.5 font-medium">Papel</th>
-              <th className="pb-1.5 font-medium text-right"></th>
+            <tr>
+              {['Nome','Email','Papel',''].map((h) => (
+                <th key={h} style={{ paddingBottom: 6, fontWeight: 600, color: 'var(--cenc-gray-400)', textAlign: 'left' }}>{h}</th>
+              ))}
             </tr>
           </thead>
           <tbody>
             {members.map((user) => (
-              <tr key={user.id} className="border-t border-gray-100">
-                <td className="py-1.5 pr-3 text-gray-800 font-medium">
+              <tr key={user.id} style={{ borderTop: '1px solid var(--cenc-gray-100)' }}>
+                <td style={{ padding: '6px 12px 6px 0', fontWeight: 600, color: 'var(--cenc-gray-800)' }}>
                   {user.name}
-                  {user.leader && (
-                    <span className="ml-1.5 inline-flex items-center rounded-full bg-yellow-100 border border-yellow-300 px-1.5 py-0.5 text-yellow-700 font-semibold">
-                      Líder
-                    </span>
-                  )}
+                  {user.leader && <span style={{ marginLeft: 6, borderRadius: 99, padding: '1px 7px', fontSize: 10, fontWeight: 700, background: 'var(--cenc-gold-100)', color: '#92400e', border: '1px solid #fde68a' }}>Líder</span>}
                 </td>
-                <td className="py-1.5 pr-3 text-gray-500">{user.email}</td>
-                <td className="py-1.5 pr-3 text-gray-500">{ROLE_LABEL[user.role] ?? user.role}</td>
-                <td className="py-1.5 text-right">
+                <td style={{ padding: '6px 12px 6px 0', color: 'var(--cenc-gray-500)' }}>{user.email}</td>
+                <td style={{ padding: '6px 12px 6px 0', color: 'var(--cenc-gray-500)' }}>{ROLE_LABEL[user.role] ?? user.role}</td>
+                <td style={{ padding: '6px 0', textAlign: 'right' }}>
                   {user.leader ? (
-                    <span className="text-gray-300 cursor-not-allowed" title="Transfira a liderança antes de remover este usuário do squad">
-                      Remover
-                    </span>
+                    <span style={{ color: 'var(--cenc-gray-300)', cursor: 'not-allowed', fontSize: 12 }} title="Transfira a liderança antes de remover">Remover</span>
                   ) : (
-                    <button
-                      onClick={() => onRemoveUser(user, squad.id)}
-                      className="text-red-500 hover:text-red-700 transition-colors"
-                    >
-                      Remover
-                    </button>
+                    <button onClick={() => onRemoveUser(user, squad.id)} style={{ fontSize: 12, fontWeight: 600, color: 'var(--cenc-danger)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Remover</button>
                   )}
                 </td>
               </tr>
@@ -465,57 +432,58 @@ export default function SquadsManagementPage() {
 
   return (
     <AdminLayout>
-      <div className="max-w-5xl flex flex-col gap-6">
-        <div className="flex items-start justify-between gap-4">
+      <div style={{ maxWidth: 900, display: 'flex', flexDirection: 'column', gap: 24 }} className="page-enter">
+        {/* Header */}
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16 }}>
           <div>
-            <h1 className="text-xl font-bold text-gray-900">Squads e Usuários</h1>
-            <p className="text-sm text-gray-500 mt-0.5">Gerencie squads, membros e contas de acesso.</p>
+            <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: 'var(--cenc-gray-900)' }}>Squads e Usuários</h1>
+            <p style={{ margin: '4px 0 0', fontSize: 13, color: 'var(--cenc-gray-500)' }}>Gerencie squads, membros e contas de acesso.</p>
           </div>
-          <div className="flex gap-2 shrink-0">
-            <Button variant="secondary" onClick={() => setCreateUserOpen(true)}>+ Usuário</Button>
-            <Button onClick={() => setCreateSquadOpen(true)}>+ Squad</Button>
+          <div style={{ display: 'flex', gap: 10, flexShrink: 0 }}>
+            <Button variant="secondary" onClick={() => setCreateUserOpen(true)} icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>}>Usuário</Button>
+            <Button onClick={() => setCreateSquadOpen(true)} icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>}>Squad</Button>
           </div>
         </div>
 
         {loading ? (
-          <div className="flex flex-col gap-2">
-            {[...Array(3)].map((_, i) => <Skeleton key={i} variant="card" className="h-16" />)}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {[...Array(3)].map((_, i) => <Skeleton key={i} variant="card" />)}
           </div>
         ) : loadError ? (
           <ErrorMessage message={loadError} onRetry={() => { setLoading(true); loadAll(); }} />
         ) : squads.length === 0 ? (
-          <div className="rounded-xl border border-gray-200 bg-white shadow-sm px-6 py-12 flex flex-col items-center gap-2">
-            <p className="text-gray-500 font-medium">Nenhum squad cadastrado.</p>
-            <p className="text-sm text-gray-400">Crie o primeiro squad para começar.</p>
+          <div style={{ borderRadius: 14, border: '1px solid var(--cenc-gray-200)', background: 'white', padding: '48px 24px', textAlign: 'center' }}>
+            <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: 'var(--cenc-gray-500)' }}>Nenhum squad cadastrado.</p>
+            <p style={{ margin: '4px 0 0', fontSize: 13, color: 'var(--cenc-gray-400)' }}>Crie o primeiro squad para começar.</p>
           </div>
         ) : (
-          <div className="flex flex-col gap-2">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {squads.map((squad) => {
               const store = squad.stores?.[0] ?? null;
               const isExpanded = expandedId === squad.id;
               return (
-                <div key={squad.id} className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
-                  <div className="flex items-center gap-3 px-4 py-3">
-                    <button
-                      onClick={() => setExpandedId(isExpanded ? null : squad.id)}
-                      className="shrink-0 text-gray-400 hover:text-gray-600 transition-colors w-5 h-5 flex items-center justify-center"
-                      aria-label={isExpanded ? 'Recolher' : 'Expandir'}
-                    >
-                      <svg className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-90' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <div key={squad.id} style={{ borderRadius: 14, border: '1px solid var(--cenc-gray-200)', background: 'white', boxShadow: '0 1px 6px rgba(0,0,0,0.05)', overflow: 'hidden' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px' }}>
+                    <button onClick={() => setExpandedId(isExpanded ? null : squad.id)}
+                      style={{ flexShrink: 0, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--cenc-gray-400)', display: 'flex', alignItems: 'center', justifyContent: 'center', width: 24, height: 24, borderRadius: 6, transition: 'all 0.15s' }}
+                      aria-label={isExpanded ? 'Recolher' : 'Expandir'}>
+                      <svg style={{ width: 16, height: 16, transform: isExpanded ? 'rotate(90deg)' : 'none', transition: 'transform 0.2s' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                       </svg>
                     </button>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-gray-900 truncate">{squad.name}</p>
-                      <p className="text-xs text-gray-400 mt-0.5">
-                        {store ? `Loja: ${store.name}` : 'Sem loja vinculada'}
-                        {' · '}
-                        {squad.users?.length ?? 0} membro(s)
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: 'var(--cenc-gray-900)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{squad.name}</p>
+                      <p style={{ margin: '2px 0 0', fontSize: 12, color: 'var(--cenc-gray-400)' }}>
+                        {store ? `Loja: ${store.name}` : 'Sem loja vinculada'} · {squad.users?.length ?? 0} membro(s)
                       </p>
                     </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <button onClick={() => setEditSquad(squad)} className="text-xs font-medium text-gray-500 hover:text-indigo-700 transition-colors px-2 py-1 rounded hover:bg-indigo-50">Editar</button>
-                      <button onClick={() => setDeleteSquad(squad)} className="text-xs font-medium text-gray-500 hover:text-red-600 transition-colors px-2 py-1 rounded hover:bg-red-50">Deletar</button>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+                      <button onClick={() => setEditSquad(squad)} style={{ fontSize: 12, fontWeight: 600, color: 'var(--cenc-blue-600)', background: 'var(--cenc-blue-50)', border: '1px solid var(--cenc-blue-100)', borderRadius: 8, padding: '4px 10px', cursor: 'pointer', transition: 'all 0.15s' }}
+                        onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--cenc-blue-100)'; }}
+                        onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--cenc-blue-50)'; }}>Editar</button>
+                      <button onClick={() => setDeleteSquad(squad)} style={{ fontSize: 12, fontWeight: 600, color: 'var(--cenc-danger)', background: '#fee2e2', border: '1px solid #fecaca', borderRadius: 8, padding: '4px 10px', cursor: 'pointer', transition: 'all 0.15s' }}
+                        onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = '#fecaca'; }}
+                        onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = '#fee2e2'; }}>Deletar</button>
                     </div>
                   </div>
                   {isExpanded && (
@@ -529,37 +497,11 @@ export default function SquadsManagementPage() {
       </div>
 
       {createSquadOpen && <CreateSquadModal onSuccess={handleSquadCreated} onCancel={() => setCreateSquadOpen(false)} />}
-      {createUserOpen && <CreateUserModal squads={squads} onSuccess={handleUserCreated} onCancel={() => setCreateUserOpen(false)} />}
       {editSquad && <EditSquadModal squad={editSquad} onSuccess={handleSquadUpdated} onCancel={() => setEditSquad(null)} />}
-      {deleteSquad && (
-        <ConfirmModal
-          title={`Deletar squad "${deleteSquad.name}"?`}
-          message="Esta ação removerá o squad permanentemente. Não será possível desfazer."
-          confirmLabel="Deletar Squad"
-          onConfirm={handleDeleteSquad}
-          onCancel={() => setDeleteSquad(null)}
-          loading={deletingSquad}
-        />
-      )}
-      {removeUser && (
-        <ConfirmModal
-          title={`Remover ${removeUser.user.name} do squad?`}
-          message="O usuário perderá o vínculo com o squad e não poderá mais participar da rodada como membro deste grupo."
-          confirmLabel="Remover"
-          onConfirm={handleConfirmRemoveUser}
-          onCancel={() => setRemoveUser(null)}
-          loading={removingUser}
-        />
-      )}
-      {addUserTo && addUserSquad && (
-        <AddUserModal
-          squadId={addUserTo}
-          squadName={addUserSquad.name}
-          freeUsers={freeUsers}
-          onSuccess={handleAddUserSuccess}
-          onCancel={() => setAddUserTo(null)}
-        />
-      )}
+      {deleteSquad && <ConfirmModal title={`Deletar "${deleteSquad.name}"?`} message="O squad e todos os seus dados serão removidos permanentemente." confirmLabel="Deletar Squad" onConfirm={handleDeleteSquad} onCancel={() => setDeleteSquad(null)} loading={deletingSquad} />}
+      {createUserOpen && <CreateUserModal squads={squads} onSuccess={handleUserCreated} onCancel={() => setCreateUserOpen(false)} />}
+      {addUserTo && addUserSquad && <AddUserModal squadId={addUserTo} squadName={addUserSquad.name} freeUsers={freeUsers} onSuccess={handleAddUserSuccess} onCancel={() => setAddUserTo(null)} />}
+      {removeUser && <ConfirmModal title={`Remover "${removeUser.user.name}"?`} message={`O usuário será removido do squad. Ele continuará com acesso ao sistema.`} confirmLabel="Remover" onConfirm={handleConfirmRemoveUser} onCancel={() => setRemoveUser(null)} loading={removingUser} />}
     </AdminLayout>
   );
 }
