@@ -2,6 +2,8 @@ import { z } from 'zod';
 import { Request, Response } from 'express';
 import productRepository from '../repositories/productRepository';
 import asyncHandler from '../utils/asyncHandler';
+import { sendError } from '../utils/errorResponse';
+import { parsePagination, paginate } from '../utils/pagination';
 
 const createSchema = z.object({
   name: z.string().min(1, 'Nome é obrigatório'),
@@ -22,14 +24,15 @@ const updateSchema = z.object({
 });
 
 async function listProducts(req: Request, res: Response): Promise<void> {
-  const products = await productRepository.findAll();
-  res.status(200).json(products);
+  const params = parsePagination(req);
+  const [products, totalElements] = await productRepository.findPaginated(params.skip, params.size);
+  res.status(200).json(paginate(products, totalElements, params));
 }
 
 async function createProduct(req: Request, res: Response): Promise<void> {
   const parsed = createSchema.safeParse(req.body);
   if (!parsed.success) {
-    res.status(400).json({ errors: parsed.error.flatten().fieldErrors });
+    sendError(res, 400, 'VALIDATION_ERROR', 'Dados inválidos', parsed.error.flatten().fieldErrors);
     return;
   }
 
@@ -42,13 +45,13 @@ async function updateProduct(req: Request, res: Response): Promise<void> {
 
   const existing = await productRepository.findById(id);
   if (!existing) {
-    res.status(404).json({ message: 'Produto não encontrado' });
+    sendError(res, 404, 'PRODUCT_NOT_FOUND', 'Produto não encontrado');
     return;
   }
 
   const parsed = updateSchema.safeParse(req.body);
   if (!parsed.success) {
-    res.status(400).json({ errors: parsed.error.flatten().fieldErrors });
+    sendError(res, 400, 'VALIDATION_ERROR', 'Dados inválidos', parsed.error.flatten().fieldErrors);
     return;
   }
 
@@ -61,13 +64,13 @@ async function deleteProduct(req: Request, res: Response): Promise<void> {
 
   const existing = await productRepository.findById(id);
   if (!existing) {
-    res.status(404).json({ message: 'Produto não encontrado' });
+    sendError(res, 404, 'PRODUCT_NOT_FOUND', 'Produto não encontrado');
     return;
   }
 
   const inUse = await productRepository.hasReferences(id);
   if (inUse) {
-    res.status(409).json({ message: 'Produto está em uso e não pode ser removido' });
+    sendError(res, 409, 'PRODUCT_IN_USE', 'Produto está em uso e não pode ser removido');
     return;
   }
 

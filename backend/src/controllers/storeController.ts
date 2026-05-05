@@ -4,6 +4,8 @@ import storeRepository from '../repositories/storeRepository';
 import productRepository from '../repositories/productRepository';
 import prisma from '../utils/prisma';
 import asyncHandler from '../utils/asyncHandler';
+import { sendError } from '../utils/errorResponse';
+import { parsePagination, paginate } from '../utils/pagination';
 
 const createSchema = z.object({
   name: z.string().min(1, 'Nome é obrigatório'),
@@ -13,13 +15,13 @@ const createSchema = z.object({
 async function getMyStore(req: Request, res: Response): Promise<void> {
   const { squadId } = req.user!;
   if (!squadId) {
-    res.status(400).json({ message: 'Usuário não pertence a um squad' });
+    sendError(res, 400, 'NO_SQUAD', 'Usuário não pertence a um squad');
     return;
   }
 
   const store = await storeRepository.findBySquadId(squadId);
   if (!store) {
-    res.status(404).json({ message: 'Loja não encontrada para este squad' });
+    sendError(res, 404, 'STORE_NOT_FOUND', 'Loja não encontrada para este squad');
     return;
   }
 
@@ -29,19 +31,19 @@ async function getMyStore(req: Request, res: Response): Promise<void> {
 async function createStore(req: Request, res: Response): Promise<void> {
   const { squadId } = req.user!;
   if (!squadId) {
-    res.status(400).json({ message: 'Usuário não pertence a um squad' });
+    sendError(res, 400, 'NO_SQUAD', 'Usuário não pertence a um squad');
     return;
   }
 
   const parsed = createSchema.safeParse(req.body);
   if (!parsed.success) {
-    res.status(400).json({ errors: parsed.error.flatten().fieldErrors });
+    sendError(res, 400, 'VALIDATION_ERROR', 'Dados inválidos', parsed.error.flatten().fieldErrors);
     return;
   }
 
   const existing = await storeRepository.findBySquadId(squadId);
   if (existing) {
-    res.status(409).json({ message: 'Este squad já possui uma loja' });
+    sendError(res, 409, 'STORE_ALREADY_EXISTS', 'Este squad já possui uma loja');
     return;
   }
 
@@ -66,8 +68,9 @@ async function createStore(req: Request, res: Response): Promise<void> {
 }
 
 async function listStores(req: Request, res: Response): Promise<void> {
-  const stores = await storeRepository.findAll();
-  res.status(200).json(stores);
+  const params = parsePagination(req);
+  const [stores, totalElements] = await storeRepository.findPaginated(params.skip, params.size);
+  res.status(200).json(paginate(stores, totalElements, params));
 }
 
 export default {

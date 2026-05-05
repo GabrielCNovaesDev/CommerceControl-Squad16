@@ -4,6 +4,13 @@ function findAll() {
   return prisma.product.findMany();
 }
 
+function findPaginated(skip: number, take: number) {
+  return Promise.all([
+    prisma.product.findMany({ skip, take, orderBy: { name: 'asc' } }),
+    prisma.product.count(),
+  ]);
+}
+
 function findById(id: string) {
   return prisma.product.findUnique({ where: { id } });
 }
@@ -45,5 +52,5 @@ async function hasReferences(id: string): Promise<boolean> {
   return inventoryCount > 0 || roundConfigItemCount > 0;
 }
 
-const productRepository = { findAll, findById, create, update, remove, hasReferences };
+const productRepository = { findAll, findPaginated, findById, create, update, remove, hasReferences };
 export default productRepository;

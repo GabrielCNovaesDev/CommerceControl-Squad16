@@ -21,7 +21,7 @@ enum RoundStatus {
 }
 
 model User {
-  id        String   @id @default(uuid())
+  id        String   @id @default(uuid(7))
   name      String
   email     String   @unique
   password  String
@@ -34,7 +34,7 @@ model User {
 }
 
 model Squad {
-  id        String   @id @default(uuid())
+  id        String   @id @default(uuid(7))
   name      String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -44,10 +44,10 @@ model Squad {
 }
 
 model Store {
-  id             String   @id @default(uuid())
+  id             String  @id @default(uuid(7))
   name           String
-  initialCapital Float
-  currentCash    Float    @default(700000)
+  initialCapital Decimal @db.Decimal(18, 2)
+  currentCash    Decimal @default(700000) @db.Decimal(18, 2)
   squadId        String
   createdAt      DateTime @default(now())
 
@@ -58,12 +58,12 @@ model Store {
 }
 
 model Product {
-  id            String   @id @default(uuid())
+  id            String   @id @default(uuid(7))
   name          String
-  purchasePrice Float
-  taxRate       Float    @default(0)
-  breakageRate  Float    @default(0)
-  agingRate     Float    @default(0)
+  purchasePrice Decimal  @db.Decimal(18, 2)
+  taxRate       Decimal  @default(0) @db.Decimal(8, 6)
+  breakageRate  Decimal  @default(0) @db.Decimal(8, 6)
+  agingRate     Decimal  @default(0) @db.Decimal(8, 6)
   mixAvailable  Int      @default(0)
   createdAt     DateTime @default(now())
 
@@ -72,7 +72,7 @@ model Product {
 }
 
 model Inventory {
-  id        String @id @default(uuid())
+  id        String @id @default(uuid(7))
   storeId   String
   productId String
   quantity  Int
@@ -84,12 +84,12 @@ model Inventory {
 }
 
 model Round {
-  id            String      @id @default(uuid())
+  id            String      @id @default(uuid(7))
   number        Int
   durationHours Int         @default(1)
   endsAt        DateTime
   status        RoundStatus @default(OPEN)
-  demandFactor  Float       @default(0.5)
+  demandFactor  Decimal     @default(0.5) @db.Decimal(5, 4)
   createdAt     DateTime    @default(now())
 
   roundConfigs     RoundConfig[]
@@ -97,13 +97,13 @@ model Round {
 }
 
 model RoundConfig {
-  id                String   @id @default(uuid())
+  id                String   @id @default(uuid(7))
   roundId           String
   storeId           String
-  otherExpenses     Float    @default(0)
+  otherExpenses     Decimal  @default(0) @db.Decimal(18, 2)
   cashierOperators  Int      @default(10)
   serviceOperators  Int      @default(5)
-  quizScore         Float    @default(1.0)
+  quizScore         Decimal  @default(1.0) @db.Decimal(5, 4)
   // CAPEX selections (one-time investment deducted from store capital)
   numPdvs           Int      @default(6)
   capexSeguranca    Boolean  @default(false)
@@ -123,10 +123,10 @@ model RoundConfig {
 }
 
 model RoundConfigItem {
-  id            String @id @default(uuid())
+  id            String  @id @default(uuid(7))
   roundConfigId String
   productId     String
-  margin        Float
+  margin        Decimal @db.Decimal(8, 6)
   salesVolume   Int
 
   roundConfig RoundConfig @relation(fields: [roundConfigId], references: [id])
@@ -136,23 +136,23 @@ model RoundConfigItem {
 }
 
 model FinancialResult {
-  id             String   @id @default(uuid())
-  roundId        String
-  storeId        String
-  roundConfigId  String   @unique
-  grossRevenue   Float
-  taxes          Float
-  netRevenue     Float
-  costs          Float
-  grossMargin    Float
-  totalBreakage  Float
-  totalAging     Float
-  netMarginMass  Float
-  otherExpenses  Float
-  ebitda         Float
-  ebitdaMargin   Float
-  demandShare    Float    @default(0)
-  calculatedAt   DateTime @default(now())
+  id            String   @id @default(uuid(7))
+  roundId       String
+  storeId       String
+  roundConfigId String   @unique
+  grossRevenue  Decimal  @db.Decimal(18, 2)
+  taxes         Decimal  @db.Decimal(18, 2)
+  netRevenue    Decimal  @db.Decimal(18, 2)
+  costs         Decimal  @db.Decimal(18, 2)
+  grossMargin   Decimal  @db.Decimal(18, 2)
+  totalBreakage Decimal  @db.Decimal(18, 2)
+  totalAging    Decimal  @db.Decimal(18, 2)
+  netMarginMass Decimal  @db.Decimal(18, 2)
+  otherExpenses Decimal  @db.Decimal(18, 2)
+  ebitda        Decimal  @db.Decimal(18, 2)
+  ebitdaMargin  Decimal  @db.Decimal(8, 6)
+  demandShare   Decimal  @default(0) @db.Decimal(8, 6)
+  calculatedAt  DateTime @default(now())
 
   round       Round       @relation(fields: [roundId], references: [id])
   store       Store       @relation(fields: [storeId], references: [id])

@@ -3,6 +3,8 @@ import { Request, Response } from 'express';
 import squadRepository from '../repositories/squadRepository';
 import prisma from '../utils/prisma';
 import asyncHandler from '../utils/asyncHandler';
+import { sendError } from '../utils/errorResponse';
+import { parsePagination, paginate } from '../utils/pagination';
 
 const createSchema = z.object({
   name: z.string().min(1, 'Nome é obrigatório'),
@@ -13,14 +15,15 @@ const updateSchema = z.object({
 });
 
 async function listSquads(req: Request, res: Response): Promise<void> {
-  const squads = await squadRepository.findAll();
-  res.status(200).json(squads);
+  const params = parsePagination(req);
+  const [squads, totalElements] = await squadRepository.findPaginated(params.skip, params.size);
+  res.status(200).json(paginate(squads, totalElements, params));
 }
 
 async function createSquad(req: Request, res: Response): Promise<void> {
   const parsed = createSchema.safeParse(req.body);
   if (!parsed.success) {
-    res.status(400).json({ errors: parsed.error.flatten().fieldErrors });
+    sendError(res, 400, 'VALIDATION_ERROR', 'Dados inválidos', parsed.error.flatten().fieldErrors);
     return;
   }
 
@@ -33,13 +36,13 @@ async function updateSquad(req: Request, res: Response): Promise<void> {
 
   const existing = await squadRepository.findById(id);
   if (!existing) {
-    res.status(404).json({ message: 'Squad não encontrado' });
+    sendError(res, 404, 'SQUAD_NOT_FOUND', 'Squad não encontrado');
     return;
   }
 
   const parsed = updateSchema.safeParse(req.body);
   if (!parsed.success) {
-    res.status(400).json({ errors: parsed.error.flatten().fieldErrors });
+    sendError(res, 400, 'VALIDATION_ERROR', 'Dados inválidos', parsed.error.flatten().fieldErrors);
     return;
   }
 
@@ -52,13 +55,13 @@ async function deleteSquad(req: Request, res: Response): Promise<void> {
 
   const existing = await squadRepository.findById(id);
   if (!existing) {
-    res.status(404).json({ message: 'Squad não encontrado' });
+    sendError(res, 404, 'SQUAD_NOT_FOUND', 'Squad não encontrado');
     return;
   }
 
   const activeRound = await squadRepository.hasActiveRound(id);
   if (activeRound) {
-    res.status(409).json({ message: 'Squad possui rodada ativa e não pode ser removido' });
+    sendError(res, 409, 'SQUAD_HAS_ACTIVE_ROUND', 'Squad possui rodada ativa e não pode ser removido');
     return;
   }
 
@@ -71,19 +74,19 @@ async function addUserToSquad(req: Request, res: Response): Promise<void> {
   const { userId } = req.body as { userId?: string };
 
   if (!userId) {
-    res.status(400).json({ message: 'userId é obrigatório' });
+    sendError(res, 400, 'MISSING_PARAM', 'userId é obrigatório');
     return;
   }
 
   const squad = await squadRepository.findById(id);
   if (!squad) {
-    res.status(404).json({ message: 'Squad não encontrado' });
+    sendError(res, 404, 'SQUAD_NOT_FOUND', 'Squad não encontrado');
     return;
   }
 
   const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user) {
-    res.status(404).json({ message: 'Usuário não encontrado' });
+    sendError(res, 404, 'USER_NOT_FOUND', 'Usuário não encontrado');
     return;
   }
 
@@ -97,23 +100,23 @@ async function removeUserFromSquad(req: Request, res: Response): Promise<void> {
 
   const squad = await squadRepository.findById(id);
   if (!squad) {
-    res.status(404).json({ message: 'Squad não encontrado' });
+    sendError(res, 404, 'SQUAD_NOT_FOUND', 'Squad não encontrado');
     return;
   }
 
   const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user) {
-    res.status(404).json({ message: 'Usuário não encontrado' });
+    sendError(res, 404, 'USER_NOT_FOUND', 'Usuário não encontrado');
     return;
   }
 
   if (user.squadId !== id) {
-    res.status(400).json({ message: 'Usuário não pertence a este squad' });
+    sendError(res, 400, 'USER_NOT_IN_SQUAD', 'Usuário não pertence a este squad');
     return;
   }
 
   if (user.leader) {
-    res.status(409).json({ message: 'Transfira a liderança antes de remover este usuário do squad' });
+    sendError(res, 409, 'USER_IS_LEADER', 'Transfira a liderança antes de remover este usuário do squad');
     return;
   }
 

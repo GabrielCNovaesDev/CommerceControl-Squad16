@@ -1,30 +1,27 @@
 import prisma from '../utils/prisma';
 
+const squadInclude = {
+  users: {
+    select: { id: true, name: true, email: true, role: true, leader: true },
+  },
+  stores: {
+    select: { id: true, name: true, initialCapital: true },
+  },
+} as const;
+
 function findAll() {
-  return prisma.squad.findMany({
-    include: {
-      users: {
-        select: { id: true, name: true, email: true, role: true, leader: true },
-      },
-      stores: {
-        select: { id: true, name: true, initialCapital: true },
-      },
-    },
-  });
+  return prisma.squad.findMany({ include: squadInclude });
+}
+
+function findPaginated(skip: number, take: number) {
+  return Promise.all([
+    prisma.squad.findMany({ include: squadInclude, skip, take, orderBy: { name: 'asc' } }),
+    prisma.squad.count(),
+  ]);
 }
 
 function findById(id: string) {
-  return prisma.squad.findUnique({
-    where: { id },
-    include: {
-      users: {
-        select: { id: true, name: true, email: true, role: true, leader: true },
-      },
-      stores: {
-        select: { id: true, name: true, initialCapital: true },
-      },
-    },
-  });
+  return prisma.squad.findUnique({ where: { id }, include: squadInclude });
 }
 
 function create(data: { name: string }) {
@@ -66,5 +63,5 @@ function removeUser(userId: string) {
   });
 }
 
-const squadRepository = { findAll, findById, create, update, remove, hasActiveRound, addUser, removeUser };
+const squadRepository = { findAll, findPaginated, findById, create, update, remove, hasActiveRound, addUser, removeUser };
 export default squadRepository;

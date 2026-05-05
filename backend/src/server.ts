@@ -1,4 +1,14 @@
 import 'dotenv/config';
+
+// ── Validação de variáveis obrigatórias — falha antes de qualquer coisa ────────
+const REQUIRED_ENV = ['JWT_SECRET', 'DATABASE_URL'] as const;
+for (const key of REQUIRED_ENV) {
+  if (!process.env[key]) {
+    console.error(`[startup] Variável de ambiente obrigatória ausente: ${key}. Encerrando.`);
+    process.exit(1);
+  }
+}
+
 import express from 'express';
 import cors from 'cors';
 import bcrypt from 'bcryptjs';
@@ -14,6 +24,7 @@ import inventoryRoutes from './routes/inventoryRoutes';
 import roundRoutes from './routes/roundRoutes';
 import simulationRoutes from './routes/simulationRoutes';
 import errorMiddleware from './middlewares/errorMiddleware';
+import traceMiddleware from './middlewares/traceMiddleware';
 import prisma from './utils/prisma';
 
 const app = express();
@@ -23,6 +34,7 @@ const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || 'http://localhost:5173')
   .map((o) => o.trim());
 
 app.use(helmet());
+app.use(traceMiddleware);
 
 app.use(cors({
   origin: (origin, callback) => {
@@ -65,7 +77,8 @@ async function bootstrapAdmin(): Promise<void> {
   try {
     const count = await prisma.user.count({ where: { role: 'GAME_MASTER' } });
     if (count === 0) {
-      const password = await bcrypt.hash('admin123', 10);
+      const defaultPassword = process.env.ADMIN_DEFAULT_PASSWORD || 'admin123';
+      const password = await bcrypt.hash(defaultPassword, 10);
       await prisma.user.create({
         data: {
           name: 'Admin',
@@ -75,7 +88,7 @@ async function bootstrapAdmin(): Promise<void> {
           leader: false,
         },
       });
-      console.log('✓ Conta admin padrão criada: admin@simulador.com / admin123');
+      console.log('✓ Conta admin padrão criada: admin@simulador.com (senha definida via ADMIN_DEFAULT_PASSWORD ou padrão interno)');
     }
   } catch (err) {
     const error = err as Error;

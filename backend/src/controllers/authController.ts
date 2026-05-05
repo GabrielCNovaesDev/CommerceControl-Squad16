@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { Request, Response } from 'express';
 import prisma from '../utils/prisma';
 import asyncHandler from '../utils/asyncHandler';
+import { sendError } from '../utils/errorResponse';
 
 const loginSchema = z.object({
   email: z.string().email('Email inválido'),
@@ -13,7 +14,7 @@ const loginSchema = z.object({
 async function login(req: Request, res: Response): Promise<void> {
   const parsed = loginSchema.safeParse(req.body);
   if (!parsed.success) {
-    res.status(400).json({ errors: parsed.error.flatten().fieldErrors });
+    sendError(res, 400, 'VALIDATION_ERROR', 'Dados inválidos', parsed.error.flatten().fieldErrors);
     return;
   }
 
@@ -21,20 +22,21 @@ async function login(req: Request, res: Response): Promise<void> {
 
   const user = await prisma.user.findUnique({ where: { email } });
   if (!user) {
-    res.status(401).json({ message: 'Credenciais inválidas' });
+    // Mensagem genérica — não vaza se o email existe ou não (seção 5.1)
+    sendError(res, 401, 'INVALID_CREDENTIALS', 'Email ou senha inválidos');
     return;
   }
 
   const passwordMatch = await bcrypt.compare(password, user.password);
   if (!passwordMatch) {
-    res.status(401).json({ message: 'Credenciais inválidas' });
+    sendError(res, 401, 'INVALID_CREDENTIALS', 'Email ou senha inválidos');
     return;
   }
 
   const token = jwt.sign(
     { userId: user.id, role: user.role, squadId: user.squadId },
-    process.env.JWT_SECRET as string,
-    { expiresIn: '8h' }
+    process.env.JWT_SECRET!,
+    { expiresIn: '1h' }
   );
 
   res.status(200).json({

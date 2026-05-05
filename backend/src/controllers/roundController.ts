@@ -1,9 +1,11 @@
 import { z } from 'zod';
 import { Request, Response } from 'express';
-import prisma from '../utils/prisma';
 import roundRepository from '../repositories/roundRepository';
 import * as simulationService from '../services/simulationService';
+import * as roundService from '../services/roundService';
 import asyncHandler from '../utils/asyncHandler';
+import { sendError } from '../utils/errorResponse';
+import { parsePagination, paginate } from '../utils/pagination';
 
 const createSchema = z.object({
   number: z.number().int('Número deve ser um inteiro').positive('Número deve ser positivo'),
@@ -12,13 +14,18 @@ const createSchema = z.object({
 });
 
 async function listRounds(req: Request, res: Response): Promise<void> {
-  const rounds = await roundRepository.findAll();
+  const params = parsePagination(req);
+  const [rounds, totalElements] = await roundRepository.findPaginated(params.skip, params.size);
   res.status(200).json(
-    rounds.map((r) => ({
-      ...r,
-      submittedConfigsCount: r._count.roundConfigs,
-      _count: undefined,
-    }))
+    paginate(
+      rounds.map((r) => ({
+        ...r,
+        submittedConfigsCount: r._count.roundConfigs,
+        _count: undefined,
+      })),
+      totalElements,
+      params
+    )
   );
 }
 
@@ -27,7 +34,7 @@ async function getRound(req: Request, res: Response): Promise<void> {
 
   const round = await roundRepository.findById(id);
   if (!round) {
-    res.status(404).json({ message: 'Rodada não encontrada' });
+    sendError(res, 404, 'ROUND_NOT_FOUND', 'Rodada não encontrada');
     return;
   }
 
@@ -43,13 +50,13 @@ async function getRound(req: Request, res: Response): Promise<void> {
 async function createRound(req: Request, res: Response): Promise<void> {
   const parsed = createSchema.safeParse(req.body);
   if (!parsed.success) {
-    res.status(400).json({ errors: parsed.error.flatten().fieldErrors });
+    sendError(res, 400, 'VALIDATION_ERROR', 'Dados inválidos', parsed.error.flatten().fieldErrors);
     return;
   }
 
   const active = await roundRepository.findActive();
   if (active) {
-    res.status(409).json({ message: 'Encerre a rodada atual antes de criar uma nova' });
+    sendError(res, 409, 'ROUND_ALREADY_OPEN', 'Encerre a rodada atual antes de criar uma nova');
     return;
   }
 
@@ -72,14 +79,12 @@ async function closeRound(req: Request, res: Response): Promise<void> {
 
   const round = await roundRepository.findById(id);
   if (!round) {
-    res.status(404).json({ message: 'Rodada não encontrada' });
+    sendError(res, 404, 'ROUND_NOT_FOUND', 'Rodada não encontrada');
     return;
   }
 
   if (round.status !== 'OPEN') {
-    res.status(409).json({
-      message: `Rodada não pode ser encerrada pois está com status "${round.status}"`,
-    });
+    sendError(res, 409, 'ROUND_NOT_OPEN', `Rodada não pode ser encerrada pois está com status "${round.status}"`);
     return;
   }
 
@@ -98,69 +103,21 @@ async function closeRound(req: Request, res: Response): Promise<void> {
 }
 
 async function deleteLastRound(req: Request, res: Response): Promise<void> {
-  const lastRound = await prisma.round.findFirst({ orderBy: { number: 'desc' } });
-  if (!lastRound) {
-    res.status(404).json({ message: 'Nenhuma rodada encontrada' });
-    return;
-  }
-
-  if (lastRound.status === 'PROCESSING') {
-    res.status(409).json({ message: 'Não é possível excluir uma rodada em processamento' });
-    return;
-  }
-
-  await prisma.$transaction(async (tx) => {
-    if (lastRound.status === 'CLOSED') {
-      const configs = await tx.roundConfig.findMany({
-        where: { roundId: lastRound.id },
-        include: { roundConfigItems: true, financialResult: true },
-      });
-
-      for (const config of configs) {
-        for (const item of config.roundConfigItems) {
-          await tx.inventory.upsert({
-            where: { storeId_productId: { storeId: config.storeId, productId: item.productId } },
-            create: { storeId: config.storeId, productId: item.productId, quantity: item.salesVolume },
-            update: { quantity: { increment: item.salesVolume } },
-          });
-        }
-      }
-
-      await tx.financialResult.deleteMany({ where: { roundId: lastRound.id } });
+  try {
+    const { roundNumber } = await roundService.deleteLastRound();
+    res.status(200).json({ message: `Rodada #${roundNumber} excluída com sucesso` });
+  } catch (err) {
+    const e = err as { statusCode?: number; code?: string; message: string };
+    if (e.statusCode && e.code) {
+      sendError(res, e.statusCode, e.code, e.message);
+      return;
     }
-
-    const configIds = await tx.roundConfig
-      .findMany({ where: { roundId: lastRound.id }, select: { id: true } })
-      .then((rows) => rows.map((r) => r.id));
-
-    if (configIds.length > 0) {
-      await tx.roundConfigItem.deleteMany({ where: { roundConfigId: { in: configIds } } });
-    }
-    await tx.roundConfig.deleteMany({ where: { roundId: lastRound.id } });
-    await tx.round.delete({ where: { id: lastRound.id } });
-  });
-
-  res.status(200).json({ message: `Rodada #${lastRound.number} excluída com sucesso` });
+    throw err;
+  }
 }
 
 async function resetGame(req: Request, res: Response): Promise<void> {
-  await prisma.$transaction(async (tx) => {
-    await tx.financialResult.deleteMany({});
-    await tx.roundConfigItem.deleteMany({});
-    await tx.roundConfig.deleteMany({});
-    await tx.round.deleteMany({});
-
-    const stores = await tx.store.findMany();
-    for (const store of stores) {
-      await tx.store.update({
-        where: { id: store.id },
-        data: { currentCash: store.initialCapital },
-      });
-    }
-
-    await tx.inventory.updateMany({ data: { quantity: 0 } });
-  });
-
+  await roundService.resetGame();
   res.status(200).json({ message: 'Jogo reiniciado com sucesso. Todas as rodadas foram excluídas.' });
 }
 

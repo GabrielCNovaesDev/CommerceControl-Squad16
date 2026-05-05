@@ -1,31 +1,30 @@
 import prisma from '../utils/prisma';
 
+const userSelect = {
+  id: true,
+  name: true,
+  email: true,
+  role: true,
+  leader: true,
+  squadId: true,
+  createdAt: true,
+} as const;
+
 function findAll() {
-  return prisma.user.findMany({
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      role: true,
-      leader: true,
-      squadId: true,
-      createdAt: true,
-    },
-  });
+  return prisma.user.findMany({ select: userSelect });
+}
+
+function findPaginated(skip: number, take: number) {
+  return Promise.all([
+    prisma.user.findMany({ select: userSelect, skip, take, orderBy: { createdAt: 'desc' } }),
+    prisma.user.count(),
+  ]);
 }
 
 function findById(id: string) {
   return prisma.user.findUnique({
     where: { id },
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      role: true,
-      leader: true,
-      squadId: true,
-      createdAt: true,
-    },
+    select: userSelect,
   });
 }
 
@@ -42,15 +41,7 @@ function create(data: {
 }) {
   return prisma.user.create({
     data,
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      role: true,
-      leader: true,
-      squadId: true,
-      createdAt: true,
-    },
+    select: userSelect,
   });
 }
 
@@ -68,15 +59,7 @@ function update(
   return prisma.user.update({
     where: { id },
     data,
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      role: true,
-      leader: true,
-      squadId: true,
-      createdAt: true,
-    },
+    select: userSelect,
   });
 }
 
@@ -84,5 +67,5 @@ function remove(id: string) {
   return prisma.user.delete({ where: { id } });
 }
 
-const userRepository = { findAll, findById, findByEmail, create, update, remove };
+const userRepository = { findAll, findPaginated, findById, findByEmail, create, update, remove };
 export default userRepository;

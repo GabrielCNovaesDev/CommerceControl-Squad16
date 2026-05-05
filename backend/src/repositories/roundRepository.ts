@@ -1,13 +1,27 @@
 import prisma from '../utils/prisma';
 import { RoundStatus } from '@prisma/client';
 
+const roundInclude = {
+  _count: { select: { roundConfigs: true } },
+} as const;
+
 function findAll() {
   return prisma.round.findMany({
     orderBy: { number: 'desc' },
-    include: {
-      _count: { select: { roundConfigs: true } },
-    },
+    include: roundInclude,
   });
+}
+
+function findPaginated(skip: number, take: number) {
+  return Promise.all([
+    prisma.round.findMany({
+      orderBy: { number: 'desc' },
+      include: roundInclude,
+      skip,
+      take,
+    }),
+    prisma.round.count(),
+  ]);
 }
 
 function findById(id: string) {
@@ -40,5 +54,5 @@ function updateStatus(id: string, status: RoundStatus) {
   return prisma.round.update({ where: { id }, data: { status } });
 }
 
-const roundRepository = { findAll, findById, findActive, create, updateStatus };
+const roundRepository = { findAll, findPaginated, findById, findActive, create, updateStatus };
 export default roundRepository;

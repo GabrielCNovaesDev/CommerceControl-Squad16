@@ -3,6 +3,8 @@ import { z } from 'zod';
 import { Request, Response } from 'express';
 import userRepository from '../repositories/userRepository';
 import asyncHandler from '../utils/asyncHandler';
+import { sendError } from '../utils/errorResponse';
+import { parsePagination, paginate } from '../utils/pagination';
 
 const createSchema = z.object({
   name: z.string().min(1, 'Nome é obrigatório'),
@@ -22,14 +24,15 @@ const updateSchema = z.object({
 });
 
 async function listUsers(req: Request, res: Response): Promise<void> {
-  const users = await userRepository.findAll();
-  res.status(200).json(users);
+  const params = parsePagination(req);
+  const [users, totalElements] = await userRepository.findPaginated(params.skip, params.size);
+  res.status(200).json(paginate(users, totalElements, params));
 }
 
 async function createUser(req: Request, res: Response): Promise<void> {
   const parsed = createSchema.safeParse(req.body);
   if (!parsed.success) {
-    res.status(400).json({ errors: parsed.error.flatten().fieldErrors });
+    sendError(res, 400, 'VALIDATION_ERROR', 'Dados inválidos', parsed.error.flatten().fieldErrors);
     return;
   }
 
@@ -37,7 +40,7 @@ async function createUser(req: Request, res: Response): Promise<void> {
 
   const existing = await userRepository.findByEmail(email);
   if (existing) {
-    res.status(409).json({ message: 'Email já está em uso' });
+    sendError(res, 409, 'EMAIL_IN_USE', 'Email já está em uso');
     return;
   }
 
@@ -52,13 +55,13 @@ async function updateUser(req: Request, res: Response): Promise<void> {
 
   const existing = await userRepository.findById(id);
   if (!existing) {
-    res.status(404).json({ message: 'Usuário não encontrado' });
+    sendError(res, 404, 'USER_NOT_FOUND', 'Usuário não encontrado');
     return;
   }
 
   const parsed = updateSchema.safeParse(req.body);
   if (!parsed.success) {
-    res.status(400).json({ errors: parsed.error.flatten().fieldErrors });
+    sendError(res, 400, 'VALIDATION_ERROR', 'Dados inválidos', parsed.error.flatten().fieldErrors);
     return;
   }
 
@@ -76,14 +79,12 @@ async function deleteUser(req: Request, res: Response): Promise<void> {
 
   const existing = await userRepository.findById(id);
   if (!existing) {
-    res.status(404).json({ message: 'Usuário não encontrado' });
+    sendError(res, 404, 'USER_NOT_FOUND', 'Usuário não encontrado');
     return;
   }
 
   if (existing.leader) {
-    res.status(409).json({
-      message: 'Transfira a liderança antes de remover este usuário',
-    });
+    sendError(res, 409, 'USER_IS_LEADER', 'Transfira a liderança antes de remover este usuário');
     return;
   }
 

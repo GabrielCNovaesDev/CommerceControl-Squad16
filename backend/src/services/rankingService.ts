@@ -23,7 +23,16 @@ export async function getRanking(roundId: string): Promise<RankingEntry[]> {
     },
   });
 
-  const sorted = results.sort((a, b) => {
+  // Converte Decimal → number na fronteira com o Prisma
+  const normalized = results.map((r) => ({
+    ...r,
+    ebitdaMargin: r.ebitdaMargin.toNumber(),
+    ebitda: r.ebitda.toNumber(),
+    grossRevenue: r.grossRevenue.toNumber(),
+    netRevenue: r.netRevenue.toNumber(),
+  }));
+
+  const sorted = normalized.sort((a, b) => {
     if (b.ebitdaMargin !== a.ebitdaMargin) return b.ebitdaMargin - a.ebitdaMargin;
     return b.ebitda - a.ebitda;
   });

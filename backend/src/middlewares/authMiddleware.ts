@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { UserRole } from '@prisma/client';
+import { sendError } from '../utils/errorResponse';
 
 interface JwtPayload {
   userId: string;
@@ -11,14 +12,14 @@ interface JwtPayload {
 function authMiddleware(req: Request, res: Response, next: NextFunction): void {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    res.status(401).json({ message: 'Token não fornecido' });
+    sendError(res, 401, 'MISSING_TOKEN', 'Token não fornecido');
     return;
   }
 
   const token = authHeader.split(' ')[1];
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET as string) as JwtPayload;
+    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as JwtPayload;
     req.user = {
       id: decoded.userId,
       role: decoded.role,
@@ -26,7 +27,7 @@ function authMiddleware(req: Request, res: Response, next: NextFunction): void {
     };
     next();
   } catch {
-    res.status(401).json({ message: 'Token inválido ou expirado' });
+    sendError(res, 401, 'INVALID_TOKEN', 'Token inválido ou expirado');
   }
 }
 

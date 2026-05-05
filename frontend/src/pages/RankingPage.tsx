@@ -197,7 +197,12 @@ export default function RankingPage() {
     setLoadingRanking(true); setRanking([]);
     roundService.getRanking(selectedRoundId)
       .then(setRanking)
-      .catch(() => setRanking([]))
+      .catch((err: unknown) => {
+        const axiosErr = err as { response?: { data?: { error?: { message?: string } } } };
+        const msg = axiosErr.response?.data?.error?.message ?? 'Não foi possível carregar o ranking.';
+        setLoadError(msg);
+        setRanking([]);
+      })
       .finally(() => setLoadingRanking(false));
   }, [selectedRoundId]);
 

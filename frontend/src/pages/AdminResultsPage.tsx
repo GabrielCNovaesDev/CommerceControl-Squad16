@@ -187,7 +187,12 @@ export default function AdminResultsPage() {
     setLoadingResults(true); setResults([]);
     roundService.getResults(selectedRoundId)
       .then((data: unknown) => setResults(Array.isArray(data) ? data as FinancialResult[] : []))
-      .catch(() => setResults([]))
+      .catch((err: unknown) => {
+        const axiosErr = err as { response?: { data?: { error?: { message?: string } } } };
+        const msg = axiosErr.response?.data?.error?.message ?? 'Não foi possível carregar os resultados.';
+        toast.error(msg);
+        setResults([]);
+      })
       .finally(() => setLoadingResults(false));
   }, [selectedRoundId, allRounds]);
 

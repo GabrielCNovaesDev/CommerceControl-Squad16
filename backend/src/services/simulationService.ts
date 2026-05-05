@@ -91,9 +91,9 @@ function calcBasketPrice(config: Awaited<ReturnType<typeof roundConfigRepository
 
   for (const item of config.roundConfigItems) {
     const salePrice = calcularPreco(
-      item.product.purchasePrice,
-      item.margin,
-      item.product.taxRate
+      item.product.purchasePrice.toNumber(),
+      item.margin.toNumber(),
+      item.product.taxRate.toNumber()
     );
     const qty = config._inventory[item.productId] ?? 0;
     totalValue += salePrice * qty;
@@ -209,7 +209,10 @@ function computeDemandShares(
 
   const basketPrices = configs.map((c) => ({ storeId: c.storeId, value: calcBasketPrice(c) }));
   const availabilities = configs.map((c) => ({ storeId: c.storeId, value: calcAvailability(c) }));
-  const csats = configs.map((c) => ({ storeId: c.storeId, value: calcCsat(c) }));
+  const csats = configs.map((c) => ({
+    storeId: c.storeId,
+    value: calcCsat({ cashierOperators: c.cashierOperators, quizScore: c.quizScore.toNumber() }),
+  }));
 
   const priceScores = scoreMetric(basketPrices, true);   // lower price = better
   const availScores = scoreMetric(availabilities, false); // higher avail = better
@@ -251,14 +254,14 @@ function buildAllocationMap(
 export async function processRound(roundId: string): Promise<void> {
   const round = await prisma.round.findUnique({ where: { id: roundId } });
   if (!round) {
-    console.log(`[simulationService] Round ${roundId} não encontrado.`);
+    console.warn(JSON.stringify({ level: 'warn', service: 'simulationService', message: `Round ${roundId} não encontrado`, roundId, timestamp: new Date().toISOString() }));
     return;
   }
 
   const configs = await roundConfigRepository.findAllByRound(roundId);
 
   if (configs.length === 0) {
-    console.log(`[simulationService] Nenhuma configuração para roundId=${roundId}. Encerrando.`);
+    console.warn(JSON.stringify({ level: 'warn', service: 'simulationService', message: 'Nenhuma configuração para rodada', roundId, timestamp: new Date().toISOString() }));
     return;
   }
 
@@ -284,21 +287,34 @@ export async function processRound(roundId: string): Promise<void> {
   // Market demand per product = mixAvailable × demandFactor
   const marketDemand: Record<string, number> = {};
   for (const product of products) {
-    marketDemand[product.id] = Math.round(product.mixAvailable * round.demandFactor);
+    marketDemand[product.id] = Math.round(product.mixAvailable * round.demandFactor.toNumber());
   }
 
   // Compute demand shares
   const { shares, priceScores, availScores, csatScores, totalScores } =
     computeDemandShares(enrichedConfigs);
 
-  console.log(`[simulationService] demandFactor=${round.demandFactor}`);
-  console.log(`[simulationService] Demand shares:`, shares);
+  console.info(JSON.stringify({ level: 'info', service: 'simulationService', message: 'Demand shares calculados', roundId, demandFactor: round.demandFactor, shares, timestamp: new Date().toISOString() }));
 
   // Process each store
   for (const config of enrichedConfigs) {
     try {
       const demandShare = shares[config.storeId] ?? 0;
       const allocationMap = buildAllocationMap(marketDemand, demandShare);
+
+      // Normaliza Decimal → number fora da transação para uso nos logs também
+      const configNum = {
+        cashierOperators: config.cashierOperators,
+        serviceOperators: config.serviceOperators,
+        quizScore: config.quizScore.toNumber(),
+        numPdvs: config.numPdvs,
+        capexSeguranca: config.capexSeguranca,
+        capexBalanca: config.capexBalanca,
+        capexRedes: config.capexRedes,
+        capexSite: config.capexSite,
+        capexSelfCheckout: config.capexSelfCheckout,
+        capexMelhoria: config.capexMelhoria,
+      };
 
       await prisma.$transaction(async (tx) => {
         const inventoryList = Object.entries(config._inventory).map(([productId, quantity]) => ({
@@ -308,28 +324,28 @@ export async function processRound(roundId: string): Promise<void> {
 
         const items = config.roundConfigItems.map((item) => ({
           productId: item.productId,
-          margin: item.margin,
+          margin: item.margin.toNumber(),
           salesVolume: item.salesVolume,
           product: {
-            purchasePrice: item.product.purchasePrice,
-            taxRate: item.product.taxRate,
-            breakageRate: item.product.breakageRate,
-            agingRate: item.product.agingRate,
+            purchasePrice: item.product.purchasePrice.toNumber(),
+            taxRate: item.product.taxRate.toNumber(),
+            breakageRate: item.product.breakageRate.toNumber(),
+            agingRate: item.product.agingRate.toNumber(),
           },
         }));
 
         // Compute stock purchase cost and CAPEX outlay
         const stockCost = config.roundConfigItems.reduce(
-          (sum, item) => sum + item.salesVolume * item.product.purchasePrice,
+          (sum, item) => sum + item.salesVolume * item.product.purchasePrice.toNumber(),
           0
         );
-        const capexCost   = calcCapexCost(config);
-        const payroll     = calcPayroll(config);
-        const licensing   = calcLicensing(config);
-        const maintenance = calcMaintenance(config);
-        const interestPenalty = calcInterest(stockCost + capexCost, config.store.initialCapital);
+        const capexCost   = calcCapexCost(configNum);
+        const payroll     = calcPayroll(configNum);
+        const licensing   = calcLicensing(configNum);
+        const maintenance = calcMaintenance(configNum);
+        const interestPenalty = calcInterest(stockCost + capexCost, config.store.initialCapital.toNumber());
         const totalOtherExpenses =
-          config.otherExpenses + payroll + licensing + maintenance + interestPenalty;
+          config.otherExpenses.toNumber() + payroll + licensing + maintenance + interestPenalty;
 
         const roundConfig = { otherExpenses: totalOtherExpenses };
 
@@ -368,17 +384,149 @@ export async function processRound(roundId: string): Promise<void> {
         }
       });
 
-      console.log(
-        `[simulationService] Loja ${config.storeId}: share=${(demandShare * 100).toFixed(1)}%,` +
-        ` priceScore=${priceScores[config.storeId]}, availScore=${availScores[config.storeId]},` +
-        ` csatScore=${csatScores[config.storeId]}, total=${totalScores[config.storeId]},` +
-        ` CSAT=${(calcCsat(config) * 100).toFixed(1)}%, SLA=${calcSla(config.serviceOperators)},` +
-        ` payroll=${calcPayroll(config)}, licensing=${calcLicensing(config)},` +
-        ` capex=${calcCapexCost(config)}`
-      );
+      console.info(JSON.stringify({
+        level: 'info',
+        service: 'simulationService',
+        message: 'Loja processada',
+        roundId,
+        storeId: config.storeId,
+        demandShare: parseFloat((demandShare * 100).toFixed(1)),
+        priceScore: priceScores[config.storeId],
+        availScore: availScores[config.storeId],
+        csatScore: csatScores[config.storeId],
+        totalScore: totalScores[config.storeId],
+        csat: parseFloat((calcCsat(configNum) * 100).toFixed(1)),
+        sla: calcSla(configNum.serviceOperators),
+        payroll: calcPayroll(configNum),
+        licensing: calcLicensing(configNum),
+        capex: calcCapexCost(configNum),
+        timestamp: new Date().toISOString(),
+      }));
     } catch (err) {
       const error = err as Error;
-      console.error(`[simulationService] Erro ao processar loja ${config.storeId}:`, error.message);
+      console.error(JSON.stringify({
+        level: 'error',
+        service: 'simulationService',
+        message: 'Erro ao processar loja — abortando rodada',
+        roundId,
+        storeId: config.storeId,
+        error: error.message,
+        timestamp: new Date().toISOString(),
+      }));
+      // Propaga o erro para que closeRound reverta o status da rodada para OPEN
+      throw err;
     }
   }
+}
+
+// ─── Submit store config ───────────────────────────────────────────────────────
+
+export interface SubmitConfigItem {
+  productId: string;
+  margin: number;
+  salesVolume: number;
+  purchasePrice: number;
+}
+
+export interface SubmitConfigInput {
+  roundId: string;
+  storeId: string;
+  currentCash: number;
+  otherExpenses: number;
+  cashierOperators: number;
+  serviceOperators: number;
+  quizScore: number;
+  numPdvs: number;
+  capexSeguranca: boolean;
+  capexBalanca: boolean;
+  capexRedes: boolean;
+  capexSite: boolean;
+  capexSelfCheckout: boolean;
+  capexMelhoria: boolean;
+  items: SubmitConfigItem[];
+}
+
+export interface SubmitConfigResult {
+  roundConfigId: string;
+  stockCost: number;
+  capexCost: number;
+  interestPenalty: number;
+  totalDeduction: number;
+}
+
+/**
+ * Orquestra a submissão de configuração de uma loja para uma rodada:
+ * - Calcula custos (estoque, CAPEX, juros)
+ * - Cria RoundConfig e RoundConfigItems
+ * - Atualiza inventário e caixa da loja em transação atômica
+ */
+export async function submitStoreConfig(input: SubmitConfigInput): Promise<SubmitConfigResult> {
+  const capexConfig = {
+    capexSeguranca: input.capexSeguranca,
+    capexBalanca: input.capexBalanca,
+    capexRedes: input.capexRedes,
+    capexSite: input.capexSite,
+    capexSelfCheckout: input.capexSelfCheckout,
+    capexMelhoria: input.capexMelhoria,
+  };
+
+  const stockCost = input.items.reduce(
+    (sum, item) => sum + item.salesVolume * item.purchasePrice,
+    0
+  );
+  const capexCost       = calcCapexCost(capexConfig);
+  const interestPenalty = calcInterest(stockCost + capexCost, input.currentCash);
+  const totalDeduction  = stockCost + capexCost + interestPenalty;
+
+  const roundConfig = await prisma.$transaction(async (tx) => {
+    const config = await tx.roundConfig.create({
+      data: {
+        roundId:          input.roundId,
+        storeId:          input.storeId,
+        otherExpenses:    input.otherExpenses,
+        cashierOperators: input.cashierOperators,
+        serviceOperators: input.serviceOperators,
+        quizScore:        input.quizScore,
+        numPdvs:          input.numPdvs,
+        capexSeguranca:   input.capexSeguranca,
+        capexBalanca:     input.capexBalanca,
+        capexRedes:       input.capexRedes,
+        capexSite:        input.capexSite,
+        capexSelfCheckout: input.capexSelfCheckout,
+        capexMelhoria:    input.capexMelhoria,
+        roundConfigItems: {
+          create: input.items.map(({ productId, margin, salesVolume }) => ({
+            productId,
+            margin,
+            salesVolume,
+          })),
+        },
+      },
+      include: { roundConfigItems: true },
+    });
+
+    await Promise.all(
+      input.items.map((item) =>
+        tx.inventory.update({
+          where: { storeId_productId: { storeId: input.storeId, productId: item.productId } },
+          data: { quantity: { increment: item.salesVolume } },
+        })
+      )
+    );
+
+    await tx.store.update({
+      where: { id: input.storeId },
+      data: { currentCash: { decrement: totalDeduction } },
+    });
+
+    return config;
+  });
+
+  return {
+    roundConfigId: roundConfig.id,
+    stockCost,
+    capexCost,
+    interestPenalty,
+    totalDeduction,
+  };
 }
