@@ -3,7 +3,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import squadService from '../../services/squadService';
-import userService from '../../services/userService';
+import userService, { BulkCreateResult } from '../../services/userService';
 import Button from '../ui/Button';
 import type { Squad, SquadUser, UserRecord, UserRole } from '../../types';
 
@@ -291,19 +291,144 @@ export function AddUserModal({
   );
 }
 
+// ─── Bulk Create Users Modal ──────────────────────────────────────────────────
+
+export function BulkCreateUsersModal({ squad, onSuccess, onCancel }: {
+  squad: Squad;
+  onSuccess: (created: UserRecord[]) => void;
+  onCancel: () => void;
+}) {
+  const [step, setStep] = useState<'config' | 'result'>('config');
+  const [count, setCount] = useState(1);
+  const [countError, setCountError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [serverError, setServerError] = useState('');
+  const [result, setResult] = useState<BulkCreateResult | null>(null);
+
+  async function handleGenerate() {
+    setCountError('');
+    setServerError('');
+    if (!count || count < 1 || count > 50) {
+      setCountError('Informe um número entre 1 e 50.');
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await userService.bulkCreateUsers(squad.id, count);
+      setResult(res);
+      setStep('result');
+      if (res.created.length > 0) {
+        onSuccess(res.created as UserRecord[]);
+      }
+    } catch (err: unknown) {
+      const axiosErr = err as { response?: { data?: { error?: { message?: string }; message?: string } } };
+      setServerError(axiosErr.response?.data?.error?.message ?? axiosErr.response?.data?.message ?? 'Erro ao gerar usuários');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const storeName = squad.stores?.[0]?.name ?? squad.name;
+
+  return (
+    <div style={MODAL_OVERLAY}>
+      <div className="animate-scale-in" style={{ ...MODAL_BOX, maxWidth: 500 }}>
+        {step === 'config' ? (
+          <>
+            <div>
+              <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: 'var(--cenc-gray-900)' }}>Gerar Jogadores em Lote</h2>
+              <p style={{ margin: '4px 0 0', fontSize: 13, color: 'var(--cenc-gray-500)' }}>
+                Squad: <strong>{squad.name}</strong> · Loja: <strong>{storeName}</strong>
+              </p>
+            </div>
+            <div style={{ background: 'var(--cenc-gray-50)', borderRadius: 10, border: '1px solid var(--cenc-gray-200)', padding: '12px 14px', fontSize: 12, color: 'var(--cenc-gray-600)', lineHeight: 1.6 }}>
+              Os jogadores serão criados com:
+              <ul style={{ margin: '6px 0 0', paddingLeft: 18 }}>
+                <li>Nome: <strong>Jogador 1</strong>, <strong>Jogador 2</strong>, ...</li>
+                <li>Email baseado no nome da loja do squad</li>
+                <li>Senha padrão: <strong>jogador123</strong></li>
+                <li>Papel: <strong>Jogador</strong>, vinculado a este squad</li>
+              </ul>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--cenc-gray-700)' }}>Quantos jogadores gerar?</label>
+              <input
+                type="number"
+                min={1}
+                max={50}
+                value={count}
+                onChange={(e) => setCount(Number(e.target.value))}
+                className="input-cenc"
+                style={fieldStyle(!!countError)}
+                autoFocus
+              />
+              {countError && <p style={{ margin: 0, fontSize: 12, color: 'var(--cenc-danger)' }}>{countError}</p>}
+            </div>
+            {serverError && (
+              <div style={{ borderRadius: 10, background: 'var(--cenc-danger-bg)', border: '1px solid #fecaca', padding: '10px 14px', fontSize: 13, color: 'var(--cenc-danger)' }}>
+                {serverError}
+              </div>
+            )}
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <Button type="button" variant="secondary" onClick={onCancel} disabled={loading}>Cancelar</Button>
+              <Button type="button" onClick={handleGenerate} loading={loading}>Gerar</Button>
+            </div>
+          </>
+        ) : (
+          <>
+            <div>
+              <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: 'var(--cenc-gray-900)' }}>Jogadores Gerados</h2>
+              <p style={{ margin: '4px 0 0', fontSize: 13, color: 'var(--cenc-gray-500)' }}>
+                {result!.created.length} criado(s){result!.errors.length > 0 ? `, ${result!.errors.length} com erro` : ''}.
+              </p>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxHeight: 260, overflowY: 'auto' }}>
+              {result!.created.map((u) => (
+                <div key={(u as UserRecord).id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', borderRadius: 8, background: '#f0fdf4', border: '1px solid #bbf7d0', fontSize: 12 }}>
+                  <span style={{ color: '#16a34a', fontWeight: 700 }}>✓</span>
+                  <span style={{ color: 'var(--cenc-gray-700)', fontFamily: 'monospace' }}>{(u as UserRecord).email}</span>
+                </div>
+              ))}
+              {result!.errors.map((e) => (
+                <div key={e.index} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', borderRadius: 8, background: 'var(--cenc-danger-bg)', border: '1px solid #fecaca', fontSize: 12 }}>
+                  <span style={{ color: 'var(--cenc-danger)', fontWeight: 700 }}>✗</span>
+                  <span style={{ color: 'var(--cenc-gray-700)', fontFamily: 'monospace' }}>{e.email}</span>
+                  <span style={{ color: 'var(--cenc-gray-400)', marginLeft: 'auto' }}>{e.reason}</span>
+                </div>
+              ))}
+            </div>
+            {result!.created.length > 0 && (
+              <div style={{ borderRadius: 10, background: '#fffbeb', border: '1px solid #fde68a', padding: '10px 14px', fontSize: 13, color: '#92400e' }}>
+                Senha padrão de todos os jogadores: <strong style={{ fontFamily: 'monospace' }}>{result!.password}</strong>
+              </div>
+            )}
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <Button type="button" onClick={onCancel}>Fechar</Button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── Members Panel ────────────────────────────────────────────────────────────
 
-export function MembersPanel({ squad, onRemoveUser, onAddUser }: {
+export function MembersPanel({ squad, onRemoveUser, onAddUser, onBulkCreate }: {
   squad: Squad;
   onRemoveUser: (user: SquadUser, squadId: string) => void;
   onAddUser: (squadId: string) => void;
+  onBulkCreate: (squadId: string) => void;
 }) {
   const members = squad.users ?? [];
   return (
     <div style={{ background: 'var(--cenc-gray-50)', borderTop: '1px solid var(--cenc-gray-100)', padding: '12px 16px' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
         <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: 'var(--cenc-gray-400)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Membros</p>
-        <button onClick={() => onAddUser(squad.id)} style={{ fontSize: 12, fontWeight: 600, color: 'var(--cenc-blue-600)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>+ Adicionar membro</button>
+        <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+          <button onClick={() => onBulkCreate(squad.id)} style={{ fontSize: 12, fontWeight: 600, color: 'var(--cenc-blue-600)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>⚡ Gerar Jogadores</button>
+          <button onClick={() => onAddUser(squad.id)} style={{ fontSize: 12, fontWeight: 600, color: 'var(--cenc-blue-600)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>+ Adicionar membro</button>
+        </div>
       </div>
       {members.length === 0 ? (
         <p style={{ margin: 0, fontSize: 12, color: 'var(--cenc-gray-400)', fontStyle: 'italic' }}>Nenhum membro neste squad.</p>

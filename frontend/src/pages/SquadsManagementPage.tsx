@@ -13,6 +13,7 @@ import {
   CreateUserModal,
   AddUserModal,
   MembersPanel,
+  BulkCreateUsersModal,
 } from '../components/squads/SquadsComponents';
 import type { Squad, SquadUser, UserRecord } from '../types';
 
@@ -32,6 +33,7 @@ export default function SquadsManagementPage() {
   const [addUserTo, setAddUserTo] = useState<string | null>(null);
   const [removeUser, setRemoveUser] = useState<{ user: SquadUser; squadId: string } | null>(null);
   const [removingUser, setRemovingUser] = useState(false);
+  const [bulkCreateSquadId, setBulkCreateSquadId] = useState<string | null>(null);
 
   async function loadAll() {
     setLoadError('');
@@ -86,6 +88,14 @@ export default function SquadsManagementPage() {
     if (user.squadId) loadAll();
     setCreateUserOpen(false);
     toast.success(`Usuário "${user.name}" criado com sucesso!`);
+  }
+
+  function handleBulkCreated(created: UserRecord[]) {
+    if (created.length > 0) {
+      loadAll();
+      toast.success(`${created.length} jogador(es) gerado(s) com sucesso!`);
+    }
+    // Modal stays open to show the result; user closes it via "Fechar"
   }
 
   async function handleAddUserSuccess(_userId: string) {
@@ -196,7 +206,7 @@ export default function SquadsManagementPage() {
                     </div>
                   </div>
                   {isExpanded && (
-                    <MembersPanel squad={squad} onRemoveUser={handleRemoveUser} onAddUser={(id) => setAddUserTo(id)} />
+                    <MembersPanel squad={squad} onRemoveUser={handleRemoveUser} onAddUser={(id) => setAddUserTo(id)} onBulkCreate={(id) => setBulkCreateSquadId(id)} />
                   )}
                 </div>
               );
@@ -237,6 +247,16 @@ export default function SquadsManagementPage() {
           loading={removingUser}
         />
       )}
+      {bulkCreateSquadId && (() => {
+        const bulkSquad = squads.find((s) => s.id === bulkCreateSquadId);
+        return bulkSquad ? (
+          <BulkCreateUsersModal
+            squad={bulkSquad}
+            onSuccess={handleBulkCreated}
+            onCancel={() => setBulkCreateSquadId(null)}
+          />
+        ) : null;
+      })()}
     </AdminLayout>
   );
 }

@@ -18,6 +18,12 @@ interface UpdateUserData {
   squadId?: string | null;
 }
 
+export interface BulkCreateResult {
+  created: UserRecord[];
+  errors: { index: number; email: string; reason: string }[];
+  password: string;
+}
+
 const userService = {
   getUsers: (): Promise<UserRecord[]> =>
     api.get('/users').then((r) => r.data),
@@ -30,6 +36,9 @@ const userService = {
 
   deleteUser: (id: string): Promise<{ deleted: boolean }> =>
     api.delete(`/users/${id}`).then((r) => r.data),
+
+  bulkCreateUsers: (squadId: string, count: number): Promise<BulkCreateResult> =>
+    api.post('/users/bulk', { squadId, count }).then((r) => r.data),
 };
 
 export default userService;
