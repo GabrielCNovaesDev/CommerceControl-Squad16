@@ -1,12 +1,239 @@
 @import "tailwindcss";
 
+/* ─── Cencosud Design System ─────────────────────────────────────────────── */
+
+:root {
+  /* Brand Colors */
+  --cenc-blue-900: #001a4d;
+  --cenc-blue-800: #002266;
+  --cenc-blue-700: #003087;
+  --cenc-blue-600: #0044aa;
+  --cenc-blue-500: #0055cc;
+  --cenc-blue-400: #0066ff;
+  --cenc-blue-300: #3385ff;
+  --cenc-blue-200: #80b3ff;
+  --cenc-blue-100: #cce0ff;
+  --cenc-blue-50:  #e8f1ff;
+
+  /* Accent - Cencosud uses a warm gold/orange for highlights */
+  --cenc-gold-500: #f5a623;
+  --cenc-gold-400: #f7b84b;
+  --cenc-gold-100: #fef3dc;
+
+  /* Neutrals */
+  --cenc-gray-950: #0a0f1a;
+  --cenc-gray-900: #111827;
+  --cenc-gray-800: #1f2937;
+  --cenc-gray-700: #374151;
+  --cenc-gray-600: #4b5563;
+  --cenc-gray-500: #6b7280;
+  --cenc-gray-400: #9ca3af;
+  --cenc-gray-300: #d1d5db;
+  --cenc-gray-200: #e5e7eb;
+  --cenc-gray-100: #f3f4f6;
+  --cenc-gray-50:  #f9fafb;
+
+  /* Semantic */
+  --cenc-success: #16a34a;
+  --cenc-success-bg: #dcfce7;
+  --cenc-warning: #d97706;
+  --cenc-warning-bg: #fef3c7;
+  --cenc-danger: #dc2626;
+  --cenc-danger-bg: #fee2e2;
+  --cenc-info: #0066ff;
+  --cenc-info-bg: #e8f1ff;
+
+  /* Sidebar */
+  --sidebar-width: 240px;
+  --header-height: 60px;
+}
+
 *, *::before, *::after {
   box-sizing: border-box;
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
 body {
   margin: 0;
-  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  background-color: var(--cenc-gray-50);
+  color: var(--cenc-gray-900);
+}
+
+/* ─── Scrollbar ──────────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--cenc-gray-300); border-radius: 99px; }
+::-webkit-scrollbar-thumb:hover { background: var(--cenc-gray-400); }
+
+/* ─── Animations ─────────────────────────────────────────────────────────── */
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeInLeft {
+  from { opacity: 0; transform: translateX(-16px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes fadeInRight {
+  from { opacity: 0; transform: translateX(16px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes pulse-ring {
+  0%   { box-shadow: 0 0 0 0 rgba(0, 102, 255, 0.4); }
+  70%  { box-shadow: 0 0 0 8px rgba(0, 102, 255, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(0, 102, 255, 0); }
+}
+
+@keyframes shrink {
+  from { width: 100%; }
+  to   { width: 0%; }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes countUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes gradientShift {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* ─── Utility Classes ────────────────────────────────────────────────────── */
+
+.animate-fade-in       { animation: fadeIn 0.35s ease both; }
+.animate-fade-in-left  { animation: fadeInLeft 0.35s ease both; }
+.animate-fade-in-right { animation: fadeInRight 0.35s ease both; }
+.animate-slide-down    { animation: slideDown 0.3s ease both; }
+.animate-scale-in      { animation: scaleIn 0.25s ease both; }
+
+/* Staggered children */
+.stagger > *:nth-child(1) { animation-delay: 0ms; }
+.stagger > *:nth-child(2) { animation-delay: 60ms; }
+.stagger > *:nth-child(3) { animation-delay: 120ms; }
+.stagger > *:nth-child(4) { animation-delay: 180ms; }
+.stagger > *:nth-child(5) { animation-delay: 240ms; }
+.stagger > *:nth-child(6) { animation-delay: 300ms; }
+
+/* Skeleton shimmer */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--cenc-gray-200) 25%,
+    var(--cenc-gray-100) 50%,
+    var(--cenc-gray-200) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 8px;
+}
+
+/* Cencosud gradient brand bar */
+.cenc-brand-gradient {
+  background: linear-gradient(135deg, var(--cenc-blue-900) 0%, var(--cenc-blue-600) 60%, var(--cenc-blue-400) 100%);
+}
+
+.cenc-brand-gradient-animated {
+  background: linear-gradient(270deg, var(--cenc-blue-900), var(--cenc-blue-600), var(--cenc-blue-400), var(--cenc-blue-600));
+  background-size: 400% 400%;
+  animation: gradientShift 8s ease infinite;
+}
+
+/* Card hover lift */
+.card-hover {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 48, 135, 0.12);
+}
+
+/* Focus ring */
+.focus-cenc:focus-visible {
+  outline: 2px solid var(--cenc-blue-500);
+  outline-offset: 2px;
+}
+
+/* Sidebar nav active indicator */
+.nav-active-bar {
+  position: relative;
+}
+.nav-active-bar::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 60%;
+  background: var(--cenc-blue-500);
+  border-radius: 0 3px 3px 0;
+}
+
+/* Glass card effect */
+.glass-card {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+}
+
+/* Stat number animation */
+.stat-number {
+  animation: countUp 0.5s ease both;
+}
+
+/* Table row hover */
+.table-row-hover {
+  transition: background-color 0.15s ease;
+}
+.table-row-hover:hover {
+  background-color: var(--cenc-blue-50) !important;
+}
+
+/* Input focus glow */
+.input-cenc:focus {
+  border-color: var(--cenc-blue-500);
+  box-shadow: 0 0 0 3px rgba(0, 102, 255, 0.12);
+  outline: none;
+}
+
+/* Badge pulse for active status */
+.badge-pulse {
+  animation: pulse-ring 2s infinite;
+}
+
+/* Page transition wrapper */
+.page-enter {
+  animation: fadeIn 0.4s ease both;
 }

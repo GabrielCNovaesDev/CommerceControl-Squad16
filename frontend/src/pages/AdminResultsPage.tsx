@@ -145,7 +145,7 @@ function EbitdaBarChart({ data }: { data: BarDataPoint[] }) {
           <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
           <XAxis dataKey="squad" tick={{ fontSize: 12, fill: '#6b7280' }} tickLine={false} />
           <YAxis tickFormatter={(v: number) => `${v.toFixed(0)}%`} tick={{ fontSize: 11, fill: '#6b7280' }} tickLine={false} axisLine={false} />
-          <Tooltip formatter={(v: number) => [`${v.toFixed(2)}%`, 'Margem EBITDA']} contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #e5e7eb' }} />
+          <Tooltip formatter={(v) => [`${Number(v ?? 0).toFixed(2)}%`, 'Margem EBITDA']} contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #e5e7eb' }} />
           <ReferenceLine y={0} stroke="#9ca3af" strokeDasharray="4 2" />
           <Bar dataKey="ebitdaMargin" radius={[4, 4, 0, 0]}>
             {data.map((entry, i) => (
@@ -167,7 +167,7 @@ function EbitdaLineChart({ historyData, squadNames }: { historyData: LineDataPoi
           <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
           <XAxis dataKey="round" type="category" allowDuplicatedCategory={false} tick={{ fontSize: 12, fill: '#6b7280' }} tickLine={false} tickFormatter={(v: number) => `#${v}`} />
           <YAxis tickFormatter={(v: number) => `${v.toFixed(0)}%`} tick={{ fontSize: 11, fill: '#6b7280' }} tickLine={false} axisLine={false} />
-          <Tooltip formatter={(v: number, name: string) => [`${Number(v).toFixed(2)}%`, name]} contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #e5e7eb' }} labelFormatter={(l: number) => `Rodada #${l}`} />
+          <Tooltip formatter={(v, name) => [`${Number(v ?? 0).toFixed(2)}%`, name]} contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #e5e7eb' }} labelFormatter={(l) => `Rodada #${l}`} />
           <Legend wrapperStyle={{ fontSize: 12 }} />
           <ReferenceLine y={0} stroke="#9ca3af" strokeDasharray="4 2" />
           {squadNames.map((name, i) => (

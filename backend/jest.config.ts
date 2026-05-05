@@ -3,6 +3,11 @@ import type { Config } from 'jest';
 const config: Config = {
   preset: 'ts-jest',
   testEnvironment: 'node',
+  globals: {
+    'ts-jest': {
+      tsconfig: 'tsconfig.test.json',
+    },
+  },
   testMatch: ['**/__tests__/**/*.test.ts'],
   collectCoverageFrom: [
     'src/services/**/*.ts',
@@ -11,6 +16,7 @@ const config: Config = {
     '!src/server.ts',
   ],
   coverageThreshold: {
+    global: {},
     './src/services/financeService.ts': {
       branches: 90,
       functions: 90,
@@ -23,4 +29,4 @@ const config: Config = {
   clearMocks: true,
 };
 
-export default config;
+module.exports = config;

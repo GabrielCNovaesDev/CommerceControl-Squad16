@@ -17,7 +17,7 @@ import { formatCurrency } from '../utils/formatters';
 import { useCountdown } from '../hooks/useCountdown';
 import type { Store, InventoryItem, Round, RoundStatus } from '../types';
 
-const ROUND_STATUS_BADGE: Record<RoundStatus, { label: string; variant: string }> = {
+const ROUND_STATUS_BADGE: Record<RoundStatus, { label: string; variant: 'green' | 'yellow' | 'gray' | 'red' | 'blue' }> = {
   OPEN: { label: 'Aberta', variant: 'green' },
   PROCESSING: { label: 'Processando', variant: 'yellow' },
   CLOSED: { label: 'Encerrada', variant: 'gray' },
@@ -26,7 +26,7 @@ const ROUND_STATUS_BADGE: Record<RoundStatus, { label: string; variant: string }
 const createStoreSchema = z.object({
   name: z.string().min(1, 'Nome é obrigatório'),
   initialCapital: z.coerce
-    .number({ invalid_type_error: 'Informe um valor numérico' })
+    .number({ error: 'Informe um valor numérico' })
     .positive('O capital deve ser positivo'),
 });
 
@@ -63,7 +63,7 @@ export default function StoresDashboardPage() {
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
-  } = useForm<CreateStoreFormData>({ resolver: zodResolver(createStoreSchema) });
+  } = useForm<CreateStoreFormData, unknown, CreateStoreFormData>({ resolver: zodResolver(createStoreSchema) as never });
 
   async function load() {
     setLoadError('');

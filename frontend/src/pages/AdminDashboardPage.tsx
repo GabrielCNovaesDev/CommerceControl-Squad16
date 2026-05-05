@@ -14,7 +14,9 @@ import type { Round, Squad, RoundStatus } from '../types';
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
 
-const ROUND_STATUS_BADGE: Record<RoundStatus, { label: string; variant: string }> = {
+type BadgeVariant = 'green' | 'yellow' | 'gray' | 'red' | 'blue';
+
+const ROUND_STATUS_BADGE: Record<RoundStatus, { label: string; variant: BadgeVariant }> = {
   OPEN: { label: 'Aberta', variant: 'green' },
   PROCESSING: { label: 'Processando', variant: 'yellow' },
   CLOSED: { label: 'Encerrada', variant: 'gray' },
@@ -22,7 +24,7 @@ const ROUND_STATUS_BADGE: Record<RoundStatus, { label: string; variant: string }
 
 const createRoundSchema = z.object({
   number: z.coerce
-    .number({ invalid_type_error: 'Número inválido' })
+    .number({ error: 'Número inválido' })
     .int('Deve ser inteiro')
     .positive('Deve ser positivo'),
   startDate: z.string().min(1, 'Data de início obrigatória'),
@@ -82,8 +84,8 @@ function CreateRoundModal({
   onCancel: () => void;
   nextNumber: number;
 }) {
-  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<CreateRoundFormData>({
-    resolver: zodResolver(createRoundSchema),
+  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<CreateRoundFormData, unknown, CreateRoundFormData>({
+    resolver: zodResolver(createRoundSchema) as never,
     defaultValues: { number: nextNumber },
   });
   const [serverError, setServerError] = useState('');

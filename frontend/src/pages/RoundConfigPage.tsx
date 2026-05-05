@@ -20,11 +20,11 @@ import type { Round, Store, Product, DREResult } from '../types';
 // ─── Schema ──────────────────────────────────────────────────────────────────
 
 const schema = z.object({
-  otherExpenses:     z.coerce.number({ invalid_type_error: 'Valor inválido' }).min(0),
-  cashierOperators:  z.coerce.number({ invalid_type_error: 'Valor inválido' }).int().min(0),
-  serviceOperators:  z.coerce.number({ invalid_type_error: 'Valor inválido' }).int().min(0),
-  quizScore:         z.coerce.number({ invalid_type_error: 'Valor inválido' }).min(0).max(1),
-  numPdvs:           z.coerce.number({ invalid_type_error: 'Valor inválido' }).int().min(0),
+  otherExpenses:     z.coerce.number({ error: 'Valor inválido' }).min(0),
+  cashierOperators:  z.coerce.number({ error: 'Valor inválido' }).int().min(0),
+  serviceOperators:  z.coerce.number({ error: 'Valor inválido' }).int().min(0),
+  quizScore:         z.coerce.number({ error: 'Valor inválido' }).min(0).max(1),
+  numPdvs:           z.coerce.number({ error: 'Valor inválido' }).int().min(0),
   capexSeguranca:    z.boolean().default(false),
   capexBalanca:      z.boolean().default(false),
   capexRedes:        z.boolean().default(false),
@@ -34,8 +34,8 @@ const schema = z.object({
   items: z.array(
     z.object({
       productId:   z.string(),
-      margin:      z.coerce.number({ invalid_type_error: 'Valor inválido' }).min(0),
-      salesVolume: z.coerce.number({ invalid_type_error: 'Valor inválido' }).int().positive(),
+      margin:      z.coerce.number({ error: 'Valor inválido' }).min(0),
+      salesVolume: z.coerce.number({ error: 'Valor inválido' }).int().positive(),
     })
   ).min(1),
 });
@@ -235,7 +235,6 @@ function LicensingPanel({ register, errors, control }: {
   const scoCost     = capexSCO ? 4 * 80 : 0;
   const siteCost    = capexSite ? 650 : 500;
   const secCost     = capexSeguranca ? 600 : 500;
-  const maintenance = capexBalanca ? 0 : 400;
   const totalLicensing = so + pdvCost + scoCost + siteCost + secCost;
 
   const rows: Array<[string, number]> = [
@@ -459,8 +458,8 @@ export default function RoundConfigPage() {
   const [preview,       setPreview]       = useState<DREResult | null>(null);
   const [submitSuccess, setSubmitSuccess] = useState(false);
 
-  const { register, handleSubmit, control, getValues, trigger, reset, formState: { errors, isSubmitting } } = useForm<FormData>({
-    resolver: zodResolver(schema),
+  const { register, handleSubmit, control, getValues, trigger, reset, formState: { errors, isSubmitting } } = useForm<FormData, unknown, FormData>({
+    resolver: zodResolver(schema) as never,
     defaultValues: {
       otherExpenses: 0, cashierOperators: 10, serviceOperators: 5, quizScore: 1.0,
       numPdvs: 6, capexSeguranca: false, capexBalanca: false, capexRedes: false,
@@ -525,7 +524,7 @@ export default function RoundConfigPage() {
     if (!isValid) return;
     try {
       const result = await roundService.previewSimulation(collectPayload(getValues()));
-      setPreview(result);
+      setPreview(result.dre);
     } catch (err: unknown) {
       const axiosErr = err as { response?: { data?: { message?: string } } };
       toast.error(axiosErr.response?.data?.message ?? 'Erro ao simular');

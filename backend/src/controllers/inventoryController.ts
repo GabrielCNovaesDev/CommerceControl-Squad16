@@ -20,7 +20,7 @@ const restockSchema = z.object({
 });
 
 async function getInventory(req: Request, res: Response): Promise<void> {
-  const { storeId } = req.params;
+  const storeId = String(req.params.storeId);
   const { role, squadId } = req.user!;
 
   const store = await storeRepository.findById(storeId);
@@ -39,7 +39,8 @@ async function getInventory(req: Request, res: Response): Promise<void> {
 }
 
 async function updateInventoryItem(req: Request, res: Response): Promise<void> {
-  const { storeId, productId } = req.params;
+  const storeId = String(req.params.storeId);
+  const productId = String(req.params.productId);
 
   const store = await storeRepository.findById(storeId);
   if (!store) {
@@ -64,7 +65,7 @@ async function updateInventoryItem(req: Request, res: Response): Promise<void> {
 }
 
 async function restockInventory(req: Request, res: Response): Promise<void> {
-  const { storeId } = req.params;
+  const storeId = String(req.params.storeId);
 
   const store = await storeRepository.findById(storeId);
   if (!store) {

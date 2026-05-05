@@ -16,22 +16,22 @@ import type { Product } from '../types';
 const productSchema = z.object({
   name: z.string().min(1, 'Nome é obrigatório'),
   purchasePrice: z.coerce
-    .number({ invalid_type_error: 'Valor inválido' })
+    .number({ error: 'Valor inválido' })
     .positive('Deve ser positivo'),
   taxRate: z.coerce
-    .number({ invalid_type_error: 'Valor inválido' })
+    .number({ error: 'Valor inválido' })
     .min(0, 'Não pode ser negativo')
     .max(1, 'Máximo 1 (100%)'),
   breakageRate: z.coerce
-    .number({ invalid_type_error: 'Valor inválido' })
+    .number({ error: 'Valor inválido' })
     .min(0, 'Não pode ser negativo')
     .max(1, 'Máximo 1 (100%)'),
   agingRate: z.coerce
-    .number({ invalid_type_error: 'Valor inválido' })
+    .number({ error: 'Valor inválido' })
     .min(0, 'Não pode ser negativo')
     .max(1, 'Máximo 1 (100%)'),
   mixAvailable: z.coerce
-    .number({ invalid_type_error: 'Valor inválido' })
+    .number({ error: 'Valor inválido' })
     .int('Deve ser inteiro')
     .min(0, 'Não pode ser negativo'),
 });
@@ -68,8 +68,8 @@ function ProductModal({
     handleSubmit,
     watch,
     formState: { errors, isSubmitting, dirtyFields },
-  } = useForm<ProductFormData>({
-    resolver: zodResolver(productSchema),
+  } = useForm<ProductFormData, unknown, ProductFormData>({
+    resolver: zodResolver(productSchema) as never,
     defaultValues: product
       ? {
           name: product.name,

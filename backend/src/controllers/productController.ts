@@ -38,7 +38,7 @@ async function createProduct(req: Request, res: Response): Promise<void> {
 }
 
 async function updateProduct(req: Request, res: Response): Promise<void> {
-  const { id } = req.params;
+  const id = String(req.params.id);
 
   const existing = await productRepository.findById(id);
   if (!existing) {
@@ -57,7 +57,7 @@ async function updateProduct(req: Request, res: Response): Promise<void> {
 }
 
 async function deleteProduct(req: Request, res: Response): Promise<void> {
-  const { id } = req.params;
+  const id = String(req.params.id);
 
   const existing = await productRepository.findById(id);
   if (!existing) {

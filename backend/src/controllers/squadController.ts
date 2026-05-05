@@ -29,7 +29,7 @@ async function createSquad(req: Request, res: Response): Promise<void> {
 }
 
 async function updateSquad(req: Request, res: Response): Promise<void> {
-  const { id } = req.params;
+  const id = String(req.params.id);
 
   const existing = await squadRepository.findById(id);
   if (!existing) {
@@ -48,7 +48,7 @@ async function updateSquad(req: Request, res: Response): Promise<void> {
 }
 
 async function deleteSquad(req: Request, res: Response): Promise<void> {
-  const { id } = req.params;
+  const id = String(req.params.id);
 
   const existing = await squadRepository.findById(id);
   if (!existing) {
@@ -67,7 +67,7 @@ async function deleteSquad(req: Request, res: Response): Promise<void> {
 }
 
 async function addUserToSquad(req: Request, res: Response): Promise<void> {
-  const { id } = req.params;
+  const id = String(req.params.id);
   const { userId } = req.body as { userId?: string };
 
   if (!userId) {
@@ -92,7 +92,8 @@ async function addUserToSquad(req: Request, res: Response): Promise<void> {
 }
 
 async function removeUserFromSquad(req: Request, res: Response): Promise<void> {
-  const { id, userId } = req.params;
+  const id = String(req.params.id);
+  const userId = String(req.params.userId);
 
   const squad = await squadRepository.findById(id);
   if (!squad) {

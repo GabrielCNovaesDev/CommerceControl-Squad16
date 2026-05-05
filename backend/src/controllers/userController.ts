@@ -48,7 +48,7 @@ async function createUser(req: Request, res: Response): Promise<void> {
 }
 
 async function updateUser(req: Request, res: Response): Promise<void> {
-  const { id } = req.params;
+  const id = req.params.id as string;
 
   const existing = await userRepository.findById(id);
   if (!existing) {
@@ -72,7 +72,7 @@ async function updateUser(req: Request, res: Response): Promise<void> {
 }
 
 async function deleteUser(req: Request, res: Response): Promise<void> {
-  const { id } = req.params;
+  const id = req.params.id as string;
 
   const existing = await userRepository.findById(id);
   if (!existing) {

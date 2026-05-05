@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { Request, Response } from 'express';
 import prisma from '../utils/prisma';
 import roundRepository from '../repositories/roundRepository';
-import simulationService from '../services/simulationService';
+import * as simulationService from '../services/simulationService';
 import asyncHandler from '../utils/asyncHandler';
 
 const createSchema = z.object({
@@ -23,7 +23,7 @@ async function listRounds(req: Request, res: Response): Promise<void> {
 }
 
 async function getRound(req: Request, res: Response): Promise<void> {
-  const { id } = req.params;
+  const id = String(req.params.id);
 
   const round = await roundRepository.findById(id);
   if (!round) {
@@ -68,7 +68,7 @@ async function createRound(req: Request, res: Response): Promise<void> {
 }
 
 async function closeRound(req: Request, res: Response): Promise<void> {
-  const { id } = req.params;
+  const id = String(req.params.id);
 
   const round = await roundRepository.findById(id);
   if (!round) {

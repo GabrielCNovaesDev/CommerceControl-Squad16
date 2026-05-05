@@ -1,5 +1,6 @@
 // ─── Mocks (devem vir antes do import do app) ──────────────
 jest.mock('../../repositories/storeRepository', () => ({
+  __esModule: true,
   default: {
     findBySquadId: jest.fn(),
     findById: jest.fn(),
@@ -10,6 +11,7 @@ jest.mock('../../repositories/storeRepository', () => ({
 }));
 
 jest.mock('../../repositories/productRepository', () => ({
+  __esModule: true,
   default: {
     findById: jest.fn(),
     findAll: jest.fn(),
@@ -21,6 +23,7 @@ jest.mock('../../repositories/productRepository', () => ({
 }));
 
 jest.mock('../../repositories/roundRepository', () => ({
+  __esModule: true,
   default: {
     findAll: jest.fn(),
     findById: jest.fn(),
@@ -31,6 +34,7 @@ jest.mock('../../repositories/roundRepository', () => ({
 }));
 
 jest.mock('../../repositories/roundConfigRepository', () => ({
+  __esModule: true,
   default: {
     findByRoundAndStore: jest.fn(),
     create: jest.fn(),
@@ -51,6 +55,7 @@ jest.mock('../../services/simulationService', () => ({
 }));
 
 jest.mock('../../utils/prisma', () => ({
+  __esModule: true,
   default: {
     $transaction: jest.fn().mockImplementation(async (fn: (tx: unknown) => Promise<unknown>) => {
       const tx = {
@@ -107,11 +112,24 @@ const validConfigPayload = {
 describe('POST /rounds/:id/config', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    // Restore $transaction after clearAllMocks
+    const prisma = jest.requireMock('../../utils/prisma').default;
+    (prisma.$transaction as jest.Mock).mockImplementation(async (fn: (tx: unknown) => Promise<unknown>) => {
+      const tx = {
+        roundConfig: { create: jest.fn().mockResolvedValue({ id: 'rc-1', otherExpenses: 0, cashierOperators: 10, serviceOperators: 5, quizScore: 1, numPdvs: 6, capexSeguranca: false, capexBalanca: false, capexRedes: false, capexSite: false, capexSelfCheckout: false, capexMelhoria: false, submittedAt: new Date(), roundConfigItems: [] }) },
+        inventory: { update: jest.fn().mockResolvedValue({}) },
+        store: { update: jest.fn().mockResolvedValue({}) },
+        round: { findFirst: jest.fn(), delete: jest.fn() },
+        financialResult: { deleteMany: jest.fn() },
+        roundConfigItem: { deleteMany: jest.fn() },
+      };
+      return fn(tx);
+    });
     (storeRepository.findBySquadId as jest.Mock).mockResolvedValue({ id: STORE_ID, squadId: 'sq-1', currentCash: 700000, initialCapital: 700000 });
     (roundRepository.findById as jest.Mock).mockResolvedValue({ id: ROUND_ID, status: 'OPEN', _count: { roundConfigs: 0 }, roundConfigs: [] });
     (roundConfigRepository.findByRoundAndStore as jest.Mock).mockResolvedValue(null);
     const productId = '11111111-1111-4111-a111-111111111111';
-    const { default: productRepository } = jest.requireMock('../../repositories/productRepository');
+    const productRepository = jest.requireMock('../../repositories/productRepository').default;
     (productRepository.findById as jest.Mock).mockResolvedValue({ id: productId, purchasePrice: 10, taxRate: 0.1, breakageRate: 0.01, agingRate: 0.01, mixAvailable: 100 });
   });
 

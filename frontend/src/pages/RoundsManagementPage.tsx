@@ -15,7 +15,7 @@ import type { Round, RoundStatus } from '../types';
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
 
-const STATUS_BADGE: Record<RoundStatus, { label: string; variant: string }> = {
+const STATUS_BADGE: Record<RoundStatus, { label: string; variant: 'green' | 'yellow' | 'gray' | 'red' | 'blue' }> = {
   OPEN:       { label: 'Aberta',      variant: 'green'  },
   PROCESSING: { label: 'Processando', variant: 'yellow' },
   CLOSED:     { label: 'Encerrada',   variant: 'gray'   },
@@ -31,15 +31,15 @@ function formatDateTime(dateString: string | null | undefined): string {
 
 const createRoundSchema = z.object({
   number: z.coerce
-    .number({ invalid_type_error: 'Número inválido' })
+    .number({ error: 'Número inválido' })
     .int('Deve ser inteiro')
     .positive('Deve ser positivo'),
   durationHours: z.coerce
-    .number({ invalid_type_error: 'Duração inválida' })
+    .number({ error: 'Duração inválida' })
     .int('Deve ser inteiro')
     .positive('Mínimo 1 hora'),
   demandFactor: z.coerce
-    .number({ invalid_type_error: 'Valor inválido' })
+    .number({ error: 'Valor inválido' })
     .min(0, 'Mínimo 0')
     .max(1, 'Máximo 1'),
 });
@@ -63,8 +63,8 @@ function CreateRoundModal({
   onCancel: () => void;
   nextNumber: number;
 }) {
-  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<CreateRoundFormData>({
-    resolver: zodResolver(createRoundSchema),
+  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<CreateRoundFormData, unknown, CreateRoundFormData>({
+    resolver: zodResolver(createRoundSchema) as never,
     defaultValues: { number: nextNumber, durationHours: 2, demandFactor: 0.5 },
   });
   const [serverError, setServerError] = useState('');

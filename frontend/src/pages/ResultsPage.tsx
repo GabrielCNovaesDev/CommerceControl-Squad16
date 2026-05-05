@@ -38,7 +38,11 @@ function gerarFeedback(result: FinancialResult): string[] {
   if (
     stockLimited.length > 0 &&
     result.grossRevenue < stockLimited.reduce(
-      (sum, item) => sum + (item.salePrice ?? 0) * item.salesVolume,
+      (sum, item) => {
+        const purchasePrice = item.product?.purchasePrice ?? 0;
+        const estimatedSalePrice = purchasePrice * (1 + item.margin);
+        return sum + estimatedSalePrice * item.salesVolume;
+      },
       0
     )
   ) {

@@ -3,28 +3,53 @@ import useToastStore from '../../hooks/useToast';
 
 const STYLES = {
   success: {
-    container: 'bg-green-50 border-green-300 text-green-800',
-    icon: '✓',
-    iconClass: 'text-green-600',
-    bar: 'bg-green-400',
+    bg: '#f0fdf4',
+    border: '#86efac',
+    color: '#15803d',
+    iconBg: '#dcfce7',
+    icon: (
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <polyline points="20 6 9 17 4 12"/>
+      </svg>
+    ),
+    bar: '#22c55e',
   },
   error: {
-    container: 'bg-red-50 border-red-300 text-red-800',
-    icon: '✕',
-    iconClass: 'text-red-500',
-    bar: 'bg-red-400',
+    bg: '#fff1f2',
+    border: '#fca5a5',
+    color: '#b91c1c',
+    iconBg: '#fee2e2',
+    icon: (
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+      </svg>
+    ),
+    bar: '#ef4444',
   },
   warning: {
-    container: 'bg-yellow-50 border-yellow-300 text-yellow-800',
-    icon: '⚠',
-    iconClass: 'text-yellow-600',
-    bar: 'bg-yellow-400',
+    bg: '#fffbeb',
+    border: '#fcd34d',
+    color: '#92400e',
+    iconBg: '#fef3c7',
+    icon: (
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+        <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+      </svg>
+    ),
+    bar: '#f59e0b',
   },
   info: {
-    container: 'bg-blue-50 border-blue-300 text-blue-800',
-    icon: 'ℹ',
-    iconClass: 'text-blue-500',
-    bar: 'bg-blue-400',
+    bg: 'var(--cenc-blue-50)',
+    border: 'var(--cenc-blue-200)',
+    color: 'var(--cenc-blue-700)',
+    iconBg: 'var(--cenc-blue-100)',
+    icon: (
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+      </svg>
+    ),
+    bar: 'var(--cenc-blue-500)',
   },
 } as const;
 
@@ -47,28 +72,83 @@ function ToastItem({ toast }: { toast: ToastData }) {
 
   return (
     <div
-      className={`relative flex items-start gap-2.5 rounded-xl border px-4 py-3 shadow-lg text-sm font-medium min-w-[260px] max-w-sm overflow-hidden ${style.container}`}
       role="alert"
+      className="animate-slide-down"
+      style={{
+        position: 'relative',
+        display: 'flex',
+        alignItems: 'flex-start',
+        gap: '10px',
+        borderRadius: '12px',
+        padding: '12px 14px',
+        minWidth: '280px',
+        maxWidth: '360px',
+        overflow: 'hidden',
+        background: style.bg,
+        border: `1px solid ${style.border}`,
+        boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
+        color: style.color,
+      }}
     >
-      <span className={`mt-px shrink-0 font-bold ${style.iconClass}`}>{style.icon}</span>
-      <span className="flex-1 leading-snug">{toast.message}</span>
+      {/* Icon */}
+      <span
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          width: 24,
+          height: 24,
+          borderRadius: '50%',
+          background: style.iconBg,
+          flexShrink: 0,
+          marginTop: 1,
+        }}
+      >
+        {style.icon}
+      </span>
+
+      {/* Message */}
+      <span style={{ flex: 1, fontSize: '13px', fontWeight: 500, lineHeight: 1.45, paddingTop: 3 }}>
+        {toast.message}
+      </span>
+
+      {/* Close */}
       <button
         onClick={() => removeToast(toast.id)}
-        className="ml-1 shrink-0 opacity-50 hover:opacity-100 transition-opacity text-base leading-none"
         aria-label="Fechar"
+        style={{
+          background: 'none',
+          border: 'none',
+          cursor: 'pointer',
+          color: 'currentColor',
+          opacity: 0.5,
+          padding: '2px',
+          borderRadius: '4px',
+          display: 'flex',
+          alignItems: 'center',
+          flexShrink: 0,
+          transition: 'opacity 0.15s',
+        }}
+        onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.opacity = '1'; }}
+        onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.opacity = '0.5'; }}
       >
-        ×
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
       </button>
+
+      {/* Progress bar */}
       <div
-        className={`absolute bottom-0 left-0 h-0.5 ${style.bar}`}
-        style={{ animation: `shrink ${AUTO_DISMISS_MS}ms linear forwards` }}
+        style={{
+          position: 'absolute',
+          bottom: 0,
+          left: 0,
+          height: '3px',
+          background: style.bar,
+          borderRadius: '0 0 0 12px',
+          animation: `shrink ${AUTO_DISMISS_MS}ms linear forwards`,
+        }}
       />
-      <style>{`
-        @keyframes shrink {
-          from { width: 100%; }
-          to   { width: 0%; }
-        }
-      `}</style>
     </div>
   );
 }
@@ -78,9 +158,20 @@ export default function Toast() {
   if (toasts.length === 0) return null;
 
   return (
-    <div className="fixed top-4 right-4 z-50 flex flex-col gap-2 pointer-events-none">
+    <div
+      style={{
+        position: 'fixed',
+        top: '16px',
+        right: '16px',
+        zIndex: 9999,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '8px',
+        pointerEvents: 'none',
+      }}
+    >
       {toasts.map((t) => (
-        <div key={t.id} className="pointer-events-auto">
+        <div key={t.id} style={{ pointerEvents: 'auto' }}>
           <ToastItem toast={t as ToastData} />
         </div>
       ))}

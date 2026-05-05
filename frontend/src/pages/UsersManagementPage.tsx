@@ -15,7 +15,7 @@ import type { Squad, UserRecord, UserRole } from '../types';
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 const ROLE_LABEL: Record<UserRole, string> = { PLAYER: 'Jogador', GAME_MASTER: 'Game Master', OBSERVER: 'Observador' };
-const ROLE_BADGE: Record<UserRole, string> = { PLAYER: 'blue', GAME_MASTER: 'green', OBSERVER: 'gray' };
+const ROLE_BADGE: Record<UserRole, 'blue' | 'green' | 'gray'> = { PLAYER: 'blue', GAME_MASTER: 'green', OBSERVER: 'gray' };
 
 function fieldClass(hasError: boolean) {
   return `w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500 transition ${

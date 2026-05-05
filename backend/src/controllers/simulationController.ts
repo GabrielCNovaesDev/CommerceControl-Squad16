@@ -38,7 +38,7 @@ const configSchema = z.object({
 });
 
 async function submitConfig(req: Request, res: Response): Promise<void> {
-  const { id: roundId } = req.params;
+  const roundId = String(req.params.id);
   const { squadId } = req.user!;
 
   if (!squadId) {
@@ -297,7 +297,7 @@ async function getRankingHandler(req: Request, res: Response): Promise<void> {
 }
 
 async function getResults(req: Request, res: Response): Promise<void> {
-  const { id: roundId } = req.params;
+  const roundId = String(req.params.id);
   const { role, squadId } = req.user!;
 
   const round = await roundRepository.findById(roundId);

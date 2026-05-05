@@ -1,33 +1,36 @@
 interface SkeletonProps {
-  variant?: 'line' | 'card' | 'table';
+  variant?: 'line' | 'card' | 'table' | 'stat';
   rows?: number;
   className?: string;
+  width?: string;
+  height?: string;
 }
 
-/**
- * Skeleton — placeholder animado durante carregamento.
- *
- * Variantes:
- *  - line   : bloco de texto (altura e largura configuráveis)
- *  - card   : card retangular
- *  - table  : header + N linhas de tabela
- */
-export default function Skeleton({ variant = 'line', rows = 4, className = '' }: SkeletonProps) {
+export default function Skeleton({ variant = 'line', rows = 4, className = '', width, height }: SkeletonProps) {
   if (variant === 'table') {
     return (
-      <div className={`rounded-xl border border-gray-200 overflow-hidden animate-pulse ${className}`}>
+      <div
+        className={className}
+        style={{
+          borderRadius: '14px',
+          border: '1px solid var(--cenc-gray-200)',
+          overflow: 'hidden',
+          background: 'white',
+          boxShadow: '0 1px 6px rgba(0,0,0,0.05)',
+        }}
+      >
         {/* Header */}
-        <div className="flex gap-4 px-4 py-3 bg-gray-50 border-b border-gray-200">
+        <div style={{ display: 'flex', gap: '16px', padding: '12px 16px', background: 'var(--cenc-gray-50)', borderBottom: '1px solid var(--cenc-gray-200)' }}>
           {[...Array(5)].map((_, i) => (
-            <div key={i} className="h-3 rounded bg-gray-200 flex-1" />
+            <div key={i} className="skeleton" style={{ height: '12px', flex: 1, borderRadius: '6px' }} />
           ))}
         </div>
         {/* Rows */}
         {[...Array(rows)].map((_, i) => (
-          <div key={i} className="flex gap-4 px-4 py-3.5 border-t border-gray-100">
-            <div className="w-6 h-4 rounded bg-gray-100" />
+          <div key={i} style={{ display: 'flex', gap: '16px', padding: '14px 16px', borderTop: '1px solid var(--cenc-gray-100)' }}>
+            <div className="skeleton" style={{ width: '24px', height: '16px', borderRadius: '6px', flexShrink: 0 }} />
             {[...Array(4)].map((_, j) => (
-              <div key={j} className="h-4 rounded bg-gray-100 flex-1" />
+              <div key={j} className="skeleton" style={{ height: '16px', flex: 1, borderRadius: '6px', opacity: 1 - j * 0.1 }} />
             ))}
           </div>
         ))}
@@ -38,11 +41,45 @@ export default function Skeleton({ variant = 'line', rows = 4, className = '' }:
   if (variant === 'card') {
     return (
       <div
-        className={`rounded-xl border border-gray-200 bg-white shadow-sm p-5 flex flex-col gap-3 animate-pulse ${className}`}
+        className={className}
+        style={{
+          borderRadius: '14px',
+          border: '1px solid var(--cenc-gray-200)',
+          background: 'white',
+          boxShadow: '0 1px 6px rgba(0,0,0,0.05)',
+          padding: '20px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '12px',
+        }}
       >
-        <div className="h-3 w-24 rounded bg-gray-200" />
-        <div className="h-8 w-32 rounded bg-gray-100" />
-        <div className="h-3 w-40 rounded bg-gray-100" />
+        <div className="skeleton" style={{ height: '12px', width: '80px', borderRadius: '6px' }} />
+        <div className="skeleton" style={{ height: '32px', width: '120px', borderRadius: '8px' }} />
+        <div className="skeleton" style={{ height: '12px', width: '140px', borderRadius: '6px', opacity: 0.6 }} />
+      </div>
+    );
+  }
+
+  if (variant === 'stat') {
+    return (
+      <div
+        className={className}
+        style={{
+          borderRadius: '14px',
+          border: '1px solid var(--cenc-gray-200)',
+          background: 'white',
+          padding: '20px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '10px',
+        }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div className="skeleton" style={{ height: '12px', width: '90px', borderRadius: '6px' }} />
+          <div className="skeleton" style={{ height: '32px', width: '32px', borderRadius: '8px' }} />
+        </div>
+        <div className="skeleton" style={{ height: '36px', width: '100px', borderRadius: '8px' }} />
+        <div className="skeleton" style={{ height: '10px', width: '120px', borderRadius: '6px', opacity: 0.5 }} />
       </div>
     );
   }
@@ -50,7 +87,8 @@ export default function Skeleton({ variant = 'line', rows = 4, className = '' }:
   // line (default)
   return (
     <div
-      className={`h-4 rounded bg-gray-200 animate-pulse ${className}`}
+      className={`skeleton ${className}`}
+      style={{ height: height ?? '16px', width: width ?? '100%', borderRadius: '6px' }}
     />
   );
 }
