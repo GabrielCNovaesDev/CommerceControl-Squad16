@@ -9,6 +9,7 @@ import Button from '../components/ui/Button';
 import Badge from '../components/ui/Badge';
 import Skeleton from '../components/ui/Skeleton';
 import ErrorMessage from '../components/ui/ErrorMessage';
+import { CARGO_OPTIONS } from '../components/squads/SquadsComponents';
 import { useToast } from '../hooks/useToast';
 import type { Squad, UserRecord, UserRole } from '../types';
 import React from 'react';
@@ -48,6 +49,7 @@ const createUserSchema = z.object({
   email: z.string().email('Email inválido'),
   password: z.string().min(6, 'Mínimo 6 caracteres'),
   role: z.enum(['PLAYER', 'GAME_MASTER']),
+  cargo: z.string().nullable().optional(),
   squadId: z.string().nullable().optional(),
 });
 
@@ -69,7 +71,7 @@ function CreateUserModal({
   async function onSubmit(data: CreateUserFormData) {
     setServerError('');
     try {
-      const payload = { ...data, squadId: data.squadId || null };
+      const payload = { ...data, squadId: data.squadId || null, cargo: data.cargo || null };
       const user = await userService.createUser(payload);
       onSuccess(user);
     } catch (err: unknown) {
@@ -121,6 +123,13 @@ function CreateUserModal({
                 {squads.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
             </div>
+            <div style={{ display:'flex',flexDirection:'column',gap:6,gridColumn:'1/-1' }}>
+              <label style={{ fontSize:13,fontWeight:600,color:'var(--cenc-gray-700)' }}>Cargo (opcional)</label>
+              <select className="input-cenc" style={fs(false)} {...register('cargo')}>
+                <option value="">Sem cargo</option>
+                {CARGO_OPTIONS.map((c) => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
           </div>
           {serverError && <div style={{ borderRadius:10,background:'var(--cenc-danger-bg)',border:'1px solid #fecaca',padding:'10px 14px',fontSize:13,color:'var(--cenc-danger)' }}>{serverError}</div>}
           <div style={{ display:'flex',gap:10,justifyContent:'flex-end',paddingTop:4 }}>
@@ -140,6 +149,7 @@ const editUserSchema = z.object({
   email: z.string().email('Email inválido'),
   password: z.string().min(6, 'Mínimo 6 caracteres').optional().or(z.literal('')),
   role: z.enum(['PLAYER', 'GAME_MASTER']),
+  cargo: z.string().nullable().optional(),
   squadId: z.string().nullable().optional(),
 });
 
@@ -160,6 +170,7 @@ function EditUserModal({
       email: user.email,
       password: '',
       role: user.role as 'PLAYER' | 'GAME_MASTER',
+      cargo: user.cargo ?? '',
       squadId: user.squadId ?? '',
     },
   });
@@ -172,6 +183,7 @@ function EditUserModal({
         name: data.name,
         email: data.email,
         role: data.role,
+        cargo: data.cargo || null,
         squadId: data.squadId || null,
         ...(data.password ? { password: data.password } : {}),
       };
@@ -224,6 +236,13 @@ function EditUserModal({
               <select className="input-cenc" style={fs(false)} {...register('squadId')}>
                 <option value="">Sem squad</option>
                 {squads.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+              </select>
+            </div>
+            <div style={{ display:'flex',flexDirection:'column',gap:6,gridColumn:'1/-1' }}>
+              <label style={{ fontSize:13,fontWeight:600,color:'var(--cenc-gray-700)' }}>Cargo (opcional)</label>
+              <select className="input-cenc" style={fs(false)} {...register('cargo')}>
+                <option value="">Sem cargo</option>
+                {CARGO_OPTIONS.map((c) => <option key={c} value={c}>{c}</option>)}
               </select>
             </div>
           </div>
@@ -348,8 +367,8 @@ export default function UsersManagementPage() {
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
               <thead>
                 <tr style={{ background: 'var(--cenc-gray-50)', borderBottom: '1px solid var(--cenc-gray-200)' }}>
-                  {['Nome','Email','Papel','Squad','Ações'].map((h, i) => (
-                    <th key={h} style={{ padding: '12px 16px', fontWeight: 700, fontSize: 11, color: 'var(--cenc-gray-500)', textTransform: 'uppercase', letterSpacing: '0.06em', textAlign: i === 4 ? 'right' : 'left' }}>{h}</th>
+                  {['Nome','Email','Papel','Cargo','Squad','Ações'].map((h, i) => (
+                    <th key={h} style={{ padding: '12px 16px', fontWeight: 700, fontSize: 11, color: 'var(--cenc-gray-500)', textTransform: 'uppercase', letterSpacing: '0.06em', textAlign: i === 5 ? 'right' : 'left' }}>{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -364,6 +383,9 @@ export default function UsersManagementPage() {
                     </td>
                     <td style={{ padding: '12px 16px', color: 'var(--cenc-gray-500)' }}>{user.email}</td>
                     <td style={{ padding: '12px 16px' }}><Badge variant={ROLE_BADGE[user.role] ?? 'gray'}>{ROLE_LABEL[user.role] ?? user.role}</Badge></td>
+                    <td style={{ padding: '12px 16px', color: 'var(--cenc-gray-500)', fontSize: 12 }}>
+                      {user.cargo ?? <span style={{ color: 'var(--cenc-gray-300)', fontStyle: 'italic' }}>—</span>}
+                    </td>
                     <td style={{ padding: '12px 16px', color: 'var(--cenc-gray-500)' }}>
                       {user.squadId ? squadMap[user.squadId] ?? '—' : <span style={{ color: 'var(--cenc-gray-300)' }}>Sem squad</span>}
                     </td>

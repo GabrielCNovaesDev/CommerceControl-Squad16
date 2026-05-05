@@ -42,8 +42,8 @@ export default function SquadsManagementPage() {
         squadService.getSquads(),
         userService.getUsers(),
       ]);
-      const squadList = Array.isArray(squadData) ? squadData : (squadData as { content?: Squad[] }).content ?? [];
-      const userList = Array.isArray(userData) ? userData : (userData as { content?: UserRecord[] }).content ?? [];
+      const squadList = Array.isArray(squadData) ? squadData : squadData;
+      const userList = Array.isArray(userData) ? userData : userData;
       setSquads(squadList);
       setUsers(userList);
     } catch {

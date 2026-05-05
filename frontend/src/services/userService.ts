@@ -6,6 +6,7 @@ interface CreateUserData {
   email: string;
   password: string;
   role: UserRole;
+  cargo?: string | null;
   squadId?: string | null;
 }
 
@@ -15,6 +16,7 @@ interface UpdateUserData {
   password?: string;
   role?: UserRole;
   leader?: boolean;
+  cargo?: string | null;
   squadId?: string | null;
 }
 

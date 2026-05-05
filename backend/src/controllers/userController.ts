@@ -22,7 +22,8 @@ const createSchema = z.object({
   email: z.string().email('Email inválido'),
   password: z.string().min(6, 'Senha deve ter no mínimo 6 caracteres'),
   role: z.enum(['GAME_MASTER', 'PLAYER', 'OBSERVER']),
-  squadId: z.string().uuid().optional().nullable(),
+  cargo: z.string().optional().nullable(),
+  squadId: z.string().min(1).optional().nullable(),
 });
 
 const updateSchema = z.object({
@@ -31,7 +32,8 @@ const updateSchema = z.object({
   password: z.string().min(6).optional(),
   role: z.enum(['GAME_MASTER', 'PLAYER', 'OBSERVER']).optional(),
   leader: z.boolean().optional(),
-  squadId: z.string().uuid().optional().nullable(),
+  cargo: z.string().optional().nullable(),
+  squadId: z.string().min(1).optional().nullable(),
 });
 
 async function listUsers(req: Request, res: Response): Promise<void> {
@@ -47,7 +49,7 @@ async function createUser(req: Request, res: Response): Promise<void> {
     return;
   }
 
-  const { name, email, password, role, squadId } = parsed.data;
+  const { name, email, password, role, cargo, squadId } = parsed.data;
 
   const existing = await userRepository.findByEmail(email);
   if (existing) {
@@ -56,7 +58,7 @@ async function createUser(req: Request, res: Response): Promise<void> {
   }
 
   const hashedPassword = await bcrypt.hash(password, 10);
-  const user = await userRepository.create({ name, email, password: hashedPassword, role, squadId });
+  const user = await userRepository.create({ name, email, password: hashedPassword, role, cargo, squadId });
 
   res.status(201).json(user);
 }
@@ -104,7 +106,7 @@ async function deleteUser(req: Request, res: Response): Promise<void> {
 }
 
 const bulkCreateSchema = z.object({
-  squadId: z.string().uuid('squadId deve ser um UUID válido'),
+  squadId: z.string().min(1, 'squadId é obrigatório'),
   count: z.number().int().min(1, 'Mínimo 1 jogador').max(50, 'Máximo 50 jogadores'),
 });
 
@@ -134,15 +136,16 @@ async function bulkCreateUsers(req: Request, res: Response): Promise<void> {
 
   const domain = domainBase || 'squad';
 
-  // Determine the next sequential index based on existing "Jogador N" users in this squad
-  const existingPlayers = await prisma.user.findMany({
-    where: { squadId, name: { startsWith: 'Jogador ' } },
-    select: { name: true },
+  // Determine the next sequential index based on existing jogadorN@domain.com emails
+  // This avoids collisions even if users were removed from the squad but their email remains
+  const existingEmails = await prisma.user.findMany({
+    where: { email: { startsWith: `jogador`, contains: `@${domain}.com` } },
+    select: { email: true },
   });
 
-  const existingIndices = existingPlayers
+  const existingIndices = existingEmails
     .map((u) => {
-      const match = u.name.match(/^Jogador (\d+)$/);
+      const match = u.email.match(/^jogador(\d+)@/);
       return match ? parseInt(match[1], 10) : 0;
     })
     .filter((n) => n > 0);

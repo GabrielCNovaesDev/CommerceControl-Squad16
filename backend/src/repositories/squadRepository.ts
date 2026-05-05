@@ -2,7 +2,7 @@ import prisma from '../utils/prisma';
 
 const squadInclude = {
   users: {
-    select: { id: true, name: true, email: true, role: true, leader: true },
+    select: { id: true, name: true, email: true, role: true, cargo: true, leader: true },
   },
   stores: {
     select: { id: true, name: true, initialCapital: true },

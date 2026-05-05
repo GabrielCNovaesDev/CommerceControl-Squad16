@@ -5,6 +5,7 @@ const userSelect = {
   name: true,
   email: true,
   role: true,
+  cargo: true,
   leader: true,
   squadId: true,
   createdAt: true,
@@ -37,6 +38,7 @@ function create(data: {
   email: string;
   password: string;
   role: 'GAME_MASTER' | 'PLAYER' | 'OBSERVER';
+  cargo?: string | null;
   squadId?: string | null;
 }) {
   return prisma.user.create({
@@ -53,6 +55,7 @@ function update(
     password?: string;
     role?: 'GAME_MASTER' | 'PLAYER' | 'OBSERVER';
     leader?: boolean;
+    cargo?: string | null;
     squadId?: string | null;
   }
 ) {

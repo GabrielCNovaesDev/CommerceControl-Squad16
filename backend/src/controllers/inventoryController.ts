@@ -3,6 +3,7 @@ import { Request, Response } from 'express';
 import inventoryRepository from '../repositories/inventoryRepository';
 import storeRepository from '../repositories/storeRepository';
 import asyncHandler from '../utils/asyncHandler';
+import { sendError } from '../utils/errorResponse';
 
 const updateQuantitySchema = z.object({
   quantity: z.number().int('Quantidade deve ser um número inteiro').min(0, 'Quantidade não pode ser negativa'),
@@ -12,7 +13,7 @@ const restockSchema = z.object({
   items: z
     .array(
       z.object({
-        productId: z.string().uuid('productId inválido'),
+        productId: z.string().min(1, 'productId é obrigatório'),
         quantity: z.number().int('Quantidade deve ser um número inteiro').min(0, 'Quantidade não pode ser negativa'),
       })
     )
@@ -25,12 +26,12 @@ async function getInventory(req: Request, res: Response): Promise<void> {
 
   const store = await storeRepository.findById(storeId);
   if (!store) {
-    res.status(404).json({ message: 'Loja não encontrada' });
+    sendError(res, 404, 'STORE_NOT_FOUND', 'Loja não encontrada');
     return;
   }
 
   if (role === 'PLAYER' && store.squadId !== squadId) {
-    res.status(403).json({ message: 'Acesso negado: loja não pertence ao seu squad' });
+    sendError(res, 403, 'FORBIDDEN', 'Acesso negado: loja não pertence ao seu squad');
     return;
   }
 
@@ -44,19 +45,19 @@ async function updateInventoryItem(req: Request, res: Response): Promise<void> {
 
   const store = await storeRepository.findById(storeId);
   if (!store) {
-    res.status(404).json({ message: 'Loja não encontrada' });
+    sendError(res, 404, 'STORE_NOT_FOUND', 'Loja não encontrada');
     return;
   }
 
   const parsed = updateQuantitySchema.safeParse(req.body);
   if (!parsed.success) {
-    res.status(400).json({ errors: parsed.error.flatten().fieldErrors });
+    sendError(res, 400, 'VALIDATION_ERROR', 'Dados inválidos', parsed.error.flatten().fieldErrors);
     return;
   }
 
   const existing = await inventoryRepository.findByStoreAndProduct(storeId, productId);
   if (!existing) {
-    res.status(404).json({ message: 'Produto não encontrado no estoque desta loja' });
+    sendError(res, 404, 'INVENTORY_ITEM_NOT_FOUND', 'Produto não encontrado no estoque desta loja');
     return;
   }
 
@@ -69,13 +70,13 @@ async function restockInventory(req: Request, res: Response): Promise<void> {
 
   const store = await storeRepository.findById(storeId);
   if (!store) {
-    res.status(404).json({ message: 'Loja não encontrada' });
+    sendError(res, 404, 'STORE_NOT_FOUND', 'Loja não encontrada');
     return;
   }
 
   const parsed = restockSchema.safeParse(req.body);
   if (!parsed.success) {
-    res.status(400).json({ errors: parsed.error.flatten().fieldErrors });
+    sendError(res, 400, 'VALIDATION_ERROR', 'Dados inválidos', parsed.error.flatten().fieldErrors);
     return;
   }
 

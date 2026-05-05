@@ -22,6 +22,7 @@ export interface SquadUser {
   name: string;
   email: string;
   role: UserRole;
+  cargo: string | null;
   leader: boolean;
 }
 
@@ -164,6 +165,7 @@ export interface UserRecord {
   name: string;
   email: string;
   role: UserRole;
+  cargo: string | null;
   leader: boolean;
   squadId: string | null;
   createdAt: string;

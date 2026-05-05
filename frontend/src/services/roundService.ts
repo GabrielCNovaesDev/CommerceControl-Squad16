@@ -31,10 +31,8 @@ interface PreviewResponse {
 
 interface CreateRoundData {
   number: number;
-  startDate?: string;
-  endDate?: string;
-  durationHours?: number;
-  demandFactor?: number;
+  durationHours: number;
+  demandFactor: number;
 }
 
 const roundService = {

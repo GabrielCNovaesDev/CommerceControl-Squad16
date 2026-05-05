@@ -51,16 +51,16 @@ export default function RoundConfigPage() {
         storeService.getMyStore(),
         productService.getProducts(),
       ]);
-      const open = (Array.isArray(rounds) ? rounds : (rounds as { content?: Round[] }).content ?? [])
+      const open = (Array.isArray(rounds) ? rounds : rounds)
         .find((r: Round) => r.status === 'OPEN');
       setActiveRound(open ?? null);
-      setProducts(Array.isArray(prods) ? prods : (prods as { content?: Product[] }).content ?? []);
+      setProducts(Array.isArray(prods) ? prods : prods);
       setStore(s);
       reset({
         otherExpenses: 0, cashierOperators: 10, serviceOperators: 5, quizScore: 1.0,
         numPdvs: 6, capexSeguranca: false, capexBalanca: false, capexRedes: false,
         capexSite: false, capexSelfCheckout: false, capexMelhoria: false,
-        items: (Array.isArray(prods) ? prods : (prods as { content?: Product[] }).content ?? [])
+        items: (Array.isArray(prods) ? prods : prods)
           .map((p: Product) => ({ productId: p.id, margin: 0.12, salesVolume: 1 })),
       });
       if (s) {

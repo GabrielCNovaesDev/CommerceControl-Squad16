@@ -35,6 +35,16 @@ export const ROLE_LABEL: Record<UserRole, string> = {
   PLAYER: 'Jogador', GAME_MASTER: 'Game Master', OBSERVER: 'Observador',
 };
 
+export const CARGO_OPTIONS = [
+  'Gerente da Loja',
+  'Gerente de Serviços',
+  'Gerente Abastecimento',
+  'Gerente Planejamento Comercial',
+  'Gerente Operacional',
+] as const;
+
+export type CargoOption = typeof CARGO_OPTIONS[number];
+
 // ─── Confirm Modal ────────────────────────────────────────────────────────────
 
 export function ConfirmModal({ title, message, confirmLabel = 'Confirmar', variant = 'danger', onConfirm, onCancel, loading }: {
@@ -154,7 +164,8 @@ const createUserSchema = z.object({
   email: z.string().email('Email inválido'),
   password: z.string().min(6, 'Mínimo 6 caracteres'),
   role: z.enum(['PLAYER', 'GAME_MASTER']),
-  squadId: z.string().uuid().nullable().optional(),
+  cargo: z.string().nullable().optional(),
+  squadId: z.string().nullable().optional(),
 });
 type CreateUserFormData = z.infer<typeof createUserSchema>;
 
@@ -168,7 +179,7 @@ export function CreateUserModal({ squads, onSuccess, onCancel }: { squads: Squad
   async function onSubmit(data: CreateUserFormData) {
     setServerError('');
     try {
-      const payload = { ...data, squadId: data.squadId || null };
+      const payload = { ...data, squadId: data.squadId || null, cargo: data.cargo || null };
       const user = await userService.createUser(payload);
       onSuccess(user);
     } catch (err: unknown) {
@@ -218,6 +229,13 @@ export function CreateUserModal({ squads, onSuccess, onCancel }: { squads: Squad
               <select className="input-cenc" style={fieldStyle(false)} {...register('squadId')}>
                 <option value="">Sem squad</option>
                 {squads.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+              </select>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, gridColumn: '1/-1' }}>
+              <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--cenc-gray-700)' }}>Cargo (opcional)</label>
+              <select className="input-cenc" style={fieldStyle(false)} {...register('cargo')}>
+                <option value="">Sem cargo</option>
+                {CARGO_OPTIONS.map((c) => <option key={c} value={c}>{c}</option>)}
               </select>
             </div>
           </div>
@@ -421,6 +439,24 @@ export function MembersPanel({ squad, onRemoveUser, onAddUser, onBulkCreate }: {
   onBulkCreate: (squadId: string) => void;
 }) {
   const members = squad.users ?? [];
+  const [editingCargo, setEditingCargo] = useState<string | null>(null);
+  const [savingCargo, setSavingCargo] = useState(false);
+
+  async function handleSaveCargo(userId: string, cargo: string) {
+    setSavingCargo(true);
+    try {
+      await userService.updateUser(userId, { cargo: cargo || null });
+      // Update local state by mutating the squad users array
+      const user = members.find((u) => u.id === userId);
+      if (user) user.cargo = cargo || null;
+    } catch {
+      // silently ignore — user can retry
+    } finally {
+      setSavingCargo(false);
+      setEditingCargo(null);
+    }
+  }
+
   return (
     <div style={{ background: 'var(--cenc-gray-50)', borderTop: '1px solid var(--cenc-gray-100)', padding: '12px 16px' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
@@ -436,7 +472,7 @@ export function MembersPanel({ squad, onRemoveUser, onAddUser, onBulkCreate }: {
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
           <thead>
             <tr>
-              {['Nome', 'Email', 'Papel', ''].map((h) => (
+              {['Nome', 'Email', 'Papel', 'Cargo', ''].map((h) => (
                 <th key={h} style={{ paddingBottom: 6, fontWeight: 600, color: 'var(--cenc-gray-400)', textAlign: 'left' }}>{h}</th>
               ))}
             </tr>
@@ -450,6 +486,40 @@ export function MembersPanel({ squad, onRemoveUser, onAddUser, onBulkCreate }: {
                 </td>
                 <td style={{ padding: '6px 12px 6px 0', color: 'var(--cenc-gray-500)' }}>{user.email}</td>
                 <td style={{ padding: '6px 12px 6px 0', color: 'var(--cenc-gray-500)' }}>{ROLE_LABEL[user.role] ?? user.role}</td>
+                <td style={{ padding: '6px 12px 6px 0', minWidth: 180 }}>
+                  {editingCargo === user.id ? (
+                    <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                      <select
+                        defaultValue={user.cargo ?? ''}
+                        id={`cargo-select-${user.id}`}
+                        style={{ fontSize: 12, borderRadius: 6, border: '1px solid var(--cenc-gray-300)', padding: '2px 6px', color: 'var(--cenc-gray-800)', background: 'white' }}
+                      >
+                        <option value="">Sem cargo</option>
+                        {CARGO_OPTIONS.map((c) => <option key={c} value={c}>{c}</option>)}
+                      </select>
+                      <button
+                        disabled={savingCargo}
+                        onClick={() => {
+                          const sel = document.getElementById(`cargo-select-${user.id}`) as HTMLSelectElement;
+                          handleSaveCargo(user.id, sel.value);
+                        }}
+                        style={{ fontSize: 11, fontWeight: 700, color: 'white', background: 'var(--cenc-blue-600)', border: 'none', borderRadius: 6, padding: '2px 8px', cursor: 'pointer' }}
+                      >{savingCargo ? '...' : 'OK'}</button>
+                      <button
+                        onClick={() => setEditingCargo(null)}
+                        style={{ fontSize: 11, color: 'var(--cenc-gray-400)', background: 'none', border: 'none', cursor: 'pointer' }}
+                      >✕</button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setEditingCargo(user.id)}
+                      style={{ fontSize: 12, color: user.cargo ? 'var(--cenc-gray-700)' : 'var(--cenc-gray-400)', background: 'none', border: 'none', cursor: 'pointer', padding: 0, textAlign: 'left', fontStyle: user.cargo ? 'normal' : 'italic' }}
+                      title="Clique para editar o cargo"
+                    >
+                      {user.cargo ?? 'Sem cargo'} <span style={{ fontSize: 10, color: 'var(--cenc-blue-400)' }}>✎</span>
+                    </button>
+                  )}
+                </td>
                 <td style={{ padding: '6px 0', textAlign: 'right' }}>
                   {user.leader ? (
                     <span style={{ color: 'var(--cenc-gray-300)', cursor: 'not-allowed', fontSize: 12 }} title="Transfira a liderança antes de remover">Remover</span>

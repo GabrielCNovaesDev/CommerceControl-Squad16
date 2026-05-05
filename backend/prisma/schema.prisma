@@ -26,6 +26,7 @@ model User {
   email     String   @unique
   password  String
   role      UserRole @default(PLAYER)
+  cargo     String?
   leader    Boolean  @default(false)
   squadId   String?
   createdAt DateTime @default(now())

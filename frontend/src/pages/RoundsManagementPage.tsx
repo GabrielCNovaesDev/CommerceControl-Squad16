@@ -32,7 +32,7 @@ export default function RoundsManagementPage() {
     setLoadError('');
     try {
       const data = await roundService.getRounds();
-      const list = Array.isArray(data) ? data : (data as { content?: Round[] }).content ?? [];
+      const list = Array.isArray(data) ? data : data;
       setRounds(list);
     } catch {
       setLoadError('Não foi possível carregar as rodadas.');
