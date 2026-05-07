@@ -352,12 +352,13 @@ export default function AdminDashboardPage() {
       <div style={{ maxWidth: 900, display: 'flex', flexDirection: 'column', gap: 24 }} className="page-enter">
 
         {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16 }}>
-          <div>
-            <h1 style={{ margin: 0, fontSize: '22px', fontWeight: 800, color: 'var(--cenc-gray-900)' }}>Dashboard</h1>
-            <p style={{ margin: '4px 0 0', fontSize: '13px', color: 'var(--cenc-gray-500)' }}>Visão geral da simulação em tempo real.</p>
-          </div>
-          <div style={{ display: 'flex', gap: 10, flexShrink: 0 }}>
+        {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
+      <div>
+      <h1 style={{ margin: 0, fontSize: '22px', fontWeight: 800, color: 'var(--cenc-gray-900)' }}>Dashboard</h1>
+      <p style={{ margin: '4px 0 0', fontSize: '13px', color: 'var(--cenc-gray-500)' }}>Visão geral da simulação em tempo real.</p>
+  </div>
+  <div style={{ display: 'flex', gap: 10 }}>
             <Button
               variant="secondary"
               disabled={hasActiveRound}

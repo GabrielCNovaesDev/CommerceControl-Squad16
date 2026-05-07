@@ -416,7 +416,7 @@ export default function ResultsPage() {
     <PlayerLayout>
       <div className="max-w-3xl flex flex-col gap-6">
         {/* Cabeçalho + seletor */}
-        <div className="flex items-start justify-between gap-4">
+        <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
             <h1 className="text-xl font-bold text-gray-900">Resultados</h1>
             <p className="text-sm text-gray-500 mt-0.5">Desempenho da sua loja por rodada.</p>
