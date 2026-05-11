@@ -47,8 +47,8 @@
   --cenc-surface: #ffffff;
 
   /* Sidebar */
-  --sidebar-width: 240px;
-  --header-height: 60px;
+  --sidebar-width: clamp(64px, 16vw, 240px);
+  --header-height: clamp(48px, 4vh, 80px);
 }
 
 /* ─── Dark Mode ──────────────────────────────────────────────────────────── */
@@ -203,6 +203,95 @@ body {
   transform: translateY(-2px);
   box-shadow: 0 8px 24px rgba(0, 48, 135, 0.12);
 }
+
+/* ─── Responsiveness Utilities & Global Fixes ───────────────────────────── */
+
+/* Standard breakpoints (mobile-first) */
+--reserved: 0;
+@media (min-width: 640px) { /* sm */ }
+@media (min-width: 768px) { /* md */ }
+@media (min-width: 1024px) { /* lg */ }
+@media (min-width: 1280px) { /* xl */ }
+
+/* Fluid typography base (mobile-first) */
+html {
+  font-size: clamp(13px, 1.6vw, 16px);
+}
+
+/* Containers */
+.container {
+  width: 100%;
+  max-width: 1200px;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 16px;
+  padding-right: 16px;
+  box-sizing: border-box;
+}
+
+/* Prevent unexpected horizontal overflow (apply on root-level wrappers) */
+.prevent-overflow {
+  max-width: 100vw;
+  overflow-x: hidden;
+}
+
+/* Ensure flex children can shrink to prevent overflow */
+.min-w-0 { min-width: 0; }
+/* Make direct children of flex containers shrink by default to avoid overflow */
+.flex > * { min-width: 0; }
+
+/* Media-friendly images and svgs */
+img, svg, picture, video {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* Inputs and form controls defaults */
+.input-cenc {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  font-size: 0.95rem;
+}
+
+/* Modal utilities (use classes to avoid changing markup) */
+.modal-overlay {
+  position: fixed; inset: 0; z-index: 50;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(0,0,0,0.45); backdrop-filter: blur(4px);
+  padding: 12px; box-sizing: border-box;
+}
+.modal-box {
+  background: var(--cenc-surface); border-radius: 20px;
+  box-shadow: 0 24px 64px rgba(0,0,0,0.18);
+  border: 1px solid var(--cenc-gray-200);
+  width: 100%; max-width: 520px; margin: 0 auto; padding: 28px; box-sizing: border-box;
+}
+
+/* Responsive tables: wrapper adds horizontal scroll on small devices */
+.table-responsive { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.table-responsive table { width: 100%; border-collapse: collapse; min-width: 560px; }
+.table-responsive th, .table-responsive td { word-break: break-word; white-space: normal; }
+
+/* Break long words and emails */
+.break-word { overflow-wrap: anywhere; word-break: break-word; }
+
+/* Utility to hide unnecessary scrollbars if needed */
+.hide-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
+.hide-scrollbar::-webkit-scrollbar { display: none; }
+
+/* Make badges and inline elements wrap when necessary */
+.inline-wrap { display: inline-flex; flex-wrap: wrap; gap: 6px; }
+
+/* Ensure buttons and small controls don't overflow */
+.btn-fixed { max-width: 100%; box-sizing: border-box; }
+
+/* Small-screen modal adjustments */
+@media (max-width: 420px) {
+  .modal-box { padding: 16px; border-radius: 14px; }
+}
+
 
 /* Focus ring */
 .focus-cenc:focus-visible {

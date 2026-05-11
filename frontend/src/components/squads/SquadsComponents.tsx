@@ -9,19 +9,7 @@ import type { Squad, SquadUser, UserRecord, UserRole } from '../../types';
 
 // ─── Shared styles ────────────────────────────────────────────────────────────
 
-export const MODAL_OVERLAY: React.CSSProperties = {
-  position: 'fixed', inset: 0, zIndex: 50, display: 'flex',
-  alignItems: 'center', justifyContent: 'center',
-  background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(4px)',
-};
-
-export const MODAL_BOX: React.CSSProperties = {
-  background: 'white', borderRadius: 20,
-  boxShadow: '0 24px 64px rgba(0,0,0,0.18)',
-  border: '1px solid var(--cenc-gray-200)',
-  width: '100%', maxWidth: 440, margin: '0 16px',
-  padding: 28, display: 'flex', flexDirection: 'column', gap: 20,
-};
+/* Modal appearance is standardized via global CSS classes: .modal-overlay and .modal-box */
 
 export const fieldStyle = (hasError: boolean): React.CSSProperties => ({
   borderRadius: 10,
@@ -53,8 +41,8 @@ export function ConfirmModal({ title, message, confirmLabel = 'Confirmar', varia
   onConfirm: () => void; onCancel: () => void; loading: boolean;
 }) {
   return (
-    <div style={MODAL_OVERLAY}>
-      <div className="animate-scale-in" style={MODAL_BOX}>
+    <div className="modal-overlay">
+      <div className="modal-box animate-scale-in">
         <div>
           <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: 'var(--cenc-gray-900)' }}>{title}</h2>
           <p style={{ margin: '6px 0 0', fontSize: 13, color: 'var(--cenc-gray-500)', lineHeight: 1.5 }}>{message}</p>
@@ -91,8 +79,8 @@ export function CreateSquadModal({ onSuccess, onCancel }: { onSuccess: (s: Squad
   }
 
   return (
-    <div style={MODAL_OVERLAY}>
-      <div className="animate-scale-in" style={MODAL_BOX}>
+    <div className="modal-overlay">
+      <div className="modal-box animate-scale-in">
         <div>
           <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: 'var(--cenc-gray-900)' }}>Novo Squad</h2>
           <p style={{ margin: '4px 0 0', fontSize: 13, color: 'var(--cenc-gray-500)' }}>Crie um novo squad para a simulação.</p>
@@ -193,8 +181,8 @@ export function CreateUserModal({ squads, onSuccess, onCancel }: { squads: Squad
   }
 
   return (
-    <div style={MODAL_OVERLAY}>
-      <div className="animate-scale-in" style={{ ...MODAL_BOX, maxWidth: 480 }}>
+    <div className="modal-overlay">
+      <div className="modal-box animate-scale-in" style={{ maxWidth: 480 }}>
         <div>
           <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: 'var(--cenc-gray-900)' }}>Novo Usuário</h2>
           <p style={{ margin: '4px 0 0', fontSize: 13, color: 'var(--cenc-gray-500)' }}>Crie uma nova conta de acesso.</p>
