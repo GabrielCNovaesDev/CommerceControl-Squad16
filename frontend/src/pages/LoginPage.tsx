@@ -5,6 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import authService from '../services/authService';
 import useAuthStore from '../store/authStore';
+import useThemeStore from '../store/themeStore';
 import type { UserRole } from '../types';
 
 const schema = z.object({
@@ -47,6 +48,26 @@ const IconEyeOff = () => (
   </svg>
 );
 
+const IconSun = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <circle cx="12" cy="12" r="4" />
+    <line x1="12" y1="2" x2="12" y2="5" />
+    <line x1="12" y1="19" x2="12" y2="22" />
+    <line x1="2" y1="12" x2="5" y2="12" />
+    <line x1="19" y1="12" x2="22" y2="12" />
+    <line x1="4.93" y1="4.93" x2="7.05" y2="7.05" />
+    <line x1="16.95" y1="16.95" x2="19.07" y2="19.07" />
+    <line x1="16.95" y1="7.05" x2="19.07" y2="4.93" />
+    <line x1="4.93" y1="19.07" x2="7.05" y2="16.95" />
+  </svg>
+);
+
+const IconMoon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M21 12.79A9 9 0 1 1 11.21 3c0 0 0 0 0 0A7 7 0 0 0 21 12.79z" />
+  </svg>
+);
+
 // ─── Decorative background shapes ────────────────────────────────────────────
 
 function BackgroundDecor() {
@@ -56,18 +77,18 @@ function BackgroundDecor() {
       <div style={{
         position: 'absolute', top: '-120px', right: '-120px',
         width: '480px', height: '480px', borderRadius: '50%',
-        background: 'radial-gradient(circle, rgba(0,102,255,0.12) 0%, transparent 70%)',
+        background: 'radial-gradient(circle, var(--login-right-decor-circle-a) 0%, transparent 70%)',
       }} />
       {/* Medium circle bottom-left */}
       <div style={{
         position: 'absolute', bottom: '-80px', left: '-80px',
         width: '320px', height: '320px', borderRadius: '50%',
-        background: 'radial-gradient(circle, rgba(0,48,135,0.1) 0%, transparent 70%)',
+        background: 'radial-gradient(circle, var(--login-right-decor-circle-b) 0%, transparent 70%)',
       }} />
       {/* Subtle grid */}
       <div style={{
         position: 'absolute', inset: 0,
-        backgroundImage: 'radial-gradient(circle, rgba(0,48,135,0.06) 1px, transparent 1px)',
+        backgroundImage: 'radial-gradient(circle, var(--login-right-decor-dot) 1px, transparent 1px)',
         backgroundSize: '32px 32px',
       }} />
     </div>
@@ -77,6 +98,7 @@ function BackgroundDecor() {
 export default function LoginPage() {
   const navigate = useNavigate();
   const login = useAuthStore((s) => s.login);
+  const { isDark, toggle } = useThemeStore();
   const [serverError, setServerError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
@@ -100,14 +122,14 @@ export default function LoginPage() {
   return (
     <div
       className="min-h-screen flex"
-      style={{ background: 'linear-gradient(135deg, #f0f4ff 0%, #e8f1ff 50%, #f5f8ff 100%)' }}
+      style={{ background: 'var(--login-shell-bg)' }}
     >
       {/* ── Left panel (brand) ── */}
       <div
         className="hidden lg:flex flex-col justify-between p-12 relative overflow-hidden"
         style={{
           width: '45%',
-          background: 'linear-gradient(160deg, var(--cenc-blue-900) 0%, var(--cenc-blue-700) 60%, var(--cenc-blue-500) 100%)',
+          background: 'var(--login-brand-panel-bg)',
         }}
       >
         <BackgroundDecor />
@@ -133,7 +155,7 @@ export default function LoginPage() {
           <h1 className="text-4xl font-bold text-white leading-tight mb-4">
             CommerceControl
           </h1>
-          <p className="text-lg leading-relaxed" style={{ color: 'rgba(255,255,255,0.7)' }}>
+          <p className="text-lg leading-relaxed" style={{ color: 'var(--login-brand-muted)' }}>
             Gerencie sua loja virtual, tome decisões estratégicas e compete com outros squads em tempo real.
           </p>
 
@@ -153,7 +175,7 @@ export default function LoginPage() {
 
         {/* Bottom */}
         <div className="relative animate-fade-in" style={{ animationDelay: '300ms' }}>
-          <p className="text-xs" style={{ color: 'rgba(255,255,255,0.35)' }}>
+          <p className="text-xs" style={{ color: 'var(--login-brand-footer)' }}>
             © 2026 Cencosud Brasil · Todos os direitos reservados
           </p>
         </div>
@@ -164,6 +186,15 @@ export default function LoginPage() {
         <BackgroundDecor />
 
         <div className="w-full max-w-sm relative animate-fade-in" style={{ animationDelay: '100ms' }}>
+          <button
+            type="button"
+            onClick={toggle}
+            className="login-theme-toggle"
+            aria-label={isDark ? 'Ativar modo claro' : 'Ativar modo escuro'}
+            title={isDark ? 'Ativar modo claro' : 'Ativar modo escuro'}
+          >
+            {isDark ? <IconSun /> : <IconMoon />}
+          </button>
 
           {/* Mobile logo */}
           <div className="flex lg:hidden items-center justify-center gap-3 mb-8">
@@ -188,7 +219,7 @@ export default function LoginPage() {
             style={{
               background: 'var(--cenc-surface)',
               border: '1px solid var(--cenc-gray-200)',
-              boxShadow: '0 4px 32px rgba(0,48,135,0.08)',
+              boxShadow: 'var(--login-card-shadow)',
             }}
           >
             <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-5">
@@ -202,7 +233,7 @@ export default function LoginPage() {
                   type="email"
                   placeholder="seu@email.com"
                   autoComplete="email"
-                  className="input-cenc w-full rounded-xl px-4 py-2.5 text-sm transition-all"
+                  className="input-cenc login-input w-full rounded-xl px-4 py-2.5 text-sm transition-all"
                   style={{
                     border: `1.5px solid ${errors.email ? 'var(--cenc-danger)' : 'var(--cenc-gray-300)'}`,
                     background: errors.email ? 'var(--cenc-danger-bg)' : 'var(--cenc-surface)',
@@ -228,7 +259,7 @@ export default function LoginPage() {
                     type={showPassword ? 'text' : 'password'}
                     placeholder="••••••••"
                     autoComplete="current-password"
-                    className="input-cenc w-full rounded-xl px-4 py-2.5 pr-11 text-sm transition-all"
+                    className="input-cenc login-input w-full rounded-xl px-4 py-2.5 pr-11 text-sm transition-all"
                     style={{
                       border: `1.5px solid ${errors.password ? 'var(--cenc-danger)' : 'var(--cenc-gray-300)'}`,
                       background: errors.password ? 'var(--cenc-danger-bg)' : 'var(--cenc-surface)',
@@ -242,7 +273,7 @@ export default function LoginPage() {
                     onClick={() => setShowPassword((v) => !v)}
                     className="absolute right-3 top-1/2 -translate-y-1/2 transition-colors"
                     style={{ color: 'var(--cenc-gray-400)' }}
-                    tabIndex={-1}
+                    aria-pressed={showPassword}
                     aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
                   >
                     {showPassword ? <IconEyeOff /> : <IconEye />}

@@ -46,6 +46,21 @@
   /* Surface (cards, headers, inputs) */
   --cenc-surface: #ffffff;
 
+  /* Login tokens */
+  --login-shell-bg: linear-gradient(135deg, #f0f4ff 0%, #e8f1ff 50%, #f5f8ff 100%);
+  --login-right-decor-dot: rgba(0, 48, 135, 0.06);
+  --login-right-decor-circle-a: rgba(0, 102, 255, 0.12);
+  --login-right-decor-circle-b: rgba(0, 48, 135, 0.10);
+  --login-brand-panel-bg: linear-gradient(160deg, var(--cenc-blue-900) 0%, var(--cenc-blue-700) 60%, var(--cenc-blue-500) 100%);
+  --login-brand-muted: rgba(255,255,255,0.7);
+  --login-brand-footer: rgba(255,255,255,0.35);
+  --login-card-shadow: 0 4px 32px rgba(0, 48, 135, 0.08);
+  --login-placeholder: var(--cenc-gray-400);
+  --login-toggle-bg: rgba(255,255,255,0.75);
+  --login-toggle-border: var(--cenc-gray-200);
+  --login-toggle-text: var(--cenc-gray-700);
+  --login-toggle-hover: rgba(255,255,255,0.95);
+
   /* Sidebar */
   --sidebar-width: clamp(64px, 16vw, 240px);
   --header-height: clamp(48px, 4vh, 80px);
@@ -72,6 +87,22 @@ html.dark {
   --cenc-warning-bg: #1c1400;
   --cenc-danger-bg:  #1f0707;
   --cenc-info-bg:    #0a1628;
+
+  /* Login tokens (dark premium) */
+  --login-shell-bg: radial-gradient(1200px 600px at 80% -10%, rgba(0,102,255,0.18), transparent 50%),
+                    linear-gradient(145deg, #0e1524 0%, #111b2d 45%, #0f1729 100%);
+  --login-right-decor-dot: rgba(128, 179, 255, 0.08);
+  --login-right-decor-circle-a: rgba(0, 102, 255, 0.18);
+  --login-right-decor-circle-b: rgba(51, 133, 255, 0.14);
+  --login-brand-panel-bg: linear-gradient(160deg, #07183d 0%, #0a2557 55%, #0d3880 100%);
+  --login-brand-muted: rgba(226, 235, 255, 0.78);
+  --login-brand-footer: rgba(214, 227, 255, 0.45);
+  --login-card-shadow: 0 16px 44px rgba(2, 7, 24, 0.52);
+  --login-placeholder: #9aa8c3;
+  --login-toggle-bg: rgba(21, 32, 52, 0.82);
+  --login-toggle-border: #2d3d5b;
+  --login-toggle-text: #d7e3ff;
+  --login-toggle-hover: rgba(30, 44, 72, 0.92);
 }
 
 *, *::before, *::after {
@@ -89,6 +120,18 @@ body {
   -moz-osx-font-smoothing: grayscale;
   background-color: var(--cenc-gray-50);
   color: var(--cenc-gray-900);
+}
+
+/* Premium but subtle theme transition */
+@media (prefers-reduced-motion: no-preference) {
+  body,
+  .input-cenc,
+  .modal-box,
+  .card-hover,
+  button,
+  a {
+    transition: background-color 220ms ease, color 220ms ease, border-color 220ms ease, box-shadow 220ms ease;
+  }
 }
 
 /* ─── Scrollbar ──────────────────────────────────────────────────────────── */
@@ -206,12 +249,8 @@ body {
 
 /* ─── Responsiveness Utilities & Global Fixes ───────────────────────────── */
 
-/* Standard breakpoints (mobile-first) */
---reserved: 0;
-@media (min-width: 640px) { /* sm */ }
-@media (min-width: 768px) { /* md */ }
-@media (min-width: 1024px) { /* lg */ }
-@media (min-width: 1280px) { /* xl */ }
+/* Standard breakpoints used in the project:
+  sm: 640px | md: 768px | lg: 1024px | xl: 1280px */
 
 /* Fluid typography base (mobile-first) */
 html {
@@ -255,6 +294,11 @@ img, svg, picture, video {
   font-size: 0.95rem;
 }
 
+.login-input::placeholder {
+  color: var(--login-placeholder);
+  opacity: 1;
+}
+
 /* Modal utilities (use classes to avoid changing markup) */
 .modal-overlay {
   position: fixed; inset: 0; z-index: 50;
@@ -286,6 +330,32 @@ img, svg, picture, video {
 
 /* Ensure buttons and small controls don't overflow */
 .btn-fixed { max-width: 100%; box-sizing: border-box; }
+
+/* Login theme toggle */
+.login-theme-toggle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  border: 1px solid var(--login-toggle-border);
+  background: var(--login-toggle-bg);
+  color: var(--login-toggle-text);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+  backdrop-filter: blur(10px);
+}
+.login-theme-toggle:hover {
+  background: var(--login-toggle-hover);
+  transform: translateY(-1px);
+}
+.login-theme-toggle:focus-visible {
+  outline: 2px solid var(--cenc-blue-500);
+  outline-offset: 2px;
+}
 
 /* Small-screen modal adjustments */
 @media (max-width: 420px) {
