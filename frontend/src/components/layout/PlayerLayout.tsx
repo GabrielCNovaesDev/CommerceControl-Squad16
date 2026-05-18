@@ -1,7 +1,7 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import useAuthStore from '../../store/authStore';
 import useThemeStore from '../../store/themeStore';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 
 // ─── Icons ───────────────────────────────────────────────────────────────────
 
@@ -55,6 +55,12 @@ const IconChevron = ({ open }: { open: boolean }) => (
     <polyline points="6 9 12 15 18 9"/>
   </svg>
 );
+const IconSidebarToggle = ({ collapsed }: { collapsed: boolean }) => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+    style={{ transform: collapsed ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s ease' }}>
+    <polyline points="15 18 9 12 15 6" />
+  </svg>
+);
 const IconStore = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
@@ -98,7 +104,16 @@ export default function PlayerLayout({ children }: PlayerLayoutProps) {
   const { user, logout } = useAuthStore();
   const navigate = useNavigate();
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    if (typeof window === 'undefined') return false;
+
+    return window.localStorage.getItem('cc-player-sidebar-collapsed') === '1';
+  });
   const { isDark, toggle } = useThemeStore();
+
+  useEffect(() => {
+    window.localStorage.setItem('cc-player-sidebar-collapsed', sidebarCollapsed ? '1' : '0');
+  }, [sidebarCollapsed]);
 
   function handleLogout() {
     logout();
@@ -114,24 +129,38 @@ export default function PlayerLayout({ children }: PlayerLayoutProps) {
 
       {/* ── Sidebar ── */}
       <aside
-        className="shrink-0 flex flex-col animate-fade-in-left"
+        className="shrink-0 flex flex-col overflow-hidden"
         style={{
-          width: 'var(--sidebar-width)',
+          width: sidebarCollapsed ? '80px' : 'var(--sidebar-width)',
           background: 'linear-gradient(180deg, #001a4d 0%, #002266 50%, #003087 100%)',
           boxShadow: '4px 0 24px rgba(0,24,77,0.18)',
+          transition: 'width 220ms ease, box-shadow 220ms ease',
         }}
       >
         {/* Logo area */}
-        <div className="flex items-center gap-3 px-5 py-5" style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+        <div
+          className={`flex items-center py-5 ${sidebarCollapsed ? 'justify-center px-3' : 'gap-3 px-5'}`}
+          style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}
+        >
           <CencosudLogo size={36} />
-          <div>
-            <p className="text-white font-bold text-sm tracking-wide leading-tight">CommerceControl</p>
-            <p className="text-xs font-medium" style={{ color: 'var(--cenc-blue-200)' }}>Simulador de Loja</p>
-          </div>
+          {!sidebarCollapsed && (
+            <div className="min-w-0">
+              <p className="text-white font-bold text-sm tracking-wide leading-tight">CommerceControl</p>
+              <p className="text-xs font-medium" style={{ color: 'var(--cenc-blue-200)' }}>Simulador de Loja</p>
+            </div>
+          )}
+          <button
+            type="button"
+            onClick={() => setSidebarCollapsed((value) => !value)}
+            className="ml-auto mr-1 flex h-8 w-8 items-center justify-center rounded-lg text-white/80 transition-colors hover:bg-white/10 hover:text-white"
+            aria-label={sidebarCollapsed ? 'Expandir sidebar' : 'Recolher sidebar'}
+          >
+            <IconSidebarToggle collapsed={sidebarCollapsed} />
+          </button>
         </div>
 
         {/* Squad info pill */}
-        {user?.squadId && (
+        {user?.squadId && !sidebarCollapsed && (
           <div className="mx-3 mt-3 flex items-center gap-2 rounded-xl px-3 py-2.5"
             style={{ background: 'rgba(245,166,35,0.15)', border: '1px solid rgba(245,166,35,0.25)' }}>
             <IconStore />
@@ -143,14 +172,18 @@ export default function PlayerLayout({ children }: PlayerLayoutProps) {
         )}
 
         {/* Nav */}
-        <nav className="flex-1 px-3 py-4 flex flex-col gap-0.5 stagger">
+        <nav className={`flex-1 py-4 flex flex-col gap-0.5 stagger ${sidebarCollapsed ? 'px-2' : 'px-3'}`}>
           {navLinks.map(({ to, label, icon: Icon, end }) => (
             <NavLink
               key={to}
               to={to}
               end={end}
+              aria-label={label}
+              title={label}
               className={({ isActive }) =>
-                `group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200 animate-fade-in ${
+                `group relative flex items-center rounded-xl py-2.5 text-sm font-medium transition-all duration-200 ${
+                  sidebarCollapsed ? 'justify-center px-2' : 'gap-3 px-3'
+                } ${
                   isActive
                     ? 'nav-active-bar text-white'
                     : 'text-blue-200 hover:text-white'
@@ -167,8 +200,8 @@ export default function PlayerLayout({ children }: PlayerLayoutProps) {
                     style={{ color: isActive ? 'var(--cenc-gold-400)' : 'inherit' }}>
                     <Icon />
                   </span>
-                  <span>{label}</span>
-                  {isActive && (
+                  {!sidebarCollapsed && <span>{label}</span>}
+                  {!sidebarCollapsed && isActive && (
                     <span className="ml-auto w-1.5 h-1.5 rounded-full" style={{ background: 'var(--cenc-gold-400)' }} />
                   )}
                 </>
@@ -178,9 +211,9 @@ export default function PlayerLayout({ children }: PlayerLayoutProps) {
         </nav>
 
         {/* Bottom brand strip */}
-        <div className="px-5 py-4" style={{ borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+        <div className={`py-4 ${sidebarCollapsed ? 'px-2 text-center' : 'px-5'}`} style={{ borderTop: '1px solid rgba(255,255,255,0.08)' }}>
           <p className="text-xs font-semibold tracking-widest uppercase" style={{ color: 'rgba(255,255,255,0.3)' }}>
-            Cencosud © 2026
+            {sidebarCollapsed ? 'CC' : 'Cencosud © 2026'}
           </p>
         </div>
       </aside>
