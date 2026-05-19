@@ -5,9 +5,44 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>CommerceControl — Simulador Estratégico de Loja</title>
+    <title>frontend</title>
+    <script>
+      (function () {
+        var THEME_KEY = 'simulador-theme';
+        var preference = 'system';
+
+        try {
+          var raw = localStorage.getItem(THEME_KEY);
+          if (raw) {
+            var parsed = JSON.parse(raw);
+            var state = parsed && parsed.state ? parsed.state : {};
+            if (state.preference === 'light' || state.preference === 'dark' || state.preference === 'system') {
+              preference = state.preference;
+            } else if (typeof state.isDark === 'boolean') {
+              preference = state.isDark ? 'dark' : 'light';
+            }
+          }
+        } catch (e) {
+          // Ignore malformed localStorage payload and fallback to system.
+        }
+
+        var systemDark = false;
+        try {
+          systemDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        } catch (e) {
+          systemDark = false;
+        }
+
+        var isDark = preference === 'dark' || (preference === 'system' && systemDark);
+        var root = document.documentElement;
+        root.classList.toggle('dark', isDark);
+        root.setAttribute('data-theme', isDark ? 'dark' : 'light');
+        root.style.colorScheme = isDark ? 'dark' : 'light';
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
+    <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
