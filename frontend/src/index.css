@@ -422,3 +422,47 @@ img, svg, picture, video {
 .page-enter {
   animation: fadeIn 0.4s ease both;
 }
+
+/* ─── Dark shell overrides for admin/player pages ────────────────────────── */
+
+html.dark .app-shell {
+  color: var(--cenc-gray-800);
+}
+
+html.dark .app-shell :is(.bg-white, .bg-gray-50, .bg-gray-100) {
+  background-color: var(--cenc-surface) !important;
+}
+
+html.dark .app-shell :is(.border-gray-100, .border-gray-200, .border-gray-300) {
+  border-color: var(--cenc-gray-200) !important;
+}
+
+html.dark .app-shell :is(.text-gray-900, .text-gray-800, .text-gray-700, .text-gray-600, .text-gray-500, .text-gray-400) {
+  color: inherit;
+}
+
+html.dark .app-shell :is(.hover\:bg-gray-50:hover, .hover\:bg-gray-100:hover) {
+  background-color: var(--cenc-gray-100) !important;
+}
+
+html.dark .app-shell [style*="background: white"],
+html.dark .app-shell [style*="background-color: white"],
+html.dark .app-shell [style*="background: #fff"],
+html.dark .app-shell [style*="background-color: #fff"],
+html.dark .app-shell [style*="background: rgb(255, 255, 255)"],
+html.dark .app-shell [style*="background-color: rgb(255, 255, 255)"] {
+  background: var(--cenc-surface) !important;
+}
+
+html.dark .app-shell [style*="border: 1px solid #e5e7eb"],
+html.dark .app-shell [style*="border: 1.5px solid #e5e7eb"],
+html.dark .app-shell [style*="border: 2px solid #e5e7eb"] {
+  border-color: var(--cenc-gray-200) !important;
+}
+
+html.dark .app-shell [style*="box-shadow: 0 1px 4px rgba(0,0,0,0.04)"],
+html.dark .app-shell [style*="box-shadow: 0 2px 8px rgba(0,0,0,0.05)"],
+html.dark .app-shell [style*="box-shadow: 0 4px 24px rgba(0,48,135,0.08)"],
+html.dark .app-shell [style*="box-shadow: 0 8px 48px rgba(0,48,135,0.1)"] {
+  box-shadow: 0 10px 28px rgba(2, 7, 24, 0.28) !important;
+}

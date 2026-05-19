@@ -15,7 +15,7 @@ export default function Skeleton({ variant = 'line', rows = 4, className = '', w
           borderRadius: '14px',
           border: '1px solid var(--cenc-gray-200)',
           overflow: 'hidden',
-          background: 'white',
+            background: 'var(--cenc-surface)',
           boxShadow: '0 1px 6px rgba(0,0,0,0.05)',
         }}
       >
@@ -45,7 +45,7 @@ export default function Skeleton({ variant = 'line', rows = 4, className = '', w
         style={{
           borderRadius: '14px',
           border: '1px solid var(--cenc-gray-200)',
-          background: 'white',
+          background: 'var(--cenc-surface)',
           boxShadow: '0 1px 6px rgba(0,0,0,0.05)',
           padding: '20px',
           display: 'flex',
@@ -67,7 +67,7 @@ export default function Skeleton({ variant = 'line', rows = 4, className = '', w
         style={{
           borderRadius: '14px',
           border: '1px solid var(--cenc-gray-200)',
-          background: 'white',
+          background: 'var(--cenc-surface)',
           padding: '20px',
           display: 'flex',
           flexDirection: 'column',

@@ -21,8 +21,8 @@ export default function ErrorMessage({ message, onRetry }: ErrorMessageProps) {
         width: 56,
         height: 56,
         borderRadius: '50%',
-        background: '#fee2e2',
-        border: '1px solid #fecaca',
+        background: 'var(--cenc-danger-bg)',
+        border: '1px solid var(--cenc-danger)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -54,7 +54,7 @@ export default function ErrorMessage({ message, onRetry }: ErrorMessageProps) {
             padding: '8px 20px',
             borderRadius: '10px',
             border: '1.5px solid var(--cenc-gray-200)',
-            background: 'white',
+            background: 'var(--cenc-surface)',
             fontSize: '13px',
             fontWeight: 600,
             color: 'var(--cenc-gray-700)',
@@ -68,7 +68,7 @@ export default function ErrorMessage({ message, onRetry }: ErrorMessageProps) {
             (e.currentTarget as HTMLButtonElement).style.color = 'var(--cenc-blue-700)';
           }}
           onMouseLeave={(e) => {
-            (e.currentTarget as HTMLButtonElement).style.background = 'white';
+            (e.currentTarget as HTMLButtonElement).style.background = 'var(--cenc-surface)';
             (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--cenc-gray-200)';
             (e.currentTarget as HTMLButtonElement).style.color = 'var(--cenc-gray-700)';
           }}

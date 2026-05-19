@@ -82,7 +82,7 @@ const IconSidebarToggle = ({ collapsed }: { collapsed: boolean }) => (
 
 const CencosudLogo = ({ size = 32 }: { size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <rect width="100" height="100" rx="16" fill="white"/>
+    <rect width="100" height="100" rx="16" fill="var(--cenc-surface)"/>
     <path d="M50 15C30.67 15 15 30.67 15 50C15 69.33 30.67 85 50 85C69.33 85 85 69.33 85 50C85 30.67 69.33 15 50 15Z" fill="#003087"/>
     <path d="M50 25C36.19 25 25 36.19 25 50C25 63.81 36.19 75 50 75C63.81 75 75 63.81 75 50" stroke="white" strokeWidth="6" strokeLinecap="round"/>
     <circle cx="75" cy="50" r="5" fill="#f5a623"/>
@@ -131,7 +131,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     : 'GM';
 
   return (
-    <div className="flex min-h-screen" style={{ background: 'var(--cenc-gray-50)' }}>
+    <div className="app-shell app-shell-admin flex min-h-screen" style={{ background: 'var(--cenc-gray-50)' }}>
 
       {/* ── Sidebar ── */}
       <aside
