@@ -116,6 +116,7 @@ export default function PlayerLayout({ children }: PlayerLayoutProps) {
   }, [sidebarCollapsed]);
 
   function handleLogout() {
+    setUserMenuOpen(false);
     logout();
     navigate('/login', { replace: true });
   }
@@ -225,6 +226,8 @@ export default function PlayerLayout({ children }: PlayerLayoutProps) {
         <header
           className="shrink-0 flex items-center justify-between px-6 animate-slide-down"
           style={{
+            position: 'relative',
+            zIndex: 50,
             height: 'var(--header-height)',
             background: 'var(--cenc-surface)',
             borderBottom: '1px solid var(--cenc-gray-200)',
