@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import PrivateRoute from './components/layout/PrivateRoute';
 import Toast from './components/ui/Toast';
 import useThemeStore from './store/themeStore';
+import NotFoundPage from './pages/NotFoundPage';
 
 import LoginPage from './pages/LoginPage';
 import UnauthorizedPage from './pages/UnauthorizedPage';
@@ -154,8 +155,8 @@ export default function App() {
           }
         />
 
-        {/* Qualquer rota inexistente → /login */}
-        <Route path="*" element={<Navigate to="/login" replace />} />
+        {/* Qualquer rota inexistente → página 404 */}
+        <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </BrowserRouter>
   );
