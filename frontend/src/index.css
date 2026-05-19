@@ -46,9 +46,24 @@
   /* Surface (cards, headers, inputs) */
   --cenc-surface: #ffffff;
 
+  /* Login tokens */
+  --login-shell-bg: linear-gradient(135deg, #f0f4ff 0%, #e8f1ff 50%, #f5f8ff 100%);
+  --login-right-decor-dot: rgba(0, 48, 135, 0.06);
+  --login-right-decor-circle-a: rgba(0, 102, 255, 0.12);
+  --login-right-decor-circle-b: rgba(0, 48, 135, 0.10);
+  --login-brand-panel-bg: linear-gradient(160deg, var(--cenc-blue-900) 0%, var(--cenc-blue-700) 60%, var(--cenc-blue-500) 100%);
+  --login-brand-muted: rgba(255,255,255,0.7);
+  --login-brand-footer: rgba(255,255,255,0.35);
+  --login-card-shadow: 0 4px 32px rgba(0, 48, 135, 0.08);
+  --login-placeholder: var(--cenc-gray-400);
+  --login-toggle-bg: rgba(255,255,255,0.75);
+  --login-toggle-border: var(--cenc-gray-200);
+  --login-toggle-text: var(--cenc-gray-700);
+  --login-toggle-hover: rgba(255,255,255,0.95);
+
   /* Sidebar */
-  --sidebar-width: 240px;
-  --header-height: 60px;
+  --sidebar-width: clamp(64px, 16vw, 240px);
+  --header-height: clamp(48px, 4vh, 80px);
 }
 
 /* ─── Dark Mode ──────────────────────────────────────────────────────────── */
@@ -72,6 +87,22 @@ html.dark {
   --cenc-warning-bg: #1c1400;
   --cenc-danger-bg:  #1f0707;
   --cenc-info-bg:    #0a1628;
+
+  /* Login tokens (dark premium) */
+  --login-shell-bg: radial-gradient(1200px 600px at 80% -10%, rgba(0,102,255,0.18), transparent 50%),
+                    linear-gradient(145deg, #0e1524 0%, #111b2d 45%, #0f1729 100%);
+  --login-right-decor-dot: rgba(128, 179, 255, 0.08);
+  --login-right-decor-circle-a: rgba(0, 102, 255, 0.18);
+  --login-right-decor-circle-b: rgba(51, 133, 255, 0.14);
+  --login-brand-panel-bg: linear-gradient(160deg, #07183d 0%, #0a2557 55%, #0d3880 100%);
+  --login-brand-muted: rgba(226, 235, 255, 0.78);
+  --login-brand-footer: rgba(214, 227, 255, 0.45);
+  --login-card-shadow: 0 16px 44px rgba(2, 7, 24, 0.52);
+  --login-placeholder: #9aa8c3;
+  --login-toggle-bg: rgba(21, 32, 52, 0.82);
+  --login-toggle-border: #2d3d5b;
+  --login-toggle-text: #d7e3ff;
+  --login-toggle-hover: rgba(30, 44, 72, 0.92);
 }
 
 *, *::before, *::after {
@@ -89,6 +120,18 @@ body {
   -moz-osx-font-smoothing: grayscale;
   background-color: var(--cenc-gray-50);
   color: var(--cenc-gray-900);
+}
+
+/* Premium but subtle theme transition */
+@media (prefers-reduced-motion: no-preference) {
+  body,
+  .input-cenc,
+  .modal-box,
+  .card-hover,
+  button,
+  a {
+    transition: background-color 220ms ease, color 220ms ease, border-color 220ms ease, box-shadow 220ms ease;
+  }
 }
 
 /* ─── Scrollbar ──────────────────────────────────────────────────────────── */
@@ -204,6 +247,122 @@ body {
   box-shadow: 0 8px 24px rgba(0, 48, 135, 0.12);
 }
 
+/* ─── Responsiveness Utilities & Global Fixes ───────────────────────────── */
+
+/* Standard breakpoints used in the project:
+  sm: 640px | md: 768px | lg: 1024px | xl: 1280px */
+
+/* Fluid typography base (mobile-first) */
+html {
+  font-size: clamp(13px, 1.6vw, 16px);
+}
+
+/* Containers */
+.container {
+  width: 100%;
+  max-width: 1200px;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 16px;
+  padding-right: 16px;
+  box-sizing: border-box;
+}
+
+/* Prevent unexpected horizontal overflow (apply on root-level wrappers) */
+.prevent-overflow {
+  max-width: 100vw;
+  overflow-x: hidden;
+}
+
+/* Ensure flex children can shrink to prevent overflow */
+.min-w-0 { min-width: 0; }
+/* Make direct children of flex containers shrink by default to avoid overflow */
+.flex > * { min-width: 0; }
+
+/* Media-friendly images and svgs */
+img, svg, picture, video {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* Inputs and form controls defaults */
+.input-cenc {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  font-size: 0.95rem;
+}
+
+.login-input::placeholder {
+  color: var(--login-placeholder);
+  opacity: 1;
+}
+
+/* Modal utilities (use classes to avoid changing markup) */
+.modal-overlay {
+  position: fixed; inset: 0; z-index: 50;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(0,0,0,0.45); backdrop-filter: blur(4px);
+  padding: 12px; box-sizing: border-box;
+}
+.modal-box {
+  background: var(--cenc-surface); border-radius: 20px;
+  box-shadow: 0 24px 64px rgba(0,0,0,0.18);
+  border: 1px solid var(--cenc-gray-200);
+  width: 100%; max-width: 520px; margin: 0 auto; padding: 28px; box-sizing: border-box;
+}
+
+/* Responsive tables: wrapper adds horizontal scroll on small devices */
+.table-responsive { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.table-responsive table { width: 100%; border-collapse: collapse; min-width: 560px; }
+.table-responsive th, .table-responsive td { word-break: break-word; white-space: normal; }
+
+/* Break long words and emails */
+.break-word { overflow-wrap: anywhere; word-break: break-word; }
+
+/* Utility to hide unnecessary scrollbars if needed */
+.hide-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
+.hide-scrollbar::-webkit-scrollbar { display: none; }
+
+/* Make badges and inline elements wrap when necessary */
+.inline-wrap { display: inline-flex; flex-wrap: wrap; gap: 6px; }
+
+/* Ensure buttons and small controls don't overflow */
+.btn-fixed { max-width: 100%; box-sizing: border-box; }
+
+/* Login theme toggle */
+.login-theme-toggle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  border: 1px solid var(--login-toggle-border);
+  background: var(--login-toggle-bg);
+  color: var(--login-toggle-text);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+  backdrop-filter: blur(10px);
+}
+.login-theme-toggle:hover {
+  background: var(--login-toggle-hover);
+  transform: translateY(-1px);
+}
+.login-theme-toggle:focus-visible {
+  outline: 2px solid var(--cenc-blue-500);
+  outline-offset: 2px;
+}
+
+/* Small-screen modal adjustments */
+@media (max-width: 420px) {
+  .modal-box { padding: 16px; border-radius: 14px; }
+}
+
+
 /* Focus ring */
 .focus-cenc:focus-visible {
   outline: 2px solid var(--cenc-blue-500);
@@ -262,4 +421,48 @@ body {
 /* Page transition wrapper */
 .page-enter {
   animation: fadeIn 0.4s ease both;
+}
+
+/* ─── Dark shell overrides for admin/player pages ────────────────────────── */
+
+html.dark .app-shell {
+  color: var(--cenc-gray-800);
+}
+
+html.dark .app-shell :is(.bg-white, .bg-gray-50, .bg-gray-100) {
+  background-color: var(--cenc-surface) !important;
+}
+
+html.dark .app-shell :is(.border-gray-100, .border-gray-200, .border-gray-300) {
+  border-color: var(--cenc-gray-200) !important;
+}
+
+html.dark .app-shell :is(.text-gray-900, .text-gray-800, .text-gray-700, .text-gray-600, .text-gray-500, .text-gray-400) {
+  color: inherit;
+}
+
+html.dark .app-shell :is(.hover\:bg-gray-50:hover, .hover\:bg-gray-100:hover) {
+  background-color: var(--cenc-gray-100) !important;
+}
+
+html.dark .app-shell [style*="background: white"],
+html.dark .app-shell [style*="background-color: white"],
+html.dark .app-shell [style*="background: #fff"],
+html.dark .app-shell [style*="background-color: #fff"],
+html.dark .app-shell [style*="background: rgb(255, 255, 255)"],
+html.dark .app-shell [style*="background-color: rgb(255, 255, 255)"] {
+  background: var(--cenc-surface) !important;
+}
+
+html.dark .app-shell [style*="border: 1px solid #e5e7eb"],
+html.dark .app-shell [style*="border: 1.5px solid #e5e7eb"],
+html.dark .app-shell [style*="border: 2px solid #e5e7eb"] {
+  border-color: var(--cenc-gray-200) !important;
+}
+
+html.dark .app-shell [style*="box-shadow: 0 1px 4px rgba(0,0,0,0.04)"],
+html.dark .app-shell [style*="box-shadow: 0 2px 8px rgba(0,0,0,0.05)"],
+html.dark .app-shell [style*="box-shadow: 0 4px 24px rgba(0,48,135,0.08)"],
+html.dark .app-shell [style*="box-shadow: 0 8px 48px rgba(0,48,135,0.1)"] {
+  box-shadow: 0 10px 28px rgba(2, 7, 24, 0.28) !important;
 }

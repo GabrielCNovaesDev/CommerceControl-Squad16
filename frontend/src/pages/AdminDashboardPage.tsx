@@ -71,18 +71,8 @@ function StatCard({ label, icon, children, accent }: {
 
 function ModalOverlay({ children }: { children: React.ReactNode }) {
   return (
-    <div style={{
-      position: 'fixed', inset: 0, zIndex: 50,
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(4px)',
-    }}>
-      <div className="animate-scale-in" style={{
-        background: 'white', borderRadius: '20px',
-        boxShadow: '0 24px 64px rgba(0,0,0,0.18)',
-        border: '1px solid var(--cenc-gray-200)',
-        width: '100%', maxWidth: '460px', margin: '0 16px',
-        padding: '28px',
-      }}>
+    <div className="modal-overlay">
+      <div className="modal-box animate-scale-in" style={{ maxWidth: '460px' }}>
         {children}
       </div>
     </div>
