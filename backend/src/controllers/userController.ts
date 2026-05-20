@@ -144,11 +144,11 @@ async function bulkCreateUsers(req: Request, res: Response): Promise<void> {
   });
 
   const existingIndices = existingEmails
-    .map((u) => {
+    .map((u: { email: string }) => {
       const match = u.email.match(/^jogador(\d+)@/);
       return match ? parseInt(match[1], 10) : 0;
     })
-    .filter((n) => n > 0);
+    .filter((n: number) => n > 0);
 
   const startIndex = existingIndices.length > 0 ? Math.max(...existingIndices) + 1 : 1;
 
