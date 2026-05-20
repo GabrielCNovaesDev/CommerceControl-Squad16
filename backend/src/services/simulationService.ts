@@ -1,7 +1,7 @@
 import prisma, { toNum } from '../utils/prisma';
 import { calcularDRE, calcularPreco } from './financeService';
 import roundConfigRepository from '../repositories/roundConfigRepository';
-import { generateAiReport } from './aiReportService';
+import { generateAiReport, generateGmReport, MarketAggregates } from './aiReportService';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -428,6 +428,25 @@ interface EnrichedConfigForAi {
   roundConfigItems: Array<{ productId: string; margin: { toNumber(): number } | number; salesVolume: number; product: { name: string } }>;
 }
 
+function computeMedianMargins(configs: EnrichedConfigForAi[]): Array<{ categoryName: string; medianMargin: number }> {
+  const marginsByCategory: Record<string, number[]> = {};
+  for (const config of configs) {
+    for (const item of config.roundConfigItems) {
+      const name = item.product.name;
+      if (!marginsByCategory[name]) marginsByCategory[name] = [];
+      marginsByCategory[name].push(toNum(item.margin));
+    }
+  }
+  return Object.entries(marginsByCategory).map(([categoryName, margins]) => {
+    const sorted = [...margins].sort((a, b) => a - b);
+    const mid = Math.floor(sorted.length / 2);
+    const medianMargin = sorted.length % 2 === 0
+      ? (sorted[mid - 1] + sorted[mid]) / 2
+      : sorted[mid];
+    return { categoryName, medianMargin };
+  });
+}
+
 async function generateAiReportsForRound(
   roundId: string,
   configs: EnrichedConfigForAi[]
@@ -470,6 +489,15 @@ async function generateAiReportsForRound(
       demandShare: toNum(r.demandShare),
     }));
 
+  const marketAggregates: MarketAggregates = {
+    avgEbitdaMargin: allResults.reduce((s, r) => s + toNum(r.ebitdaMargin), 0) / (allResults.length || 1),
+    avgDemandShare: allResults.reduce((s, r) => s + toNum(r.demandShare), 0) / (allResults.length || 1),
+    avgGrossRevenue: allResults.reduce((s, r) => s + toNum(r.grossRevenue), 0) / (allResults.length || 1),
+    medianMarginByCategory: computeMedianMargins(configs),
+    totalSquads: allResults.length,
+  };
+
+  // Generate player reports in parallel
   await Promise.allSettled(
     allResults.map(async (result) => {
       try {
@@ -522,6 +550,7 @@ async function generateAiReportsForRound(
             demandShare: toNum(h.demandShare),
           })),
           ranking,
+          marketAggregates,
         });
 
         if (report) {
@@ -543,7 +572,62 @@ async function generateAiReportsForRound(
       }
     })
   );
-  console.info(JSON.stringify({ level: 'info', service: 'aiReportService', message: 'Geração de relatórios IA concluída', roundId, timestamp: new Date().toISOString() }));
+  console.info(JSON.stringify({ level: 'info', service: 'aiReportService', message: 'Geração de relatórios IA (player) concluída', roundId, timestamp: new Date().toISOString() }));
+
+  // Generate consolidated GM report
+  try {
+    const gmReport = await generateGmReport({
+      roundNumber: round.number,
+      allSquadResults: allResults.map((result) => {
+        const config = configs.find((c) => c.storeId === result.storeId);
+        return {
+          squadName: result.store.squad.name,
+          storeName: result.store.name,
+          dre: {
+            grossRevenue: toNum(result.grossRevenue),
+            taxes: toNum(result.taxes),
+            netRevenue: toNum(result.netRevenue),
+            costs: toNum(result.costs),
+            grossMargin: toNum(result.grossMargin),
+            totalBreakage: toNum(result.totalBreakage),
+            totalAging: toNum(result.totalAging),
+            netMarginMass: toNum(result.netMarginMass),
+            otherExpenses: toNum(result.otherExpenses),
+            ebitda: toNum(result.ebitda),
+            ebitdaMargin: toNum(result.ebitdaMargin),
+            demandShare: toNum(result.demandShare),
+          },
+          decisions: config
+            ? config.roundConfigItems.map((item) => ({
+                categoryName: item.product.name,
+                margin: toNum(item.margin),
+                salesVolume: item.salesVolume,
+              }))
+            : [],
+        };
+      }),
+      ranking,
+      marketAggregates,
+    });
+
+    if (gmReport) {
+      await prisma.round.update({
+        where: { id: roundId },
+        data: { aiReportGm: gmReport },
+      });
+    }
+    console.info(JSON.stringify({ level: 'info', service: 'aiReportService', message: 'Relatório GM gerado com sucesso', roundId, timestamp: new Date().toISOString() }));
+  } catch (err) {
+    const error = err as Error;
+    console.error(JSON.stringify({
+      level: 'error',
+      service: 'simulationService',
+      message: 'Falha ao gerar relatório GM',
+      roundId,
+      error: error.message,
+      timestamp: new Date().toISOString(),
+    }));
+  }
 }
 
 // ─── Submit store config ───────────────────────────────────────────────────────

@@ -280,7 +280,19 @@ async function getResults(req: Request, res: Response): Promise<void> {
         },
       },
     });
-    res.status(200).json(results);
+
+    const roundData = await prisma.round.findUnique({
+      where: { id: roundId },
+      select: { aiReportGm: true },
+    });
+
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const sanitizedResults = results.map(({ aiReport: _aiReport, ...rest }: typeof results[number]) => rest);
+
+    res.status(200).json({
+      results: sanitizedResults,
+      aiReportGm: roundData?.aiReportGm ?? null,
+    });
     return;
   }
 

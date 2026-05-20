@@ -297,6 +297,8 @@ function AiReportCard({ aiReport }: { aiReport?: string | null }) {
     );
   }
 
+  let currentSection = '';
+
   return (
     <div className="rounded-xl border border-blue-200 bg-white shadow-sm px-5 py-4">
       <div className="flex items-center gap-2 mb-3">
@@ -306,10 +308,26 @@ function AiReportCard({ aiReport }: { aiReport?: string | null }) {
       <div className="prose prose-sm max-w-none text-gray-700">
         {aiReport.split('\n').map((line, i) => {
           if (line.startsWith('### ')) {
-            return <h4 key={i} className="text-sm font-bold text-gray-800 mt-4 mb-2">{line.replace('### ', '')}</h4>;
+            currentSection = line.replace('### ', '');
+            const isAlert = currentSection === 'Alertas Operacionais';
+            const isBenchmark = currentSection === 'Benchmarking Comparativo';
+            const isMarket = currentSection === 'Resumo do Mercado';
+            const colorClass = isAlert
+              ? 'text-orange-700'
+              : isBenchmark
+              ? 'text-blue-700'
+              : isMarket
+              ? 'text-indigo-700'
+              : 'text-gray-800';
+            return <h4 key={i} className={`text-sm font-bold mt-4 mb-2 ${colorClass}`}>{currentSection}</h4>;
           }
           if (line.startsWith('- ')) {
-            return <li key={i} className="text-sm ml-4">{line.replace('- ', '')}</li>;
+            const isAlertSection = currentSection === 'Alertas Operacionais';
+            return (
+              <li key={i} className={`text-sm ml-4 ${isAlertSection ? 'text-orange-700' : ''}`}>
+                {line.replace('- ', '')}
+              </li>
+            );
           }
           if (line.trim() === '') return null;
           return <p key={i} className="text-sm mb-2">{line}</p>;

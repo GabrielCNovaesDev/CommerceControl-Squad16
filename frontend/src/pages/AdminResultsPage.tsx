@@ -12,7 +12,7 @@ import Skeleton from '../components/ui/Skeleton';
 import ErrorMessage from '../components/ui/ErrorMessage';
 import { useToast } from '../hooks/useToast';
 import { formatCurrency } from '../utils/formatters';
-import type { Round, FinancialResult } from '../types';
+import type { Round, FinancialResult, AdminResultsResponse } from '../types';
 
 // ─── Cencosud chart palette ───────────────────────────────────────────────────
 
@@ -151,43 +151,30 @@ function EbitdaLineChart({ historyData, squadNames }: { historyData: LineDataPoi
   );
 }
 
-function AiReportsSection({ results }: { results: FinancialResult[] }) {
-  const withReports = results.filter((r) => r.aiReport);
-  const withoutReports = results.filter((r) => !r.aiReport);
-
-  if (results.length === 0) return null;
+function GmReportSection({ report }: { report: string | null }) {
+  if (!report) {
+    return (
+      <ChartCard title="✦ Relatório do Game Master (IA)">
+        <div style={{ textAlign: 'center', padding: '24px 0' }}>
+          <p style={{ margin: 0, fontSize: '13px', color: 'var(--cenc-gray-400)' }}>
+            Relatório consolidado não disponível para esta rodada.{' '}
+            <span style={{ color: '#ea580c', fontWeight: 600 }}>Esta funcionalidade está em fase de desenvolvimento.</span>
+          </p>
+        </div>
+      </ChartCard>
+    );
+  }
 
   return (
-    <ChartCard title="✦ Análises da IA por Squad">
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-        {withReports.length === 0 && (
-          <div style={{ textAlign: 'center', padding: '24px 0' }}>
-            <p style={{ margin: 0, fontSize: '13px', color: 'var(--cenc-gray-400)' }}>
-              Análises não disponíveis para esta rodada.{' '}
-              <span style={{ color: '#ea580c', fontWeight: 600 }}>Esta funcionalidade está em fase de desenvolvimento.</span>
-            </p>
-          </div>
-        )}
-        {withReports.map((r) => (
-          <div key={r.id} style={{ borderRadius: 12, border: '1px solid var(--cenc-blue-200)', background: '#f8faff', padding: '16px 20px' }}>
-            <p style={{ margin: '0 0 10px', fontSize: '13px', fontWeight: 700, color: 'var(--cenc-blue-700)' }}>
-              {r.store?.squad?.name ?? r.store?.name ?? '—'}
-            </p>
-            <div style={{ fontSize: '13px', color: 'var(--cenc-gray-700)', lineHeight: 1.6 }}>
-              {r.aiReport!.split('\n').map((line, i) => {
-                if (line.startsWith('### ')) return <p key={i} style={{ margin: '12px 0 4px', fontWeight: 700, fontSize: '13px', color: 'var(--cenc-gray-800)' }}>{line.replace('### ', '')}</p>;
-                if (line.startsWith('- ')) return <li key={i} style={{ marginLeft: 16, fontSize: '13px' }}>{line.replace('- ', '')}</li>;
-                if (line.trim() === '') return null;
-                return <p key={i} style={{ margin: '0 0 6px', fontSize: '13px' }}>{line}</p>;
-              })}
-            </div>
-          </div>
-        ))}
-        {withoutReports.length > 0 && withReports.length > 0 && (
-          <p style={{ margin: 0, fontSize: '12px', color: 'var(--cenc-gray-400)' }}>
-            {withoutReports.length} squad(s) sem análise disponível: {withoutReports.map((r) => r.store?.squad?.name ?? '—').join(', ')}
-          </p>
-        )}
+    <ChartCard title="✦ Relatório do Game Master (IA)">
+      <div style={{ fontSize: '13px', color: 'var(--cenc-gray-700)', lineHeight: 1.7 }}>
+        {report.split('\n').map((line, i) => {
+          if (line.startsWith('### ')) return <p key={i} style={{ margin: '14px 0 6px', fontWeight: 700, fontSize: '14px', color: 'var(--cenc-gray-800)' }}>{line.replace('### ', '')}</p>;
+          if (line.startsWith('- ')) return <li key={i} style={{ marginLeft: 16, fontSize: '13px', marginBottom: 4 }}>{line.replace('- ', '')}</li>;
+          if (line.startsWith('**') && line.endsWith('**')) return <p key={i} style={{ margin: '10px 0 4px', fontWeight: 700, fontSize: '13px', color: 'var(--cenc-blue-700)' }}>{line.replace(/\*\*/g, '')}</p>;
+          if (line.trim() === '') return null;
+          return <p key={i} style={{ margin: '0 0 6px', fontSize: '13px' }}>{line}</p>;
+        })}
       </div>
     </ChartCard>
   );
@@ -201,6 +188,7 @@ export default function AdminResultsPage() {
   const [allRounds, setAllRounds] = useState<Round[]>([]);
   const [selectedRoundId, setSelectedRoundId] = useState<string | null>(searchParams.get('roundId') ?? null);
   const [results, setResults] = useState<FinancialResult[]>([]);
+  const [gmReport, setGmReport] = useState<string | null>(null);
   const [historyData, setHistoryData] = useState<LineDataPoint[]>([]);
   const [loadingRounds, setLoadingRounds] = useState(true);
   const [loadError, setLoadError] = useState('');
@@ -226,9 +214,18 @@ export default function AdminResultsPage() {
     if (!selectedRoundId) return;
     const round = allRounds.find((r) => r.id === selectedRoundId);
     if (!round || round.status !== 'CLOSED') { setResults([]); return; }
-    setLoadingResults(true); setResults([]);
+    setLoadingResults(true); setResults([]); setGmReport(null);
     roundService.getResults(selectedRoundId)
-      .then((data: unknown) => setResults(Array.isArray(data) ? data as FinancialResult[] : []))
+      .then((data: unknown) => {
+        if (data && typeof data === 'object' && 'results' in data) {
+          const typed = data as AdminResultsResponse;
+          setResults(Array.isArray(typed.results) ? typed.results : []);
+          setGmReport(typed.aiReportGm);
+        } else {
+          setResults(Array.isArray(data) ? data as FinancialResult[] : []);
+          setGmReport(null);
+        }
+      })
       .catch((err: unknown) => {
         const axiosErr = err as { response?: { data?: { error?: { message?: string } } } };
         const msg = axiosErr.response?.data?.error?.message ?? 'Não foi possível carregar os resultados.';
@@ -333,7 +330,7 @@ export default function AdminResultsPage() {
               ) : historyData.length > 0 ? <EbitdaLineChart historyData={historyData} squadNames={squadNames} /> : null
             )}
 
-            {sorted.length > 0 && <AiReportsSection results={sorted} />}
+            {sorted.length > 0 && <GmReportSection report={gmReport} />}
           </>
         )}
       </div>
