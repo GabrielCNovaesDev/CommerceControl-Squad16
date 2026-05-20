@@ -91,6 +91,7 @@ model Round {
   endsAt        DateTime
   status        RoundStatus @default(OPEN)
   demandFactor  Decimal     @default(0.5) @db.Decimal(5, 4)
+  aiReportGm    String?
   createdAt     DateTime    @default(now())
 
   roundConfigs     RoundConfig[]

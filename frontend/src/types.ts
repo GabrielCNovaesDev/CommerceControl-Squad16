@@ -63,8 +63,14 @@ export interface Round {
   endsAt: string;
   status: RoundStatus;
   demandFactor: number;
+  aiReportGm?: string | null;
   submittedConfigsCount?: number;
   submittedStoreIds?: string[];
+}
+
+export interface AdminResultsResponse {
+  results: FinancialResult[];
+  aiReportGm: string | null;
 }
 
 export interface RoundConfigItem {
