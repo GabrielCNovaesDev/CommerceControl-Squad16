@@ -51,7 +51,7 @@ export default function Button({
       boxShadow: isDisabled ? 'none' : '0 2px 12px rgba(0,85,204,0.3)',
     },
     secondary: {
-      background: isDisabled ? 'var(--cenc-gray-100)' : 'white',
+      background: isDisabled ? 'var(--cenc-gray-100)' : 'var(--cenc-surface)',
       color: isDisabled ? 'var(--cenc-gray-400)' : 'var(--cenc-gray-700)',
       border: '1.5px solid var(--cenc-gray-200)',
       boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
@@ -99,7 +99,7 @@ export default function Button({
     el.style.transform = '';
     if (variant === 'primary') el.style.boxShadow = '0 2px 12px rgba(0,85,204,0.3)';
     else if (variant === 'danger') el.style.boxShadow = '0 2px 12px rgba(220,38,38,0.3)';
-    else if (variant === 'secondary') { el.style.background = 'white'; el.style.borderColor = 'var(--cenc-gray-200)'; }
+    else if (variant === 'secondary') { el.style.background = 'var(--cenc-surface)'; el.style.borderColor = 'var(--cenc-gray-200)'; }
     else if (variant === 'ghost') el.style.background = 'transparent';
     else if (variant === 'outline') el.style.background = 'transparent';
   }

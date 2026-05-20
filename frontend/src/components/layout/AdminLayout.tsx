@@ -1,7 +1,7 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import useAuthStore from '../../store/authStore';
 import useThemeStore from '../../store/themeStore';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 
 // ─── Icons ───────────────────────────────────────────────────────────────────
 
@@ -71,12 +71,18 @@ const IconChevron = ({ open }: { open: boolean }) => (
     <polyline points="6 9 12 15 18 9"/>
   </svg>
 );
+const IconSidebarToggle = ({ collapsed }: { collapsed: boolean }) => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+    style={{ transform: collapsed ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s ease' }}>
+    <polyline points="15 18 9 12 15 6" />
+  </svg>
+);
 
 // ─── Cencosud Logo SVG ────────────────────────────────────────────────────────
 
 const CencosudLogo = ({ size = 32 }: { size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <rect width="100" height="100" rx="16" fill="white"/>
+    <rect width="100" height="100" rx="16" fill="var(--cenc-surface)"/>
     <path d="M50 15C30.67 15 15 30.67 15 50C15 69.33 30.67 85 50 85C69.33 85 85 69.33 85 50C85 30.67 69.33 15 50 15Z" fill="#003087"/>
     <path d="M50 25C36.19 25 25 36.19 25 50C25 63.81 36.19 75 50 75C63.81 75 75 63.81 75 50" stroke="white" strokeWidth="6" strokeLinecap="round"/>
     <circle cx="75" cy="50" r="5" fill="#f5a623"/>
@@ -104,9 +110,19 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   const { user, logout } = useAuthStore();
   const navigate = useNavigate();
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    if (typeof window === 'undefined') return false;
+
+    return window.localStorage.getItem('cc-admin-sidebar-collapsed') === '1';
+  });
   const { isDark, toggle } = useThemeStore();
 
+  useEffect(() => {
+    window.localStorage.setItem('cc-admin-sidebar-collapsed', sidebarCollapsed ? '1' : '0');
+  }, [sidebarCollapsed]);
+
   function handleLogout() {
+    setUserMenuOpen(false);
     logout();
     navigate('/login', { replace: true });
   }
@@ -116,35 +132,53 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     : 'GM';
 
   return (
-    <div className="flex min-h-screen" style={{ background: 'var(--cenc-gray-50)' }}>
+    <div className="app-shell app-shell-admin flex min-h-screen" style={{ background: 'var(--cenc-gray-50)' }}>
 
       {/* ── Sidebar ── */}
       <aside
-        className="shrink-0 flex flex-col animate-fade-in-left"
+        className="shrink-0 flex flex-col overflow-hidden"
         style={{
-          width: 'var(--sidebar-width)',
+          width: sidebarCollapsed ? '80px' : 'var(--sidebar-width)',
           background: 'linear-gradient(180deg, var(--cenc-blue-900) 0%, var(--cenc-blue-800) 100%)',
           boxShadow: '4px 0 24px rgba(0,24,77,0.18)',
+          transition: 'width 220ms ease, box-shadow 220ms ease',
         }}
       >
         {/* Logo area */}
-        <div className="flex items-center gap-3 px-5 py-5" style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+        <div
+          className={`flex items-center py-5 ${sidebarCollapsed ? 'justify-center px-3' : 'gap-3 px-5'}`}
+          style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}
+        >
           <CencosudLogo size={36} />
-          <div>
-            <p className="text-white font-bold text-sm tracking-wide leading-tight">CommerceControl</p>
-            <p className="text-xs font-medium" style={{ color: 'var(--cenc-blue-200)' }}>Game Master</p>
-          </div>
+          {!sidebarCollapsed && (
+            <div className="min-w-0">
+              <p className="text-white font-bold text-sm tracking-wide leading-tight">CommerceControl</p>
+              <p className="text-xs font-medium" style={{ color: 'var(--cenc-blue-200)' }}>Game Master</p>
+            </div>
+          )}
+          <button
+            type="button"
+            onClick={() => setSidebarCollapsed((value) => !value)}
+            className="ml-auto mr-1 flex h-8 w-8 items-center justify-center rounded-lg text-white/80 transition-colors hover:bg-white/10 hover:text-white"
+            aria-label={sidebarCollapsed ? 'Expandir sidebar' : 'Recolher sidebar'}
+          >
+            <IconSidebarToggle collapsed={sidebarCollapsed} />
+          </button>
         </div>
 
         {/* Nav */}
-        <nav className="flex-1 px-3 py-4 flex flex-col gap-0.5 stagger">
+        <nav className={`flex-1 py-4 flex flex-col gap-0.5 stagger ${sidebarCollapsed ? 'px-2' : 'px-3'}`}>
           {navLinks.map(({ to, label, icon: Icon, end }) => (
             <NavLink
               key={to}
               to={to}
               end={end}
+              aria-label={label}
+              title={label}
               className={({ isActive }) =>
-                `group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200 animate-fade-in ${
+                `group relative flex items-center rounded-xl py-2.5 text-sm font-medium transition-all duration-200 ${
+                  sidebarCollapsed ? 'justify-center px-2' : 'gap-3 px-3'
+                } ${
                   isActive
                     ? 'nav-active-bar text-white'
                     : 'text-blue-200 hover:text-white'
@@ -161,8 +195,8 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                     style={{ color: isActive ? 'var(--cenc-gold-400)' : 'inherit' }}>
                     <Icon />
                   </span>
-                  <span>{label}</span>
-                  {isActive && (
+                  {!sidebarCollapsed && <span>{label}</span>}
+                  {!sidebarCollapsed && isActive && (
                     <span className="ml-auto w-1.5 h-1.5 rounded-full" style={{ background: 'var(--cenc-gold-400)' }} />
                   )}
                 </>
@@ -172,9 +206,9 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
         </nav>
 
         {/* Bottom brand strip */}
-        <div className="px-5 py-4" style={{ borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+        <div className={`py-4 ${sidebarCollapsed ? 'px-2 text-center' : 'px-5'}`} style={{ borderTop: '1px solid rgba(255,255,255,0.08)' }}>
           <p className="text-xs font-semibold tracking-widest uppercase" style={{ color: 'rgba(255,255,255,0.3)' }}>
-            Cencosud © 2026
+            {sidebarCollapsed ? 'CC' : 'Cencosud © 2026'}
           </p>
         </div>
       </aside>
@@ -186,6 +220,8 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
         <header
           className="shrink-0 flex items-center justify-between px-6 animate-slide-down"
           style={{
+            position: 'relative',
+            zIndex: 50,
             height: 'var(--header-height)',
             background: 'var(--cenc-surface)',
             borderBottom: '1px solid var(--cenc-gray-200)',

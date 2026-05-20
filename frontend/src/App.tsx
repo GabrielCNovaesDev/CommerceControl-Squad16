@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import PrivateRoute from './components/layout/PrivateRoute';
 import Toast from './components/ui/Toast';
 import useThemeStore from './store/themeStore';
+import NotFoundPage from './pages/NotFoundPage';
 
 import LoginPage from './pages/LoginPage';
 import UnauthorizedPage from './pages/UnauthorizedPage';
@@ -21,11 +22,33 @@ import AdminResultsPage from './pages/AdminResultsPage';
 import TutorialsPage from './pages/TutorialsPage';
 
 export default function App() {
-  const { isDark } = useThemeStore();
+  const { isDark, setSystemTheme } = useThemeStore();
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', isDark);
+    document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
+    document.documentElement.style.colorScheme = isDark ? 'dark' : 'light';
   }, [isDark]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return;
+
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const handleChange = (event: MediaQueryListEvent) => {
+      setSystemTheme(event.matches ? 'dark' : 'light');
+    };
+
+    // Ensure state reflects current OS theme on load.
+    setSystemTheme(mediaQuery.matches ? 'dark' : 'light');
+
+    if (typeof mediaQuery.addEventListener === 'function') {
+      mediaQuery.addEventListener('change', handleChange);
+      return () => mediaQuery.removeEventListener('change', handleChange);
+    }
+
+    mediaQuery.addListener(handleChange);
+    return () => mediaQuery.removeListener(handleChange);
+  }, [setSystemTheme]);
 
   return (
     <BrowserRouter>
@@ -132,8 +155,8 @@ export default function App() {
           }
         />
 
-        {/* Qualquer rota inexistente → /login */}
-        <Route path="*" element={<Navigate to="/login" replace />} />
+        {/* Qualquer rota inexistente → página 404 */}
+        <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </BrowserRouter>
   );
