@@ -51,16 +51,22 @@ export default function RoundConfigPage() {
         storeService.getMyStore(),
         productService.getProducts(),
       ]);
-      const open = (Array.isArray(rounds) ? rounds : rounds)
+      const roundsList = Array.isArray(rounds)
+        ? rounds
+        : Array.isArray((rounds as { content?: Round[] } | null)?.content)
+          ? (rounds as { content?: Round[] }).content ?? []
+          : [];
+
+      const open = roundsList
         .find((r: Round) => r.status === 'OPEN');
       setActiveRound(open ?? null);
-      setProducts(Array.isArray(prods) ? prods : prods);
+      setProducts(Array.isArray(prods) ? prods : []);
       setStore(s);
       reset({
         otherExpenses: 0, cashierOperators: 10, serviceOperators: 5, quizScore: 1.0,
         numPdvs: 6, capexSeguranca: false, capexBalanca: false, capexRedes: false,
         capexSite: false, capexSelfCheckout: false, capexMelhoria: false,
-        items: (Array.isArray(prods) ? prods : prods)
+        items: (Array.isArray(prods) ? prods : [])
           .map((p: Product) => ({ productId: p.id, margin: 0.12, salesVolume: 1 })),
       });
       if (s) {
@@ -145,9 +151,26 @@ export default function RoundConfigPage() {
   if (!activeRound) {
     return (
       <PlayerLayout>
-        <div className="flex flex-col items-center justify-center h-40 gap-2">
-          <p className="text-gray-500 font-medium">Nenhuma rodada aberta no momento.</p>
-          <p className="text-sm text-gray-400">Aguarde o Game Master iniciar uma nova rodada.</p>
+        <div className="mx-auto flex max-w-2xl flex-col items-center justify-center rounded-2xl border border-dashed border-[var(--cenc-gray-300)] bg-[var(--cenc-surface)] px-6 py-12 text-center shadow-sm">
+          <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-[var(--cenc-blue-50)] text-[var(--cenc-blue-700)]">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="9" />
+              <path d="M12 8v5" />
+              <path d="M12 16h.01" />
+            </svg>
+          </div>
+          <h1 className="text-2xl font-bold text-[var(--cenc-gray-900)]">Configurar Rodada</h1>
+          <p className="mt-2 max-w-lg text-sm text-[var(--cenc-gray-500)]">
+            Nenhuma rodada aberta no momento. Esta tela só libera a configuração quando o Game Master inicia uma rodada com status aberta.
+          </p>
+          <div className="mt-6 flex flex-wrap justify-center gap-3">
+            <Button type="button" variant="secondary" onClick={() => navigate('/store')}>
+              Voltar ao dashboard
+            </Button>
+            <Button type="button" onClick={() => { setLoading(true); load(); }}>
+              Recarregar
+            </Button>
+          </div>
         </div>
       </PlayerLayout>
     );
