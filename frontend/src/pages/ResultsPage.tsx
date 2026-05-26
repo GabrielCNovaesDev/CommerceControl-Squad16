@@ -78,7 +78,8 @@ function RoundSelector({
       <select
         value={selectedId ?? ''}
         onChange={(e) => onChange(e.target.value)}
-        className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+        className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+        style={{ background: 'var(--cenc-surface)', color: 'var(--cenc-gray-800)' }}
       >
         {rounds.map((r) => (
           <option key={r.id} value={r.id}>
@@ -237,10 +238,18 @@ function FeedbackList({ feedbacks }: { feedbacks: string[] }) {
         return (
           <div
             key={i}
-            className={`flex gap-2.5 items-start rounded-lg px-3 py-2.5 text-sm border
-              ${type === 'error'
-                ? 'bg-red-50 border-red-200 text-red-700'
-                : 'bg-yellow-50 border-yellow-200 text-yellow-800'}`}
+            className="flex gap-2.5 items-start rounded-lg px-3 py-2.5 text-sm border"
+            style={type === 'error'
+              ? {
+                  background: 'var(--cenc-danger-bg)',
+                  borderColor: 'rgba(220, 38, 38, 0.25)',
+                  color: 'var(--cenc-danger)',
+                }
+              : {
+                  background: 'var(--cenc-warning-bg)',
+                  borderColor: 'rgba(217, 119, 6, 0.25)',
+                  color: 'var(--cenc-warning)',
+                }}
           >
             <span className="mt-px shrink-0">{type === 'error' ? '✕' : '⚠'}</span>
             <span>{msg}</span>
@@ -286,7 +295,7 @@ function AiReportCard({ aiReport }: { aiReport?: string | null }) {
         <div className="flex items-center gap-2 mb-3">
           <span className="text-lg">✦</span>
           <h3 className="text-sm font-semibold text-gray-700">Análise da IA</h3>
-          <span className="ml-auto text-xs font-medium text-orange-600 bg-orange-50 px-2 py-0.5 rounded-full border border-orange-200">
+          <span className="ml-auto text-xs font-medium px-2 py-0.5 rounded-full border" style={{ background: 'var(--cenc-warning-bg)', color: 'var(--cenc-warning)', borderColor: 'rgba(217, 119, 6, 0.25)' }}>
             Em desenvolvimento
           </span>
         </div>

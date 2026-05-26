@@ -429,20 +429,60 @@ html.dark .app-shell {
   color: var(--cenc-gray-800);
 }
 
-html.dark .app-shell :is(.bg-white, .bg-gray-50, .bg-gray-100) {
+html.dark .app-shell :is(.bg-white) {
   background-color: var(--cenc-surface) !important;
 }
 
-html.dark .app-shell :is(.border-gray-100, .border-gray-200, .border-gray-300) {
+html.dark .app-shell :is(.bg-gray-50) {
+  background-color: var(--cenc-gray-100) !important;
+}
+
+html.dark .app-shell :is(.bg-gray-100) {
+  background-color: var(--cenc-gray-200) !important;
+}
+
+html.dark .app-shell :is(.border-gray-100) {
   border-color: var(--cenc-gray-200) !important;
 }
 
-html.dark .app-shell :is(.text-gray-900, .text-gray-800, .text-gray-700, .text-gray-600, .text-gray-500, .text-gray-400) {
-  color: inherit;
+html.dark .app-shell :is(.border-gray-200) {
+  border-color: var(--cenc-gray-300) !important;
 }
 
-html.dark .app-shell :is(.hover\:bg-gray-50:hover, .hover\:bg-gray-100:hover) {
+html.dark .app-shell :is(.border-gray-300) {
+  border-color: var(--cenc-gray-400) !important;
+}
+
+html.dark .app-shell :is(.text-gray-900) {
+  color: var(--cenc-gray-900) !important;
+}
+
+html.dark .app-shell :is(.text-gray-800) {
+  color: var(--cenc-gray-800) !important;
+}
+
+html.dark .app-shell :is(.text-gray-700) {
+  color: var(--cenc-gray-700) !important;
+}
+
+html.dark .app-shell :is(.text-gray-600) {
+  color: var(--cenc-gray-600) !important;
+}
+
+html.dark .app-shell :is(.text-gray-500) {
+  color: var(--cenc-gray-500) !important;
+}
+
+html.dark .app-shell :is(.text-gray-400) {
+  color: var(--cenc-gray-400) !important;
+}
+
+html.dark .app-shell :is(.hover\:bg-gray-50:hover) {
   background-color: var(--cenc-gray-100) !important;
+}
+
+html.dark .app-shell :is(.hover\:bg-gray-100:hover) {
+  background-color: var(--cenc-gray-200) !important;
 }
 
 html.dark .app-shell [style*="background: white"],
@@ -452,6 +492,39 @@ html.dark .app-shell [style*="background-color: #fff"],
 html.dark .app-shell [style*="background: rgb(255, 255, 255)"],
 html.dark .app-shell [style*="background-color: rgb(255, 255, 255)"] {
   background: var(--cenc-surface) !important;
+}
+
+html.dark .app-shell [style*="background: #f0fdf4"],
+html.dark .app-shell [style*="background-color: #f0fdf4"],
+html.dark .app-shell [style*="background: #ecfdf5"],
+html.dark .app-shell [style*="background-color: #ecfdf5"] {
+  background: var(--cenc-success-bg) !important;
+}
+
+html.dark .app-shell [style*="background: #fff1f2"],
+html.dark .app-shell [style*="background-color: #fff1f2"],
+html.dark .app-shell [style*="background: #fef2f2"],
+html.dark .app-shell [style*="background-color: #fef2f2"] {
+  background: var(--cenc-danger-bg) !important;
+}
+
+html.dark .app-shell [style*="background: #fffbeb"],
+html.dark .app-shell [style*="background-color: #fffbeb"],
+html.dark .app-shell [style*="background: #fef3c7"],
+html.dark .app-shell [style*="background-color: #fef3c7"] {
+  background: var(--cenc-warning-bg) !important;
+}
+
+html.dark .app-shell [style*="background: #eff6ff"],
+html.dark .app-shell [style*="background-color: #eff6ff"],
+html.dark .app-shell [style*="background: #dbeafe"],
+html.dark .app-shell [style*="background-color: #dbeafe"] {
+  background: var(--cenc-info-bg) !important;
+}
+
+html.dark .app-shell [style*="background: #eef2ff"],
+html.dark .app-shell [style*="background-color: #eef2ff"] {
+  background: #1e1b4b !important;
 }
 
 html.dark .app-shell [style*="border: 1px solid #e5e7eb"],
