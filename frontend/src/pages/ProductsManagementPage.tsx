@@ -11,6 +11,7 @@ import { useToast } from '../hooks/useToast';
 import { formatCurrency } from '../utils/formatters';
 import type { Product } from '../types';
 import React from 'react';
+import usePageTitle from "../hooks/usePageTitle";
 
 // ─── Schema ──────────────────────────────────────────────────────────────────
 
@@ -199,6 +200,7 @@ function DeleteModal({
 // ─── Componente principal ─────────────────────────────────────────────────────
 
 export default function ProductsManagementPage() {
+  usePageTitle("Gerenciar Produtos");
   const toast = useToast();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);

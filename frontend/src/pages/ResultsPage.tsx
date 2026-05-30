@@ -6,6 +6,7 @@ import Skeleton from '../components/ui/Skeleton';
 import ErrorMessage from '../components/ui/ErrorMessage';
 import { formatCurrency } from '../utils/formatters';
 import type { Round, FinancialResult, RankingEntry, RoundConfigItem } from '../types';
+import usePageTitle from "../hooks/usePageTitle";
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
 
@@ -349,6 +350,7 @@ function AiReportCard({ aiReport }: { aiReport?: string | null }) {
 // ─── Componente principal ───────────────────────────────────────────────────
 
 export default function ResultsPage() {
+  usePageTitle("Resultados por Rodada");
   const [closedRounds, setClosedRounds] = useState<Round[]>([]);
   const [selectedRoundId, setSelectedRoundId] = useState<string | null>(null);
   const [result, setResult] = useState<FinancialResult | null>(null);

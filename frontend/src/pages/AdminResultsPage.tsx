@@ -13,6 +13,7 @@ import ErrorMessage from '../components/ui/ErrorMessage';
 import { useToast } from '../hooks/useToast';
 import { formatCurrency } from '../utils/formatters';
 import type { Round, FinancialResult, AdminResultsResponse } from '../types';
+import usePageTitle from "../hooks/usePageTitle";
 
 // ─── Cencosud chart palette ───────────────────────────────────────────────────
 
@@ -183,6 +184,7 @@ function GmReportSection({ report }: { report: string | null }) {
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 export default function AdminResultsPage() {
+  usePageTitle("Resultados Gerais (Admin)");
   const toast = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
   const [allRounds, setAllRounds] = useState<Round[]>([]);

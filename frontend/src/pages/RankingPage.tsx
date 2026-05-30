@@ -6,6 +6,7 @@ import Skeleton from '../components/ui/Skeleton';
 import ErrorMessage from '../components/ui/ErrorMessage';
 import { formatCurrency, formatPercent } from '../utils/formatters';
 import type { Round, RankingEntry } from '../types';
+import usePageTitle from "../hooks/usePageTitle";
 
 // ─── Position medal colors ────────────────────────────────────────────────────
 
@@ -170,6 +171,7 @@ function RankingTable({ ranking, mySquadId }: { ranking: RankingEntry[]; mySquad
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 export default function RankingPage() {
+  usePageTitle("Ranking Geral");
   const { user } = useAuthStore();
   const [closedRounds, setClosedRounds] = useState<Round[]>([]);
   const [selectedRoundId, setSelectedRoundId] = useState<string | null>(null);

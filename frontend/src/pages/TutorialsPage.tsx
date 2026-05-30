@@ -6,6 +6,7 @@ import TutorialCard from '../components/tutorials/TutorialCard';
 import TutorialModal from '../components/tutorials/TutorialModal';
 import { TUTORIALS, CATEGORY_LABELS } from '../components/tutorials/tutorialsData';
 import type { Tutorial, TutorialCategory } from '../components/tutorials/tutorialsData';
+import usePageTitle from "../hooks/usePageTitle";
 
 type FilterCategory = 'all' | TutorialCategory;
 
@@ -17,6 +18,7 @@ const FILTER_TABS: { key: FilterCategory; label: string }[] = [
 ];
 
 export default function TutorialsPage() {
+  usePageTitle("Tutoriais");
   const { user } = useAuthStore();
   const role = user?.role ?? 'PLAYER';
   const isGM = role === 'GAME_MASTER';

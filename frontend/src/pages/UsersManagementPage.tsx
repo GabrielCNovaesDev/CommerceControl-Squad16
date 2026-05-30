@@ -13,6 +13,7 @@ import { CARGO_OPTIONS } from '../components/squads/SquadsComponents';
 import { useToast } from '../hooks/useToast';
 import type { Squad, UserRecord, UserRole } from '../types';
 import React from 'react';
+import usePageTitle from "../hooks/usePageTitle";
 
 const MODAL_OVERLAY: React.CSSProperties = { position:'fixed',inset:0,zIndex:50,display:'flex',alignItems:'center',justifyContent:'center',background:'rgba(0,0,0,0.45)',backdropFilter:'blur(4px)' };
 const MODAL_BOX: React.CSSProperties = { background:'white',borderRadius:20,boxShadow:'0 24px 64px rgba(0,0,0,0.18)',border:'1px solid var(--cenc-gray-200)',width:'100%',maxWidth:460,margin:'0 16px',padding:28,display:'flex',flexDirection:'column',gap:20 };
@@ -260,6 +261,7 @@ function EditUserModal({
 // ─── Componente principal ─────────────────────────────────────────────────────
 
 export default function UsersManagementPage() {
+  usePageTitle("Gerenciar Usuários");
   const toast = useToast();
   const [users, setUsers] = useState<UserRecord[]>([]);
   const [squads, setSquads] = useState<Squad[]>([]);
