@@ -147,8 +147,8 @@ function DRERow({
   const colorClass = highlight
     ? isNegative ? 'text-red-600' : 'text-green-700'
     : subtotal
-    ? isNegative ? 'text-red-500' : 'text-blue-700'
-    : 'text-gray-700';
+      ? isNegative ? 'text-red-500' : 'text-blue-700'
+      : 'text-gray-700';
 
   return (
     <div
@@ -241,15 +241,15 @@ function FeedbackList({ feedbacks }: { feedbacks: string[] }) {
             className="flex gap-2.5 items-start rounded-lg px-3 py-2.5 text-sm border"
             style={type === 'error'
               ? {
-                  background: 'var(--cenc-danger-bg)',
-                  borderColor: 'rgba(220, 38, 38, 0.25)',
-                  color: 'var(--cenc-danger)',
-                }
+                background: 'var(--cenc-danger-bg)',
+                borderColor: 'rgba(220, 38, 38, 0.25)',
+                color: 'var(--cenc-danger)',
+              }
               : {
-                  background: 'var(--cenc-warning-bg)',
-                  borderColor: 'rgba(217, 119, 6, 0.25)',
-                  color: 'var(--cenc-warning)',
-                }}
+                background: 'var(--cenc-warning-bg)',
+                borderColor: 'rgba(217, 119, 6, 0.25)',
+                color: 'var(--cenc-warning)',
+              }}
           >
             <span className="mt-px shrink-0">{type === 'error' ? '✕' : '⚠'}</span>
             <span>{msg}</span>
@@ -324,10 +324,10 @@ function AiReportCard({ aiReport }: { aiReport?: string | null }) {
             const colorClass = isAlert
               ? 'text-orange-700'
               : isBenchmark
-              ? 'text-blue-700'
-              : isMarket
-              ? 'text-indigo-700'
-              : 'text-gray-800';
+                ? 'text-blue-700'
+                : isMarket
+                  ? 'text-indigo-700'
+                  : 'text-gray-800';
             return <h4 key={i} className={`text-sm font-bold mt-4 mb-2 ${colorClass}`}>{currentSection}</h4>;
           }
           if (line.startsWith('- ')) {
@@ -430,6 +430,30 @@ export default function ResultsPage() {
     return (
       <PlayerLayout>
         <div className="flex flex-col items-center justify-center h-40 gap-2">
+          <div
+            style={{
+              width: 56,
+              height: 56,
+              borderRadius: '50%',
+              background: 'var(--cenc-blue-50)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <svg
+              width="28"
+              height="28"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="var(--cenc-blue-400)"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+            </svg>
+          </div>
           <p className="text-gray-500 font-medium">Nenhuma rodada encerrada ainda.</p>
           <p className="text-sm text-gray-400">Os resultados aparecem aqui após o encerramento de cada rodada.</p>
         </div>
