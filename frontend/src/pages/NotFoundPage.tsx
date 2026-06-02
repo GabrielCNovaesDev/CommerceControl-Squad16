@@ -1,6 +1,8 @@
 import { useNavigate } from 'react-router-dom';
+import usePageTitle from "../hooks/usePageTitle";
 
 export default function NotFoundPage() {
+  usePageTitle("404 - Página não encontrada");
   const navigate = useNavigate();
 
   return (

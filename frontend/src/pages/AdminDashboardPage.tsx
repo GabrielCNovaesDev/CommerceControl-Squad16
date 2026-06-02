@@ -12,6 +12,7 @@ import ErrorMessage from '../components/ui/ErrorMessage';
 import { useToast } from '../hooks/useToast';
 import type { Round, Squad, RoundStatus } from '../types';
 import React from 'react';
+import usePageTitle from "../hooks/usePageTitle";
 
 type BadgeVariant = 'green' | 'yellow' | 'gray' | 'red' | 'blue';
 
@@ -251,6 +252,7 @@ function SquadsTable({ squads, submittedStoreIds }: { squads: Squad[]; submitted
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function AdminDashboardPage() {
+  usePageTitle("Dashboard Administrativo");
   const toast = useToast();
   const [activeRound, setActiveRound] = useState<Round | null>(null);
   const [roundDetail, setRoundDetail] = useState<Round | null>(null);

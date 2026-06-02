@@ -15,6 +15,7 @@ import { useToast } from '../hooks/useToast';
 import { formatCurrency } from '../utils/formatters';
 import { useCountdown } from '../hooks/useCountdown';
 import type { Store, InventoryItem, Round, RoundStatus } from '../types';
+import usePageTitle from "../hooks/usePageTitle";
 
 const ROUND_STATUS_BADGE: Record<RoundStatus, { label: string; variant: 'green' | 'yellow' | 'gray' | 'red' | 'blue' }> = {
   OPEN: { label: 'Aberta', variant: 'green' },
@@ -50,6 +51,7 @@ function RoundTimer({ endsAt }: { endsAt: string }) {
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 export default function StoresDashboardPage() {
+  usePageTitle("Dashboard da Loja");
   const navigate = useNavigate();
   const toast = useToast();
   const [store, setStore] = useState<Store | null>(null);

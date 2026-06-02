@@ -7,6 +7,7 @@ import authService from '../services/authService';
 import useAuthStore from '../store/authStore';
 import useThemeStore from '../store/themeStore';
 import type { UserRole } from '../types';
+import usePageTitle from "../hooks/usePageTitle";
 
 const schema = z.object({
   email: z.string().email('Informe um email válido'),
@@ -96,6 +97,7 @@ function BackgroundDecor() {
 }
 
 export default function LoginPage() {
+  usePageTitle("Login | Sistema de Simulação");
   const navigate = useNavigate();
   const login = useAuthStore((s) => s.login);
   const { isDark, toggle } = useThemeStore();
