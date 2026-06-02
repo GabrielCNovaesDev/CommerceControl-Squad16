@@ -23,6 +23,7 @@ import storeRoutes from './routes/storeRoutes';
 import inventoryRoutes from './routes/inventoryRoutes';
 import roundRoutes from './routes/roundRoutes';
 import simulationRoutes from './routes/simulationRoutes';
+import settingsRoutes from './routes/settingsRoutes';
 import errorMiddleware from './middlewares/errorMiddleware';
 import traceMiddleware from './middlewares/traceMiddleware';
 import prisma from './utils/prisma';
@@ -68,6 +69,7 @@ app.use('/stores', storeRoutes);
 app.use('/stores/:storeId/inventory', inventoryRoutes);
 app.use('/rounds', roundRoutes);
 app.use('/simulation', simulationRoutes);
+app.use('/settings', settingsRoutes);
 
 // Deve ser o último middleware — captura todos os erros propagados por next(err)
 app.use(errorMiddleware);

@@ -1,16 +1,22 @@
 import { z } from 'zod';
 import { Request, Response } from 'express';
 import roundRepository from '../repositories/roundRepository';
+import storeRepository from '../repositories/storeRepository';
 import * as simulationService from '../services/simulationService';
 import * as roundService from '../services/roundService';
 import asyncHandler from '../utils/asyncHandler';
 import { sendError } from '../utils/errorResponse';
 import { parsePagination, paginate } from '../utils/pagination';
+import prisma from '../utils/prisma';
 
 const createSchema = z.object({
   number: z.number().int('Número deve ser um inteiro').positive('Número deve ser positivo'),
   durationHours: z.number().int('Duração deve ser um inteiro').positive('Duração deve ser positiva').default(1),
   demandFactor: z.number().min(0, 'Fator de demanda não pode ser negativo').max(1, 'Fator de demanda máximo é 1').default(0.5),
+});
+
+const extendSchema = z.object({
+  additionalMinutes: z.number().int('Deve ser inteiro').positive('Deve ser positivo'),
 });
 
 async function listRounds(req: Request, res: Response): Promise<void> {
@@ -121,6 +127,72 @@ async function resetGame(req: Request, res: Response): Promise<void> {
   res.status(200).json({ message: 'Jogo reiniciado com sucesso. Todas as rodadas foram excluídas.' });
 }
 
+async function extendRound(req: Request, res: Response): Promise<void> {
+  const id = String(req.params.id);
+
+  const parsed = extendSchema.safeParse(req.body);
+  if (!parsed.success) {
+    sendError(res, 400, 'VALIDATION_ERROR', 'Dados inválidos', parsed.error.flatten().fieldErrors);
+    return;
+  }
+
+  const round = await roundRepository.findById(id);
+  if (!round) {
+    sendError(res, 404, 'ROUND_NOT_FOUND', 'Rodada não encontrada');
+    return;
+  }
+
+  if (round.status !== 'OPEN') {
+    sendError(res, 409, 'ROUND_NOT_OPEN', 'Só é possível adicionar tempo a uma rodada aberta');
+    return;
+  }
+
+  const baseTime = Math.max(new Date(round.endsAt).getTime(), Date.now());
+  const newEndsAt = new Date(baseTime + parsed.data.additionalMinutes * 60 * 1000);
+
+  await roundRepository.updateEndsAt(id, newEndsAt);
+
+  res.status(200).json({ message: `Tempo adicionado: +${parsed.data.additionalMinutes} minutos`, endsAt: newEndsAt.toISOString() });
+}
+
+async function getRoundEvents(req: Request, res: Response): Promise<void> {
+  const roundId = String(req.params.id);
+  const { role, squadId } = req.user!;
+
+  const round = await roundRepository.findById(roundId);
+  if (!round) {
+    sendError(res, 404, 'ROUND_NOT_FOUND', 'Rodada não encontrada');
+    return;
+  }
+
+  // Players can only see events for their own store
+  if (role === 'PLAYER') {
+    if (!squadId) {
+      sendError(res, 400, 'NO_SQUAD', 'Usuário não pertence a um squad');
+      return;
+    }
+    const store = await storeRepository.findBySquadId(squadId);
+    if (!store) {
+      sendError(res, 400, 'NO_STORE', 'Seu squad não possui uma loja cadastrada');
+      return;
+    }
+    const events = await prisma.roundEvent.findMany({
+      where: { roundId, storeId: store.id },
+      orderBy: { createdAt: 'asc' },
+    });
+    res.status(200).json(events);
+    return;
+  }
+
+  // Game Master sees all events
+  const events = await prisma.roundEvent.findMany({
+    where: { roundId },
+    include: { store: { select: { id: true, name: true, squad: { select: { name: true } } } } },
+    orderBy: { createdAt: 'asc' },
+  });
+  res.status(200).json(events);
+}
+
 export default {
   listRounds: asyncHandler(listRounds),
   getRound: asyncHandler(getRound),
@@ -128,4 +200,6 @@ export default {
   closeRound: asyncHandler(closeRound),
   deleteLastRound: asyncHandler(deleteLastRound),
   resetGame: asyncHandler(resetGame),
+  extendRound: asyncHandler(extendRound),
+  getRoundEvents: asyncHandler(getRoundEvents),
 };

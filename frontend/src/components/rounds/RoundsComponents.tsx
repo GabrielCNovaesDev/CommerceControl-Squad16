@@ -234,11 +234,12 @@ export function ResetGameModal({
 // ─── Rounds Table ─────────────────────────────────────────────────────────────
 
 export function RoundsTable({
-  rounds, onClose, onDeleteLast, lastRoundId,
+  rounds, onClose, onDeleteLast, onExtend, lastRoundId,
 }: {
   rounds: Round[];
   onClose: (round: Round) => void;
   onDeleteLast: (round: Round) => void;
+  onExtend: (round: Round) => void;
   lastRoundId: string | null;
 }) {
   return (
@@ -280,6 +281,11 @@ export function RoundsTable({
                 <td className="px-4 py-3 text-right">
                   <div className="flex items-center justify-end gap-3">
                     {round.status === 'OPEN' && (
+                      <button onClick={() => onExtend(round)} className="text-xs font-medium text-blue-600 hover:text-blue-800 transition-colors">
+                        + Tempo
+                      </button>
+                    )}
+                    {round.status === 'OPEN' && (
                       <button onClick={() => onClose(round)} className="text-xs font-medium text-red-600 hover:text-red-800 transition-colors">
                         Encerrar
                       </button>
@@ -304,6 +310,45 @@ export function RoundsTable({
           })}
         </tbody>
       </table>
+    </div>
+  );
+}
+
+// ─── Extend Round Modal ──────────────────────────────────────────────────────
+
+export function ExtendRoundModal({
+  round, onConfirm, onCancel, loading,
+}: {
+  round: Round;
+  onConfirm: (minutes: number) => void;
+  onCancel: () => void;
+  loading: boolean;
+}) {
+  const [minutes, setMinutes] = useState(30);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+      <div className="bg-white rounded-xl shadow-xl border border-gray-200 w-full max-w-sm mx-4 p-6 flex flex-col gap-5">
+        <div>
+          <h2 className="text-base font-semibold text-gray-900">Adicionar Tempo — Rodada #{round.number}</h2>
+          <p className="text-sm text-gray-500 mt-2">Informe quantos minutos extras deseja adicionar ao cronômetro.</p>
+        </div>
+        <div className="flex flex-col gap-1">
+          <label className="text-sm font-medium text-gray-700">Minutos adicionais</label>
+          <input
+            type="number"
+            min="1"
+            step="1"
+            value={minutes}
+            onChange={(e) => setMinutes(Number(e.target.value))}
+            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+        <div className="flex gap-3 justify-end">
+          <Button type="button" variant="secondary" onClick={onCancel} disabled={loading}>Cancelar</Button>
+          <Button type="button" onClick={() => onConfirm(minutes)} loading={loading} disabled={minutes < 1}>Adicionar</Button>
+        </div>
+      </div>
     </div>
   );
 }

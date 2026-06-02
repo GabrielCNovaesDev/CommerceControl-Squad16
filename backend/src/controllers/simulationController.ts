@@ -11,6 +11,7 @@ import {
   calcSla, calcLicensing, calcMaintenance, calcCapexCost, calcInterest,
   submitStoreConfig,
 } from '../services/simulationService';
+import gameSettingsRepository from '../repositories/gameSettingsRepository';
 import { getRanking } from '../services/rankingService';
 import prisma, { toNum } from '../utils/prisma';
 import asyncHandler from '../utils/asyncHandler';
@@ -18,7 +19,7 @@ import { sendError } from '../utils/errorResponse';
 
 const configSchema = z.object({
   otherExpenses:     z.number().min(0, 'Outros gastos não podem ser negativos'),
-  cashierOperators:  z.number().int('Deve ser inteiro').min(0, 'Não pode ser negativo').default(10),
+  cashierOperators:  z.number().int('Deve ser inteiro').min(0, 'Não pode ser negativo').max(10, 'Máximo 10 operadores de caixa').default(10),
   serviceOperators:  z.number().int('Deve ser inteiro').min(0, 'Não pode ser negativo').default(5),
   quizScore:         z.number().min(0, 'Mínimo 0').max(1, 'Máximo 1').default(1.0),
   numPdvs:           z.number().int('Deve ser inteiro').min(0).default(6),
@@ -33,7 +34,7 @@ const configSchema = z.object({
       z.object({
         productId:   z.string().min(1, 'productId é obrigatório'),
         margin:      z.number().min(0, 'Margem não pode ser negativa'),
-        salesVolume: z.number().int('Volume deve ser um inteiro').positive('Volume deve ser positivo'),
+        salesVolume: z.number().int('Volume deve ser um inteiro').min(0, 'Volume não pode ser negativo'),
       })
     )
     .min(1, 'Informe ao menos um produto'),
@@ -66,10 +67,6 @@ async function submitConfig(req: Request, res: Response): Promise<void> {
   }
 
   const existingConfig = await roundConfigRepository.findByRoundAndStore(roundId, store.id);
-  if (existingConfig) {
-    sendError(res, 409, 'CONFIG_ALREADY_SUBMITTED', 'Você já submeteu uma configuração para esta rodada');
-    return;
-  }
 
   const parsed = configSchema.safeParse(req.body);
   if (!parsed.success) {
@@ -95,6 +92,27 @@ async function submitConfig(req: Request, res: Response): Promise<void> {
   if (missingProducts.length > 0) {
     sendError(res, 400, 'PRODUCTS_NOT_FOUND', 'Produtos não encontrados', missingProducts.map((id) => ({ field: 'productId', message: id })));
     return;
+  }
+
+  // CAPEX validation: max 1 per round, no repeats across rounds
+  const capexKeys = ['capexSeguranca', 'capexBalanca', 'capexRedes', 'capexSite', 'capexSelfCheckout', 'capexMelhoria'] as const;
+  const selectedCapex = capexKeys.filter((k) => parsed.data[k]);
+
+  if (selectedCapex.length > 1) {
+    sendError(res, 400, 'MAX_ONE_CAPEX', 'Máximo 1 investimento CAPEX por rodada');
+    return;
+  }
+
+  if (selectedCapex.length === 1) {
+    const previousConfigs = await roundConfigRepository.findCapexByStore(store.id);
+    // Exclude current round's config (in case of resubmission)
+    const pastConfigs = previousConfigs.filter((c: { roundId: string }) => c.roundId !== roundId);
+    const usedCapex = capexKeys.filter((k) => pastConfigs.some((c: Record<string, boolean>) => c[k]));
+
+    if (usedCapex.includes(selectedCapex[0])) {
+      sendError(res, 400, 'CAPEX_ALREADY_USED', 'Este CAPEX já foi investido em uma rodada anterior');
+      return;
+    }
   }
 
   const productMap = Object.fromEntries(
@@ -123,6 +141,7 @@ async function submitConfig(req: Request, res: Response): Promise<void> {
       salesVolume: item.salesVolume,
       purchasePrice: productMap[item.productId]?.purchasePrice ? toNum(productMap[item.productId]!.purchasePrice) : 0,
     })),
+    existingConfigId: existingConfig?.id ?? null,
   });
 
   res.status(201).json({
@@ -197,7 +216,7 @@ async function previewConfig(req: Request, res: Response): Promise<void> {
   const currentCash     = toNum(store.currentCash);
   const totalOutlay     = stockCost + capexCost;
   const interestPenalty = calcInterest(totalOutlay, currentCash);
-  const totalOtherExpenses = otherExpenses + payroll + licensing + maintenance + interestPenalty;
+  const totalOtherExpenses = otherExpenses + payroll + interestPenalty;
 
   const roundConfig = { otherExpenses: totalOtherExpenses };
 
@@ -331,9 +350,34 @@ async function getResults(req: Request, res: Response): Promise<void> {
   res.status(200).json(result);
 }
 
+async function getMyConfig(req: Request, res: Response): Promise<void> {
+  const roundId = String(req.params.id);
+  const { squadId } = req.user!;
+
+  if (!squadId) {
+    sendError(res, 400, 'NO_SQUAD', 'Usuário não pertence a um squad');
+    return;
+  }
+
+  const store = await storeRepository.findBySquadId(squadId);
+  if (!store) {
+    sendError(res, 400, 'NO_STORE', 'Seu squad não possui uma loja cadastrada');
+    return;
+  }
+
+  const config = await roundConfigRepository.findByRoundAndStore(roundId, store.id);
+  if (!config) {
+    sendError(res, 404, 'CONFIG_NOT_FOUND', 'Nenhuma configuração encontrada para esta rodada');
+    return;
+  }
+
+  res.status(200).json(config);
+}
+
 export default {
   submitConfig: asyncHandler(submitConfig),
   previewConfig: asyncHandler(previewConfig),
   getRanking: asyncHandler(getRankingHandler),
   getResults: asyncHandler(getResults),
+  getMyConfig: asyncHandler(getMyConfig),
 };

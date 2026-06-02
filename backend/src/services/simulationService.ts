@@ -2,6 +2,7 @@ import prisma, { toNum } from '../utils/prisma';
 import { calcularDRE, calcularPreco } from './financeService';
 import roundConfigRepository from '../repositories/roundConfigRepository';
 import { generateAiReport, generateGmReport, MarketAggregates } from './aiReportService';
+import { rollEvents } from './eventService';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -297,6 +298,9 @@ export async function processRound(roundId: string): Promise<void> {
 
   console.info(JSON.stringify({ level: 'info', service: 'simulationService', message: 'Demand shares calculados', roundId, demandFactor: round.demandFactor, shares, timestamp: new Date().toISOString() }));
 
+  // Roll random events and compute penalties per store
+  const eventPenalties = await rollEvents(roundId);
+
   // Process each store
   for (const config of enrichedConfigs) {
     try {
@@ -342,11 +346,10 @@ export async function processRound(roundId: string): Promise<void> {
         );
         const capexCost   = calcCapexCost(configNum);
         const payroll     = calcPayroll(configNum);
-        const licensing   = calcLicensing(configNum);
-        const maintenance = calcMaintenance(configNum);
         const interestPenalty = calcInterest(stockCost + capexCost, toNum(config.store.initialCapital));
+        const eventPenalty = eventPenalties[config.storeId] ?? 0;
         const totalOtherExpenses =
-          toNum(config.otherExpenses) + payroll + licensing + maintenance + interestPenalty;
+          toNum(config.otherExpenses) + payroll + interestPenalty + eventPenalty;
 
         const roundConfig = { otherExpenses: totalOtherExpenses };
 
@@ -369,6 +372,10 @@ export async function processRound(roundId: string): Promise<void> {
             ebitda: dre.ebitda,
             ebitdaMargin: dre.ebitdaMargin,
             demandShare,
+            priceScore: priceScores[config.storeId] ?? null,
+            availScore: availScores[config.storeId] ?? null,
+            csatScore: csatScores[config.storeId] ?? null,
+            totalScore: totalScores[config.storeId] ?? null,
           },
         });
 
@@ -655,6 +662,7 @@ export interface SubmitConfigInput {
   capexSelfCheckout: boolean;
   capexMelhoria: boolean;
   items: SubmitConfigItem[];
+  existingConfigId?: string | null;
 }
 
 export interface SubmitConfigResult {
@@ -690,6 +698,53 @@ export async function submitStoreConfig(input: SubmitConfigInput): Promise<Submi
   const totalDeduction  = stockCost + capexCost + interestPenalty;
 
   const roundConfig = await prisma.$transaction(async (tx) => {
+    // If resubmitting, reverse the previous config effects
+    if (input.existingConfigId) {
+      const oldConfig = await tx.roundConfig.findUnique({
+        where: { id: input.existingConfigId },
+        include: { roundConfigItems: true },
+      });
+
+      if (oldConfig) {
+        // Check round number to know if inventory was incremented
+        const oldRound = await tx.round.findUnique({ where: { id: input.roundId }, select: { number: true } });
+
+        // Reverse inventory increments from old submission (only if round <= 2)
+        if (oldRound && oldRound.number <= 2) {
+          await Promise.all(
+            oldConfig.roundConfigItems.map((item) =>
+              tx.inventory.update({
+                where: { storeId_productId: { storeId: input.storeId, productId: item.productId } },
+                data: { quantity: { decrement: item.salesVolume } },
+              })
+            )
+          );
+        }
+
+        // Compute old deduction to reverse cash
+        const oldStockCost = oldConfig.roundConfigItems.reduce(
+          (sum, item) => sum + item.salesVolume * (input.items.find((i) => i.productId === item.productId)?.purchasePrice ?? 0),
+          0
+        );
+        const oldCapexCost = calcCapexCost(oldConfig);
+        const oldInterest = calcInterest(oldStockCost + oldCapexCost, input.currentCash);
+        // In rounds 3+, stockCost was not charged, so only reverse capex+interest
+        const oldCashDeduction = (oldRound && oldRound.number <= 2)
+          ? (oldStockCost + oldCapexCost + oldInterest)
+          : (oldCapexCost + oldInterest);
+
+        // Reverse cash deduction
+        await tx.store.update({
+          where: { id: input.storeId },
+          data: { currentCash: { increment: oldCashDeduction } },
+        });
+
+        // Delete old items and config
+        await tx.roundConfigItem.deleteMany({ where: { roundConfigId: input.existingConfigId } });
+        await tx.roundConfig.delete({ where: { id: input.existingConfigId } });
+      }
+    }
+
     const config = await tx.roundConfig.create({
       data: {
         roundId:          input.roundId,
@@ -716,18 +771,27 @@ export async function submitStoreConfig(input: SubmitConfigInput): Promise<Submi
       include: { roundConfigItems: true },
     });
 
-    await Promise.all(
-      input.items.map((item) =>
-        tx.inventory.update({
-          where: { storeId_productId: { storeId: input.storeId, productId: item.productId } },
-          data: { quantity: { increment: item.salesVolume } },
-        })
-      )
-    );
+    // Only increment inventory and charge stock cost in rounds 1 and 2
+    const currentRound = await tx.round.findUnique({ where: { id: input.roundId }, select: { number: true } });
+    const canPurchase = currentRound ? currentRound.number <= 2 : true;
+
+    if (canPurchase) {
+      await Promise.all(
+        input.items.map((item) =>
+          tx.inventory.update({
+            where: { storeId_productId: { storeId: input.storeId, productId: item.productId } },
+            data: { quantity: { increment: item.salesVolume } },
+          })
+        )
+      );
+    }
+
+    // Deduct cash: full totalDeduction in rounds 1-2, only capex+interest in rounds 3+
+    const cashDeduction = canPurchase ? totalDeduction : (capexCost + interestPenalty);
 
     await tx.store.update({
       where: { id: input.storeId },
-      data: { currentCash: { decrement: totalDeduction } },
+      data: { currentCash: { decrement: cashDeduction } },
     });
 
     return config;
