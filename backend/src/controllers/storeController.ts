@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { Request, Response } from 'express';
 import storeRepository from '../repositories/storeRepository';
 import productRepository from '../repositories/productRepository';
+import roundConfigRepository from '../repositories/roundConfigRepository';
 import prisma from '../utils/prisma';
 import asyncHandler from '../utils/asyncHandler';
 import { sendError } from '../utils/errorResponse';
@@ -73,8 +74,29 @@ async function listStores(req: Request, res: Response): Promise<void> {
   res.status(200).json(paginate(stores, totalElements, params));
 }
 
+async function getPreviousCapex(req: Request, res: Response): Promise<void> {
+  const { squadId } = req.user!;
+  if (!squadId) {
+    sendError(res, 400, 'NO_SQUAD', 'Usuário não pertence a um squad');
+    return;
+  }
+
+  const store = await storeRepository.findBySquadId(squadId);
+  if (!store) {
+    sendError(res, 404, 'STORE_NOT_FOUND', 'Loja não encontrada para este squad');
+    return;
+  }
+
+  const capexKeys = ['capexSeguranca', 'capexBalanca', 'capexRedes', 'capexSite', 'capexSelfCheckout', 'capexMelhoria'] as const;
+  const configs = await roundConfigRepository.findCapexByStore(store.id);
+  const usedCapex = capexKeys.filter((k) => configs.some((c: Record<string, boolean>) => c[k]));
+
+  res.status(200).json(usedCapex);
+}
+
 export default {
   getMyStore: asyncHandler(getMyStore),
   createStore: asyncHandler(createStore),
   listStores: asyncHandler(listStores),
+  getPreviousCapex: asyncHandler(getPreviousCapex),
 };

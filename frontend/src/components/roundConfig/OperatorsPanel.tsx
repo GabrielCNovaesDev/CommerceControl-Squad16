@@ -26,7 +26,7 @@ export function OperatorsPanel({ register, errors, control }: {
   const serviceOps = Number(useWatch({ control, name: 'serviceOperators' })) || 0;
   const quizScore  = Number(useWatch({ control, name: 'quizScore' }))       || 0;
 
-  const csatPct = (Math.min(1, cashierOps / IDEAL_CASHIER) * quizScore * 100).toFixed(1);
+  const csatPct = (Math.min(1, cashierOps / IDEAL_CASHIER) * (quizScore / 100) * 100).toFixed(1);
   const payroll = cashierOps * CASHIER_COST + serviceOps * SERVICE_COST;
   const sla     = calcSlaFromOps(serviceOps);
 
@@ -40,11 +40,11 @@ export function OperatorsPanel({ register, errors, control }: {
         <div className="grid grid-cols-3 gap-4">
           <div className="flex flex-col gap-1">
             <label className="text-sm font-medium text-gray-700">Op. de Caixa</label>
-            <input type="number" min="0"
+            <input type="number" min="0" max="10"
               className={`rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 ${errors.cashierOperators ? 'border-red-400 bg-red-50' : 'border-gray-300'}`}
               {...register('cashierOperators')} />
             <FieldError error={errors.cashierOperators} />
-            <p className="text-xs text-gray-400">Ideal: 10 · {formatCurrency(CASHIER_COST)}/mês</p>
+            <p className="text-xs text-gray-400">Máximo: 10 · {formatCurrency(CASHIER_COST)}/mês</p>
           </div>
           <div className="flex flex-col gap-1">
             <label className="text-sm font-medium text-gray-700">Op. de Serviço</label>
@@ -55,12 +55,12 @@ export function OperatorsPanel({ register, errors, control }: {
             <p className="text-xs text-gray-400">Ideal: 5 · {formatCurrency(SERVICE_COST)}/mês</p>
           </div>
           <div className="flex flex-col gap-1">
-            <label className="text-sm font-medium text-gray-700">Resultado do Teste (0–1)</label>
-            <input type="number" step="0.01" min="0" max="1"
+            <label className="text-sm font-medium text-gray-700">Resultado do Teste (%)</label>
+            <input type="number" step="1" min="0" max="100"
               className={`rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 ${errors.quizScore ? 'border-red-400 bg-red-50' : 'border-gray-300'}`}
               {...register('quizScore')} />
             <FieldError error={errors.quizScore} />
-            <p className="text-xs text-gray-400">Ex.: 0.9 = 90% de acertos</p>
+            <p className="text-xs text-gray-400">Ex.: 90 = 90% de acertos</p>
           </div>
         </div>
         <div className="grid grid-cols-2 gap-3">

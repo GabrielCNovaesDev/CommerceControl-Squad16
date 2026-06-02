@@ -100,7 +100,7 @@ function ResultsTable({ sorted }: { sorted: FinancialResult[] }) {
 }
 
 interface BarDataPoint { squad: string; ebitdaMargin: number }
-interface LineDataPoint { round: number; squadName: string; ebitdaMargin: number }
+interface LineDataPoint { round: number; squadName: string; ebitdaMargin: number; ebitda: number }
 
 function ChartCard({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -181,6 +181,155 @@ function GmReportSection({ report }: { report: string | null }) {
   );
 }
 
+// ─── Podium (Kahoot-style) ───────────────────────────────────────────────────
+
+function Podium({ sorted }: { sorted: FinancialResult[] }) {
+  if (sorted.length < 2) return null;
+
+  const top3 = sorted.slice(0, 3);
+  const podiumOrder = top3.length >= 3 ? [top3[1], top3[0], top3[2]] : [null, top3[0], top3[1]];
+  const heights = [140, 180, 110];
+  const medals = ['🥈', '🥇', '🥉'];
+  const bgColors = ['#e5e7eb', '#fef3c7', '#fed7aa'];
+  const borderColors = ['#9ca3af', '#f59e0b', '#f97316'];
+
+  return (
+    <div style={{ background: 'white', borderRadius: 16, border: '1px solid var(--cenc-gray-200)', boxShadow: '0 2px 8px rgba(0,0,0,0.05)', padding: '24px' }}>
+      <h3 style={{ margin: '0 0 20px', fontSize: '14px', fontWeight: 700, color: 'var(--cenc-gray-800)', textAlign: 'center' }}>Pódio da Rodada</h3>
+      <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'center', gap: 16, minHeight: 220 }}>
+        {podiumOrder.map((entry, i) => {
+          if (!entry) return <div key={i} style={{ width: 120 }} />;
+          const position = i === 1 ? 1 : i === 0 ? 2 : 3;
+          return (
+            <div key={entry.id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: '28px' }}>{medals[i]}</span>
+              <p style={{ margin: 0, fontSize: '12px', fontWeight: 700, color: 'var(--cenc-gray-800)', textAlign: 'center', maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {entry.store?.squad?.name ?? entry.store?.name ?? '—'}
+              </p>
+              <p style={{ margin: 0, fontSize: '11px', fontWeight: 600, color: entry.ebitda >= 0 ? 'var(--cenc-success)' : 'var(--cenc-danger)' }}>
+                {formatCurrency(entry.ebitda)}
+              </p>
+              <div style={{
+                width: 100,
+                height: heights[i],
+                borderRadius: '8px 8px 0 0',
+                background: bgColors[i],
+                border: `2px solid ${borderColors[i]}`,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '24px',
+                fontWeight: 800,
+                color: borderColors[i],
+              }}>
+                {position}º
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ─── EBITDA Absolute Line Chart ──────────────────────────────────────────────
+
+function EbitdaAbsoluteLineChart({ historyData, squadNames }: { historyData: LineDataPoint[]; squadNames: string[] }) {
+  return (
+    <ChartCard title="Evolução do EBITDA (R$) por Rodada">
+      <ResponsiveContainer width="100%" height={280}>
+        <LineChart margin={{ top: 8, right: 8, left: 8, bottom: 8 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#f0f4ff" />
+          <XAxis dataKey="round" type="category" allowDuplicatedCategory={false} tick={{ fontSize: 12, fill: '#6b7280' }} tickLine={false} tickFormatter={(v: number) => `#${v}`} />
+          <YAxis tickFormatter={(v: number) => `R$${(v / 1000).toFixed(0)}k`} tick={{ fontSize: 11, fill: '#6b7280' }} tickLine={false} axisLine={false} />
+          <Tooltip formatter={(v) => [formatCurrency(Number(v ?? 0)), 'EBITDA']} contentStyle={{ fontSize: 12, borderRadius: 10, border: '1px solid var(--cenc-gray-200)', boxShadow: '0 4px 16px rgba(0,0,0,0.1)' }} labelFormatter={(l) => `Rodada #${l}`} />
+          <Legend wrapperStyle={{ fontSize: 12 }} />
+          <ReferenceLine y={0} stroke="#9ca3af" strokeDasharray="4 2" />
+          {squadNames.map((name, i) => (
+            <Line key={name} data={historyData.filter((d) => d.squadName === name)} dataKey="ebitda" name={name} stroke={LINE_COLORS[i % LINE_COLORS.length]} strokeWidth={2.5} dot={{ r: 4, fill: LINE_COLORS[i % LINE_COLORS.length] }} activeDot={{ r: 6 }} connectNulls />
+          ))}
+        </LineChart>
+      </ResponsiveContainer>
+    </ChartCard>
+  );
+}
+
+// ─── Competitive Scores Table ────────────────────────────────────────────────
+
+function CompetitiveScoresTable({ sorted }: { sorted: FinancialResult[] }) {
+  const hasScores = sorted.some((r) => r.priceScore != null);
+  if (!hasScores) return null;
+
+  return (
+    <ChartCard title="Fatores Competitivos (Scores)">
+      <div style={{ overflowX: 'auto' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+          <thead>
+            <tr style={{ background: 'var(--cenc-gray-50)', borderBottom: '1px solid var(--cenc-gray-200)' }}>
+              {['Squad', 'Preço', 'Disponibilidade', 'CSAT', 'Total'].map((h) => (
+                <th key={h} style={{ padding: '10px 14px', fontWeight: 700, fontSize: '11px', color: 'var(--cenc-gray-500)', textTransform: 'uppercase', letterSpacing: '0.06em', textAlign: h === 'Squad' ? 'left' : 'center' }}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {sorted.map((r) => (
+              <tr key={r.id} style={{ borderTop: '1px solid var(--cenc-gray-100)' }}>
+                <td style={{ padding: '10px 14px', fontWeight: 600, color: 'var(--cenc-gray-800)' }}>{r.store?.squad?.name ?? '—'}</td>
+                <td style={{ padding: '10px 14px', textAlign: 'center', color: 'var(--cenc-gray-700)' }}>{r.priceScore ?? '—'}</td>
+                <td style={{ padding: '10px 14px', textAlign: 'center', color: 'var(--cenc-gray-700)' }}>{r.availScore ?? '—'}</td>
+                <td style={{ padding: '10px 14px', textAlign: 'center', color: 'var(--cenc-gray-700)' }}>{r.csatScore ?? '—'}</td>
+                <td style={{ padding: '10px 14px', textAlign: 'center', fontWeight: 700, color: 'var(--cenc-blue-700)' }}>{r.totalScore ?? '—'}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </ChartCard>
+  );
+}
+
+// ─── Round Events Section ───────────────────────────────────────────────────
+
+function RoundEventsSection({ events }: { events: RoundEvent[] }) {
+  if (events.length === 0) return null;
+
+  // Group events by eventKey
+  const eventKeys = [...new Set(events.map((e) => e.eventKey))];
+
+  return (
+    <ChartCard title="⚡ Eventos Aleatórios da Rodada">
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        {eventKeys.map((key) => {
+          const eventsForKey = events.filter((e) => e.eventKey === key);
+          const description = eventsForKey[0]?.description ?? key;
+          return (
+            <div key={key} style={{ borderRadius: 10, border: '1px solid var(--cenc-gray-200)', padding: '12px 16px' }}>
+              <p style={{ margin: '0 0 8px', fontSize: '13px', fontWeight: 700, color: 'var(--cenc-gray-800)' }}>
+                {description}
+              </p>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                {eventsForKey.map((e) => (
+                  <span key={e.id} style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 4,
+                    padding: '4px 10px', borderRadius: 6, fontSize: '12px', fontWeight: 600,
+                    background: e.mitigated ? '#dcfce7' : '#fef2f2',
+                    color: e.mitigated ? '#166534' : '#991b1b',
+                    border: `1px solid ${e.mitigated ? '#bbf7d0' : '#fecaca'}`,
+                  }}>
+                    {e.mitigated ? '🛡' : '⚠'} {e.store?.squad?.name ?? e.store?.name ?? '—'}
+                    {!e.mitigated && <span style={{ marginLeft: 4 }}>−{formatCurrency(e.penalty)}</span>}
+                    {e.mitigated && <span style={{ marginLeft: 4 }}>Mitigado</span>}
+                  </span>
+                ))}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </ChartCard>
+  );
+}
+
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 export default function AdminResultsPage() {
@@ -191,6 +340,7 @@ export default function AdminResultsPage() {
   const [selectedRoundId, setSelectedRoundId] = useState<string | null>(searchParams.get('roundId') ?? null);
   const [results, setResults] = useState<FinancialResult[]>([]);
   const [gmReport, setGmReport] = useState<string | null>(null);
+  const [roundEvents, setRoundEvents] = useState<RoundEvent[]>([]);
   const [historyData, setHistoryData] = useState<LineDataPoint[]>([]);
   const [loadingRounds, setLoadingRounds] = useState(true);
   const [loadError, setLoadError] = useState('');
@@ -215,8 +365,8 @@ export default function AdminResultsPage() {
   useEffect(() => {
     if (!selectedRoundId) return;
     const round = allRounds.find((r) => r.id === selectedRoundId);
-    if (!round || round.status !== 'CLOSED') { setResults([]); return; }
-    setLoadingResults(true); setResults([]); setGmReport(null);
+    if (!round || round.status !== 'CLOSED') { setResults([]); setRoundEvents([]); return; }
+    setLoadingResults(true); setResults([]); setGmReport(null); setRoundEvents([]);
     roundService.getResults(selectedRoundId)
       .then((data: unknown) => {
         if (data && typeof data === 'object' && 'results' in data) {
@@ -235,6 +385,10 @@ export default function AdminResultsPage() {
         setResults([]);
       })
       .finally(() => setLoadingResults(false));
+    // Fetch round events
+    roundService.getRoundEvents(selectedRoundId)
+      .then((events) => setRoundEvents(events))
+      .catch(() => setRoundEvents([]));
   }, [selectedRoundId, allRounds]);
 
   useEffect(() => {
@@ -248,7 +402,7 @@ export default function AdminResultsPage() {
           if (s.status !== 'fulfilled') return;
           const { round, results: res } = s.value as { round: number; results: unknown };
           if (!Array.isArray(res)) return;
-          (res as FinancialResult[]).forEach((r) => points.push({ round, squadName: r.store?.squad?.name ?? r.store?.name ?? '—', ebitdaMargin: r.ebitdaMargin }));
+          (res as FinancialResult[]).forEach((r) => points.push({ round, squadName: r.store?.squad?.name ?? r.store?.name ?? '—', ebitdaMargin: r.ebitdaMargin, ebitda: r.ebitda }));
         });
         setHistoryData(points);
       }).finally(() => setLoadingHistory(false));
@@ -320,7 +474,14 @@ export default function AdminResultsPage() {
               <div style={{ borderRadius: 14, border: '1px solid var(--cenc-gray-200)', background: 'white', padding: '48px 24px', textAlign: 'center' }}>
                 <p style={{ margin: 0, fontSize: '13px', color: 'var(--cenc-gray-400)' }}>Nenhum resultado disponível para esta rodada.</p>
               </div>
-            ) : <ResultsTable sorted={sorted} />}
+            ) : (
+              <>
+                <Podium sorted={sorted} />
+                <ResultsTable sorted={sorted} />
+                <CompetitiveScoresTable sorted={sorted} />
+                <RoundEventsSection events={roundEvents} />
+              </>
+            )}
 
             {sorted.length > 0 && <EbitdaBarChart data={barData} />}
 
@@ -329,7 +490,12 @@ export default function AdminResultsPage() {
                 <div style={{ background: 'white', borderRadius: 16, border: '1px solid var(--cenc-gray-200)', padding: '40px 24px', textAlign: 'center' }}>
                   <p style={{ margin: 0, fontSize: '13px', color: 'var(--cenc-gray-400)' }}>Carregando histórico...</p>
                 </div>
-              ) : historyData.length > 0 ? <EbitdaLineChart historyData={historyData} squadNames={squadNames} /> : null
+              ) : historyData.length > 0 ? (
+                <>
+                  <EbitdaLineChart historyData={historyData} squadNames={squadNames} />
+                  <EbitdaAbsoluteLineChart historyData={historyData} squadNames={squadNames} />
+                </>
+              ) : null
             )}
 
             {sorted.length > 0 && <GmReportSection report={gmReport} />}

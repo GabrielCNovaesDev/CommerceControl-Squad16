@@ -55,5 +55,9 @@ function updateStatus(id: string, status: RoundStatus) {
   return prisma.round.update({ where: { id }, data: { status } });
 }
 
-const roundRepository = { findAll, findPaginated, findById, findActive, create, updateStatus };
+function updateEndsAt(id: string, endsAt: Date) {
+  return prisma.round.update({ where: { id }, data: { endsAt } });
+}
+
+const roundRepository = { findAll, findPaginated, findById, findActive, create, updateStatus, updateEndsAt };
 export default roundRepository;
