@@ -56,6 +56,7 @@ model Store {
   inventories      Inventory[]
   roundConfigs     RoundConfig[]
   financialResults FinancialResult[]
+  events           RoundEvent[]
 }
 
 model Product {
@@ -96,6 +97,7 @@ model Round {
 
   roundConfigs     RoundConfig[]
   financialResults FinancialResult[]
+  events           RoundEvent[]
 }
 
 model RoundConfig {
@@ -154,10 +156,43 @@ model FinancialResult {
   ebitda        Decimal  @db.Decimal(18, 2)
   ebitdaMargin  Decimal  @db.Decimal(8, 6)
   demandShare   Decimal  @default(0) @db.Decimal(8, 6)
+  priceScore    Int?
+  availScore    Int?
+  csatScore     Int?
+  totalScore    Int?
   aiReport      String?
   calculatedAt  DateTime @default(now())
 
   round       Round       @relation(fields: [roundId], references: [id])
   store       Store       @relation(fields: [storeId], references: [id])
   roundConfig RoundConfig @relation(fields: [roundConfigId], references: [id])
+}
+
+model GameSettings {
+  id                    String   @id @default("singleton")
+  licenseSoPerUser      Decimal  @default(120) @db.Decimal(10, 2)
+  licenseSoUsers        Int      @default(5)
+  licensePdvPerUnit     Decimal  @default(80) @db.Decimal(10, 2)
+  licenseScoPerUnit     Decimal  @default(80) @db.Decimal(10, 2)
+  licenseScoUnits       Int      @default(4)
+  licenseSiteBase       Decimal  @default(500) @db.Decimal(10, 2)
+  licenseSiteCapex      Decimal  @default(650) @db.Decimal(10, 2)
+  licenseSecurityBase   Decimal  @default(500) @db.Decimal(10, 2)
+  licenseSecurityCapex  Decimal  @default(600) @db.Decimal(10, 2)
+  maintenanceFee        Decimal  @default(400) @db.Decimal(10, 2)
+  updatedAt             DateTime @updatedAt
+}
+
+model RoundEvent {
+  id          String   @id @default(uuid(7))
+  roundId     String
+  storeId     String
+  eventKey    String
+  description String
+  penalty     Decimal  @db.Decimal(18, 2)
+  mitigated   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  round Round @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
 }

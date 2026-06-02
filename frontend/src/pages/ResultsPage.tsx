@@ -6,6 +6,7 @@ import Skeleton from '../components/ui/Skeleton';
 import ErrorMessage from '../components/ui/ErrorMessage';
 import { formatCurrency } from '../utils/formatters';
 import type { Round, FinancialResult, RankingEntry, RoundConfigItem } from '../types';
+import usePageTitle from "../hooks/usePageTitle";
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
 
@@ -147,8 +148,8 @@ function DRERow({
   const colorClass = highlight
     ? isNegative ? 'text-red-600' : 'text-green-700'
     : subtotal
-    ? isNegative ? 'text-red-500' : 'text-blue-700'
-    : 'text-gray-700';
+      ? isNegative ? 'text-red-500' : 'text-blue-700'
+      : 'text-gray-700';
 
   return (
     <div
@@ -241,15 +242,15 @@ function FeedbackList({ feedbacks }: { feedbacks: string[] }) {
             className="flex gap-2.5 items-start rounded-lg px-3 py-2.5 text-sm border"
             style={type === 'error'
               ? {
-                  background: 'var(--cenc-danger-bg)',
-                  borderColor: 'rgba(220, 38, 38, 0.25)',
-                  color: 'var(--cenc-danger)',
-                }
+                background: 'var(--cenc-danger-bg)',
+                borderColor: 'rgba(220, 38, 38, 0.25)',
+                color: 'var(--cenc-danger)',
+              }
               : {
-                  background: 'var(--cenc-warning-bg)',
-                  borderColor: 'rgba(217, 119, 6, 0.25)',
-                  color: 'var(--cenc-warning)',
-                }}
+                background: 'var(--cenc-warning-bg)',
+                borderColor: 'rgba(217, 119, 6, 0.25)',
+                color: 'var(--cenc-warning)',
+              }}
           >
             <span className="mt-px shrink-0">{type === 'error' ? '✕' : '⚠'}</span>
             <span>{msg}</span>
@@ -324,10 +325,10 @@ function AiReportCard({ aiReport }: { aiReport?: string | null }) {
             const colorClass = isAlert
               ? 'text-orange-700'
               : isBenchmark
-              ? 'text-blue-700'
-              : isMarket
-              ? 'text-indigo-700'
-              : 'text-gray-800';
+                ? 'text-blue-700'
+                : isMarket
+                  ? 'text-indigo-700'
+                  : 'text-gray-800';
             return <h4 key={i} className={`text-sm font-bold mt-4 mb-2 ${colorClass}`}>{currentSection}</h4>;
           }
           if (line.startsWith('- ')) {
@@ -349,10 +350,12 @@ function AiReportCard({ aiReport }: { aiReport?: string | null }) {
 // ─── Componente principal ───────────────────────────────────────────────────
 
 export default function ResultsPage() {
+  usePageTitle("Resultados por Rodada");
   const [closedRounds, setClosedRounds] = useState<Round[]>([]);
   const [selectedRoundId, setSelectedRoundId] = useState<string | null>(null);
   const [result, setResult] = useState<FinancialResult | null>(null);
   const [rankingPosition, setRankingPosition] = useState<number | null>(null);
+  const [playerEvents, setPlayerEvents] = useState<RoundEvent[]>([]);
   const [loadingRounds, setLoadingRounds] = useState(true);
   const [loadError, setLoadError] = useState('');
   const [loadingResult, setLoadingResult] = useState(false);
@@ -384,11 +387,13 @@ export default function ResultsPage() {
     setResult(null);
     setNoResult(false);
     setRankingPosition(null);
+    setPlayerEvents([]);
 
     Promise.allSettled([
       roundService.getResults(selectedRoundId),
       roundService.getRanking(selectedRoundId),
-    ]).then(([resultResp, rankingResp]) => {
+      roundService.getRoundEvents(selectedRoundId),
+    ]).then(([resultResp, rankingResp, eventsResp]) => {
       if (resultResp.status === 'fulfilled') {
         setResult(resultResp.value as FinancialResult);
 
@@ -402,6 +407,9 @@ export default function ResultsPage() {
         if (status === 404) {
           setNoResult(true);
         }
+      }
+      if (eventsResp.status === 'fulfilled') {
+        setPlayerEvents(eventsResp.value as RoundEvent[]);
       }
     }).finally(() => setLoadingResult(false));
   }, [selectedRoundId]);
@@ -430,6 +438,30 @@ export default function ResultsPage() {
     return (
       <PlayerLayout>
         <div className="flex flex-col items-center justify-center h-40 gap-2">
+          <div
+            style={{
+              width: 56,
+              height: 56,
+              borderRadius: '50%',
+              background: 'var(--cenc-blue-50)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <svg
+              width="28"
+              height="28"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="var(--cenc-blue-400)"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+            </svg>
+          </div>
           <p className="text-gray-500 font-medium">Nenhuma rodada encerrada ainda.</p>
           <p className="text-sm text-gray-400">Os resultados aparecem aqui após o encerramento de cada rodada.</p>
         </div>
@@ -487,6 +519,37 @@ export default function ResultsPage() {
 
             {/* Alertas */}
             <FeedbackList feedbacks={feedbacks} />
+
+            {/* Eventos da rodada */}
+            {playerEvents.length > 0 && (
+              <div className="rounded-xl border border-gray-200 bg-white shadow-sm px-5 py-4">
+                <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
+                  ⚡ Eventos da Rodada
+                </h3>
+                <div className="flex flex-col gap-2">
+                  {playerEvents.map((event) => (
+                    <div
+                      key={event.id}
+                      className="flex items-center justify-between rounded-lg px-4 py-3 text-sm border"
+                      style={{
+                        background: event.mitigated ? '#f0fdf4' : '#fef2f2',
+                        borderColor: event.mitigated ? '#bbf7d0' : '#fecaca',
+                      }}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span>{event.mitigated ? '🛡' : '⚠'}</span>
+                        <span className={event.mitigated ? 'text-green-800' : 'text-red-800'}>
+                          {event.description}
+                        </span>
+                      </div>
+                      <span className={`font-semibold ${event.mitigated ? 'text-green-700' : 'text-red-700'}`}>
+                        {event.mitigated ? 'Mitigado' : `−${formatCurrency(event.penalty)}`}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Relatório de IA */}
             <AiReportCard aiReport={result.aiReport} />

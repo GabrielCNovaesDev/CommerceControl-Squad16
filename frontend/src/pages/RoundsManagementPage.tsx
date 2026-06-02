@@ -5,16 +5,19 @@ import Button from '../components/ui/Button';
 import Skeleton from '../components/ui/Skeleton';
 import ErrorMessage from '../components/ui/ErrorMessage';
 import { useToast } from '../hooks/useToast';
+import usePageTitle from "../hooks/usePageTitle";
 import {
   CreateRoundModal,
   CloseRoundModal,
   DeleteLastRoundModal,
   ResetGameModal,
+  ExtendRoundModal,
   RoundsTable,
 } from '../components/rounds/RoundsComponents';
 import type { Round, RoundStatus } from '../types';
 
 export default function RoundsManagementPage() {
+  usePageTitle("Gerenciar Rodadas");
   const toast = useToast();
   const [rounds, setRounds] = useState<Round[]>([]);
   const [loading, setLoading] = useState(true);
@@ -27,6 +30,8 @@ export default function RoundsManagementPage() {
   const [deletingRound, setDeletingRound] = useState(false);
   const [showResetModal, setShowResetModal] = useState(false);
   const [resetting, setResetting] = useState(false);
+  const [roundToExtend, setRoundToExtend] = useState<Round | null>(null);
+  const [extending, setExtending] = useState(false);
 
   const loadRounds = useCallback(async () => {
     setLoadError('');
@@ -105,6 +110,23 @@ export default function RoundsManagementPage() {
     }
   }
 
+  async function handleExtendRound(minutes: number) {
+    if (!roundToExtend) return;
+    setExtending(true);
+    try {
+      await roundService.extendRound(roundToExtend.id, minutes);
+      toast.success(`+${minutes} minutos adicionados à Rodada #${roundToExtend.number}`);
+      setRoundToExtend(null);
+      setLoading(true);
+      loadRounds();
+    } catch (err: unknown) {
+      const axiosErr = err as { response?: { data?: { error?: { message?: string }; message?: string } } };
+      toast.error(axiosErr.response?.data?.error?.message ?? axiosErr.response?.data?.message ?? 'Erro ao adicionar tempo');
+    } finally {
+      setExtending(false);
+    }
+  }
+
   const hasOpenRound = rounds.some((r) => r.status === 'OPEN' || r.status === 'PROCESSING');
   const nextNumber = rounds.length > 0 ? Math.max(...rounds.map((r) => r.number)) + 1 : 1;
   const lastRoundId = rounds.length > 0 ? rounds[0].id : null;
@@ -150,6 +172,7 @@ export default function RoundsManagementPage() {
             rounds={rounds}
             onClose={(round) => { setRoundToClose(round); setCloseSuccess(false); }}
             onDeleteLast={(round) => setRoundToDelete(round)}
+            onExtend={(round) => setRoundToExtend(round)}
             lastRoundId={lastRoundId}
           />
         )}
@@ -180,6 +203,14 @@ export default function RoundsManagementPage() {
           onConfirm={handleResetGame}
           onCancel={() => setShowResetModal(false)}
           loading={resetting}
+        />
+      )}
+      {roundToExtend && (
+        <ExtendRoundModal
+          round={roundToExtend}
+          onConfirm={handleExtendRound}
+          onCancel={() => setRoundToExtend(null)}
+          loading={extending}
         />
       )}
     </AdminLayout>

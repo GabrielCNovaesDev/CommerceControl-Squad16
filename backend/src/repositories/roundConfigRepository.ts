@@ -69,5 +69,20 @@ function findAllByRound(roundId: string) {
   });
 }
 
-const roundConfigRepository = { findByRoundAndStore, create, findAllByRound };
+function findCapexByStore(storeId: string) {
+  return prisma.roundConfig.findMany({
+    where: { storeId },
+    select: {
+      roundId: true,
+      capexSeguranca: true,
+      capexBalanca: true,
+      capexRedes: true,
+      capexSite: true,
+      capexSelfCheckout: true,
+      capexMelhoria: true,
+    },
+  });
+}
+
+const roundConfigRepository = { findByRoundAndStore, create, findAllByRound, findCapexByStore };
 export default roundConfigRepository;

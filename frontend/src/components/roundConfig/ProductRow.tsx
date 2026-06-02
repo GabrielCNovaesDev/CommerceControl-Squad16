@@ -9,13 +9,14 @@ function calcSalePrice(purchasePrice: number, margin: number, taxRate: number): 
   return (purchasePrice * (1 + margin)) / (1 - taxRate);
 }
 
-export function ProductRow({ index, product, availableQty, control, register, errors }: {
+export function ProductRow({ index, product, availableQty, control, register, errors, purchaseDisabled }: {
   index: number;
   product: Product;
   availableQty: number;
   control: Control<FormData>;
   register: UseFormRegister<FormData>;
   errors: FieldErrors<FormData>;
+  purchaseDisabled?: boolean;
 }) {
   const margin      = useWatch({ control, name: `items.${index}.margin` });
   const salesVolume = useWatch({ control, name: `items.${index}.salesVolume` });
@@ -23,7 +24,7 @@ export function ProductRow({ index, product, availableQty, control, register, er
   register(`items.${index}.productId`);
 
   const marginNum     = Number(margin) || 0;
-  const salePrice     = calcSalePrice(product.purchasePrice, marginNum, product.taxRate);
+  const salePrice     = calcSalePrice(product.purchasePrice, marginNum / 100, product.taxRate);
   const volumeNum     = Number(salesVolume) || 0;
   const stockCostRow  = volumeNum * product.purchasePrice;
   const volumeWarning = volumeNum > availableQty && availableQty > 0;
@@ -45,23 +46,30 @@ export function ProductRow({ index, product, availableQty, control, register, er
       </div>
       <div className="w-32">
         <label className="text-xs text-gray-500 mb-1 block">Margem (%)</label>
-        <input type="number" step="0.1" min="0"
+        <input type="number" step="1" min="0"
           className={`w-full rounded-lg border px-2.5 py-1.5 text-sm outline-none focus:ring-2 focus:ring-blue-500 ${errors?.items?.[index]?.margin ? 'border-red-400 bg-red-50' : 'border-gray-300'}`}
           {...register(`items.${index}.margin`)} />
         {errors?.items?.[index]?.margin && (
           <p className="text-xs text-red-600 mt-0.5">{errors.items[index]?.margin?.message}</p>
         )}
-        <p className="text-xs text-gray-400 mt-0.5">Preço: {formatCurrency(salePrice)}</p>
+        <p className="text-xs text-gray-400 mt-0.5">Ex.: 30 = 30%. Preço: {formatCurrency(salePrice)}</p>
       </div>
       <div className="w-28">
         <label className="text-xs text-gray-500 mb-1 block">Volume (un.)</label>
-        <input type="number" min="1"
-          className={`w-full rounded-lg border px-2.5 py-1.5 text-sm outline-none focus:ring-2 focus:ring-blue-500 ${volumeWarning ? 'border-orange-400 bg-orange-50' : errors?.items?.[index]?.salesVolume ? 'border-red-400 bg-red-50' : 'border-gray-300'}`}
-          {...register(`items.${index}.salesVolume`)} />
-        {volumeWarning && <p className="text-xs text-orange-600 mt-0.5">Acima do estoque</p>}
-        {errors?.items?.[index]?.salesVolume && (
+        {purchaseDisabled ? (
+          <div className="w-full rounded-lg border border-gray-200 bg-gray-100 px-2.5 py-1.5 text-sm text-gray-500 cursor-not-allowed">
+            —
+          </div>
+        ) : (
+          <input type="number" min="1"
+            className={`w-full rounded-lg border px-2.5 py-1.5 text-sm outline-none focus:ring-2 focus:ring-blue-500 ${volumeWarning ? 'border-orange-400 bg-orange-50' : errors?.items?.[index]?.salesVolume ? 'border-red-400 bg-red-50' : 'border-gray-300'}`}
+            {...register(`items.${index}.salesVolume`)} />
+        )}
+        {!purchaseDisabled && volumeWarning && <p className="text-xs text-orange-600 mt-0.5">Acima do estoque</p>}
+        {!purchaseDisabled && errors?.items?.[index]?.salesVolume && (
           <p className="text-xs text-red-600 mt-0.5">{errors.items[index]?.salesVolume?.message}</p>
         )}
+        {purchaseDisabled && <p className="text-xs text-gray-400 mt-0.5">Sem compras</p>}
       </div>
     </div>
   );

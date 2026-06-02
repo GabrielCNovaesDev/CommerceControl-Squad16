@@ -20,8 +20,10 @@ import { ProductRow } from '../components/roundConfig/ProductRow';
 import { CountdownBadge } from '../components/roundConfig/CountdownBadge';
 import type { Round, Store, Product, DREResult } from '../types';
 import type { FormData } from '../components/roundConfig/types';
+import usePageTitle from "../hooks/usePageTitle";
 
 export default function RoundConfigPage() {
+  usePageTitle("Configurar Rodada");
   const navigate = useNavigate();
   const toast    = useToast();
 
@@ -29,15 +31,17 @@ export default function RoundConfigPage() {
   const [store,         setStore]         = useState<Store | null>(null);
   const [inventoryMap,  setInventoryMap]  = useState<Record<string, number>>({});
   const [products,      setProducts]      = useState<Product[]>([]);
+  const [previousCapex, setPreviousCapex] = useState<string[]>([]);
   const [loading,       setLoading]       = useState(true);
   const [loadError,     setLoadError]     = useState('');
   const [preview,       setPreview]       = useState<DREResult | null>(null);
   const [submitSuccess, setSubmitSuccess] = useState(false);
+  const [isResubmit,    setIsResubmit]    = useState(false);
 
   const { register, handleSubmit, control, getValues, trigger, reset, formState: { errors, isSubmitting } } = useForm<FormData, unknown, FormData>({
     resolver: zodResolver(roundConfigSchema) as never,
     defaultValues: {
-      otherExpenses: 0, cashierOperators: 10, serviceOperators: 5, quizScore: 1.0,
+      otherExpenses: 0, cashierOperators: 10, serviceOperators: 5, quizScore: 100,
       numPdvs: 6, capexSeguranca: false, capexBalanca: false, capexRedes: false,
       capexSite: false, capexSelfCheckout: false, capexMelhoria: false, items: [],
     },
@@ -63,15 +67,64 @@ export default function RoundConfigPage() {
       setProducts(Array.isArray(prods) ? prods : []);
       setStore(s);
       reset({
-        otherExpenses: 0, cashierOperators: 10, serviceOperators: 5, quizScore: 1.0,
+        otherExpenses: 0, cashierOperators: 10, serviceOperators: 5, quizScore: 100,
         numPdvs: 6, capexSeguranca: false, capexBalanca: false, capexRedes: false,
         capexSite: false, capexSelfCheckout: false, capexMelhoria: false,
         items: (Array.isArray(prods) ? prods : [])
-          .map((p: Product) => ({ productId: p.id, margin: 0.12, salesVolume: 1 })),
+          .map((p: Product) => ({ productId: p.id, margin: 12, salesVolume: open && open.number >= 3 ? 0 : 1 })),
       });
+
+      // Check for existing config (resubmission)
+      if (open) {
+        try {
+          const existingConfig = await roundService.getMyConfig(open.id) as {
+            otherExpenses: number;
+            cashierOperators: number;
+            serviceOperators: number;
+            quizScore: number;
+            numPdvs: number;
+            capexSeguranca: boolean;
+            capexBalanca: boolean;
+            capexRedes: boolean;
+            capexSite: boolean;
+            capexSelfCheckout: boolean;
+            capexMelhoria: boolean;
+            roundConfigItems: Array<{ productId: string; margin: number; salesVolume: number }>;
+          } | null;
+          if (existingConfig) {
+            setIsResubmit(true);
+            reset({
+              otherExpenses: Number(existingConfig.otherExpenses) || 0,
+              cashierOperators: Number(existingConfig.cashierOperators) ?? 10,
+              serviceOperators: Number(existingConfig.serviceOperators) ?? 5,
+              quizScore: Math.round((Number(existingConfig.quizScore) || 1) * 100),
+              numPdvs: Number(existingConfig.numPdvs) ?? 6,
+              capexSeguranca: !!existingConfig.capexSeguranca,
+              capexBalanca: !!existingConfig.capexBalanca,
+              capexRedes: !!existingConfig.capexRedes,
+              capexSite: !!existingConfig.capexSite,
+              capexSelfCheckout: !!existingConfig.capexSelfCheckout,
+              capexMelhoria: !!existingConfig.capexMelhoria,
+              items: existingConfig.roundConfigItems.map((item) => ({
+                productId: item.productId,
+                margin: Math.round(Number(item.margin) * 100),
+                salesVolume: item.salesVolume,
+              })),
+            });
+          }
+        } catch {
+          // No existing config — first submission
+        }
+      }
       if (s) {
         const inv = await storeService.getInventory(s.id);
         setInventoryMap(Object.fromEntries(inv.map((i: { productId: string; quantity: number }) => [i.productId, i.quantity])));
+        try {
+          const prevCapex = await storeService.getPreviousCapex();
+          setPreviousCapex(prevCapex);
+        } catch {
+          // Non-critical — continue without previous capex info
+        }
       }
     } catch {
       setLoadError('Não foi possível carregar os dados da rodada.');
@@ -87,7 +140,7 @@ export default function RoundConfigPage() {
       otherExpenses:     Number(values.otherExpenses),
       cashierOperators:  Number(values.cashierOperators),
       serviceOperators:  Number(values.serviceOperators),
-      quizScore:         Number(values.quizScore),
+      quizScore:         Number(values.quizScore) / 100,
       numPdvs:           Number(values.numPdvs),
       capexSeguranca:    !!values.capexSeguranca,
       capexBalanca:      !!values.capexBalanca,
@@ -97,7 +150,7 @@ export default function RoundConfigPage() {
       capexMelhoria:     !!values.capexMelhoria,
       items: values.items.map((item) => ({
         productId:   item.productId,
-        margin:      Number(item.margin),
+        margin:      Number(item.margin) / 100,
         salesVolume: Number(item.salesVolume),
       })),
     };
@@ -119,7 +172,7 @@ export default function RoundConfigPage() {
     if (!activeRound) return;
     try {
       await roundService.submitConfig(activeRound.id, collectPayload(data));
-      toast.success('Estratégia enviada com sucesso!');
+      toast.success(isResubmit ? 'Estratégia reenviada com sucesso!' : 'Estratégia enviada com sucesso!');
       setSubmitSuccess(true);
       setTimeout(() => navigate('/store'), 1500);
     } catch (err: unknown) {
@@ -200,17 +253,8 @@ export default function RoundConfigPage() {
 
         <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-6">
           <OperatorsPanel register={register} errors={errors} control={control} />
-          <CapexPanel register={register} control={control} />
+          <CapexPanel register={register} control={control} previousCapex={previousCapex} />
           <LicensingPanel register={register} errors={errors} control={control} />
-
-          {store && (
-            <CashSummaryPanel
-              initialCapital={store.initialCapital}
-              currentCash={store.currentCash}
-              products={products}
-              control={control}
-            />
-          )}
 
           {/* Outros gastos */}
           <div className="rounded-xl bg-white border border-gray-200 shadow-sm px-5 py-4 flex flex-col gap-2">
@@ -228,6 +272,12 @@ export default function RoundConfigPage() {
               <h2 className="text-sm font-semibold text-gray-700">Estratégia por Categoria</h2>
               <p className="text-xs text-gray-400 mt-0.5">Defina margem e volume de vendas para cada categoria.</p>
             </div>
+            {activeRound.number >= 3 && (
+              <div className="mx-5 mt-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
+                <p className="text-sm font-medium text-amber-800">Sem novas compras a partir da rodada 3</p>
+                <p className="text-xs text-amber-600 mt-0.5">Você vende apenas o estoque existente. Defina apenas a margem desejada.</p>
+              </div>
+            )}
             <div className="px-5 py-2">
               {products.map((product, index) => (
                 <ProductRow
@@ -238,10 +288,21 @@ export default function RoundConfigPage() {
                   control={control}
                   register={register}
                   errors={errors}
+                  purchaseDisabled={activeRound.number >= 3}
                 />
               ))}
             </div>
           </div>
+
+          {/* Validação de Caixa — última seção antes do envio */}
+          {store && (
+            <CashSummaryPanel
+              initialCapital={store.initialCapital}
+              currentCash={store.currentCash}
+              products={products}
+              control={control}
+            />
+          )}
 
           {/* Ações */}
           <div className="flex gap-3">
@@ -249,7 +310,7 @@ export default function RoundConfigPage() {
               Simular
             </Button>
             <Button type="submit" loading={isSubmitting} className="flex-1">
-              Enviar Estratégia
+              {isResubmit ? 'Reenviar Estratégia' : 'Enviar Estratégia'}
             </Button>
           </div>
         </form>

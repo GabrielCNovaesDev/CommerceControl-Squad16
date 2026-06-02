@@ -144,6 +144,10 @@ export interface FinancialResult {
   ebitda: number;
   ebitdaMargin: number;
   demandShare: number;
+  priceScore?: number | null;
+  availScore?: number | null;
+  csatScore?: number | null;
+  totalScore?: number | null;
   aiReport?: string | null;
   store?: {
     id: string;
@@ -176,4 +180,19 @@ export interface UserRecord {
   leader: boolean;
   squadId: string | null;
   createdAt: string;
+}
+
+export interface RoundEvent {
+  id: string;
+  roundId: string;
+  storeId: string;
+  eventKey: string;
+  description: string;
+  penalty: number;
+  mitigated: boolean;
+  store?: {
+    id: string;
+    name: string;
+    squad?: { name: string };
+  };
 }

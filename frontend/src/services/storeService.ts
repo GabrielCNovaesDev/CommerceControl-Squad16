@@ -15,6 +15,9 @@ const storeService = {
 
   getInventory: (storeId: string): Promise<InventoryItem[]> =>
     api.get(`/stores/${storeId}/inventory`).then((r) => r.data),
+
+  getPreviousCapex: (): Promise<string[]> =>
+    api.get('/stores/my/previous-capex').then((r) => r.data),
 };
 
 export default storeService;
