@@ -32,9 +32,9 @@ function sortByEbitda(results: FinancialResult[]): FinancialResult[] {
 }
 
 function exportToCsv(rows: FinancialResult[]) {
-  const headers = ['Posição','Squad','Loja','Part. Mercado (%)','Receita Bruta','Impostos','Receita Líquida','Custos','Massa Mg Líquida','Quebras','Aging','Massa Mg Final','Outros Gastos','EBITDA','Margem EBITDA (%)'];
+  const headers = ['Posição', 'Squad', 'Loja', 'Part. Mercado (%)', 'Receita Bruta', 'Impostos', 'Receita Líquida', 'Custos', 'Massa Mg Líquida', 'Quebras', 'Aging', 'Massa Mg Final', 'Outros Gastos', 'EBITDA', 'Margem EBITDA (%)'];
   const escape = (v: unknown) => { const s = String(v).replace(/"/g, '""'); return s.includes(',') || s.includes('"') || s.includes('\n') ? `"${s}"` : s; };
-  const lines = [headers.join(','), ...rows.map((r, i) => [i+1, escape(r.store?.squad?.name ?? '—'), escape(r.store?.name ?? '—'), ((r.demandShare ?? 0)*100).toFixed(2), r.grossRevenue.toFixed(2), r.taxes.toFixed(2), r.netRevenue.toFixed(2), r.costs.toFixed(2), r.grossMargin.toFixed(2), r.totalBreakage.toFixed(2), r.totalAging.toFixed(2), r.netMarginMass.toFixed(2), r.otherExpenses.toFixed(2), r.ebitda.toFixed(2), r.ebitdaMargin.toFixed(2)].join(','))];
+  const lines = [headers.join(','), ...rows.map((r, i) => [i + 1, escape(r.store?.squad?.name ?? '—'), escape(r.store?.name ?? '—'), ((r.demandShare ?? 0) * 100).toFixed(2), r.grossRevenue.toFixed(2), r.taxes.toFixed(2), r.netRevenue.toFixed(2), r.costs.toFixed(2), r.grossMargin.toFixed(2), r.totalBreakage.toFixed(2), r.totalAging.toFixed(2), r.netMarginMass.toFixed(2), r.otherExpenses.toFixed(2), r.ebitda.toFixed(2), r.ebitdaMargin.toFixed(2)].join(','))];
   const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -67,7 +67,7 @@ function ResultsTable({ sorted }: { sorted: FinancialResult[] }) {
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
           <thead>
             <tr style={{ background: 'var(--cenc-gray-50)', borderBottom: '1px solid var(--cenc-gray-200)' }}>
-              {['#','Squad','Loja','Rec. Bruta','Rec. Líquida','Massa Mg Final','Part. Mercado','EBITDA','Margem EBITDA'].map((h, i) => (
+              {['#', 'Squad', 'Loja', 'Rec. Bruta', 'Rec. Líquida', 'Massa Mg Final', 'Part. Mercado', 'EBITDA', 'Margem EBITDA'].map((h, i) => (
                 <th key={h} style={{ padding: '12px 14px', fontWeight: 700, fontSize: '11px', color: 'var(--cenc-gray-500)', textTransform: 'uppercase', letterSpacing: '0.06em', textAlign: i <= 2 ? 'left' : 'right', whiteSpace: 'nowrap' }}>{h}</th>
               ))}
             </tr>
@@ -76,14 +76,14 @@ function ResultsTable({ sorted }: { sorted: FinancialResult[] }) {
             {sorted.map((r, i) => (
               <tr key={r.id} className="table-row-hover" style={{ borderTop: '1px solid var(--cenc-gray-100)', background: 'white' }}>
                 <td style={{ padding: '11px 14px' }}>
-                  <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 26, height: 26, borderRadius: '50%', background: i === 0 ? 'var(--cenc-blue-50)' : 'var(--cenc-gray-100)', fontSize: '12px', fontWeight: 700, color: i === 0 ? 'var(--cenc-blue-700)' : 'var(--cenc-gray-600)' }}>{i+1}</span>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 26, height: 26, borderRadius: '50%', background: i === 0 ? 'var(--cenc-blue-50)' : 'var(--cenc-gray-100)', fontSize: '12px', fontWeight: 700, color: i === 0 ? 'var(--cenc-blue-700)' : 'var(--cenc-gray-600)' }}>{i + 1}</span>
                 </td>
                 <td style={{ padding: '11px 14px', fontWeight: 600, color: 'var(--cenc-gray-800)' }}>{r.store?.squad?.name ?? '—'}</td>
                 <td style={{ padding: '11px 14px', color: 'var(--cenc-gray-600)' }}>{r.store?.name ?? '—'}</td>
                 <td style={{ padding: '11px 14px', textAlign: 'right', color: 'var(--cenc-gray-700)' }}>{formatCurrency(r.grossRevenue)}</td>
                 <td style={{ padding: '11px 14px', textAlign: 'right', color: 'var(--cenc-gray-700)' }}>{formatCurrency(r.netRevenue)}</td>
                 <td style={{ padding: '11px 14px', textAlign: 'right', color: 'var(--cenc-gray-700)' }}>{formatCurrency(r.netMarginMass)}</td>
-                <td style={{ padding: '11px 14px', textAlign: 'right', fontWeight: 600, color: 'var(--cenc-blue-700)' }}>{((r.demandShare ?? 0)*100).toFixed(1)}%</td>
+                <td style={{ padding: '11px 14px', textAlign: 'right', fontWeight: 600, color: 'var(--cenc-blue-700)' }}>{((r.demandShare ?? 0) * 100).toFixed(1)}%</td>
                 <td style={{ padding: '11px 14px', textAlign: 'right', fontWeight: 700, color: r.ebitda >= 0 ? 'var(--cenc-success)' : 'var(--cenc-danger)' }}>
                   {r.ebitda >= 0 ? '' : '−'}{formatCurrency(Math.abs(r.ebitda))}
                 </td>
@@ -422,6 +422,30 @@ export default function AdminResultsPage() {
     return (
       <AdminLayout>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 160, gap: 8 }}>
+          <div
+            style={{
+              width: 56,
+              height: 56,
+              borderRadius: '50%',
+              background: 'var(--cenc-blue-50)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <svg
+              width="28"
+              height="28"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="var(--cenc-blue-400)"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+            </svg>
+          </div>
           <p style={{ margin: 0, fontSize: '14px', fontWeight: 600, color: 'var(--cenc-gray-500)' }}>Nenhuma rodada cadastrada.</p>
         </div>
       </AdminLayout>
@@ -447,7 +471,7 @@ export default function AdminResultsPage() {
                 onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--cenc-blue-100)'; }}
                 onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--cenc-blue-50)'; }}
               >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>
                 Exportar CSV
               </button>
             )}
@@ -458,7 +482,7 @@ export default function AdminResultsPage() {
         {/* Not closed warning */}
         {isNotClosed && (
           <div className="animate-slide-down" style={{ borderRadius: 14, border: '1px solid #fde047', background: '#fefce8', padding: '14px 20px', display: 'flex', alignItems: 'center', gap: 14 }}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#a16207" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#a16207" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>
             <div style={{ flex: 1 }}>
               <p style={{ margin: 0, fontSize: '13px', fontWeight: 600, color: '#854d0e' }}>Esta rodada ainda não foi encerrada.</p>
               <p style={{ margin: '2px 0 0', fontSize: '12px', color: '#92400e' }}>Os resultados estarão disponíveis após o encerramento da Rodada #{selectedRound.number}.</p>
