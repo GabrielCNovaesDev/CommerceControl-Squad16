@@ -20,8 +20,10 @@ import { ProductRow } from '../components/roundConfig/ProductRow';
 import { CountdownBadge } from '../components/roundConfig/CountdownBadge';
 import type { Round, Store, Product, DREResult } from '../types';
 import type { FormData } from '../components/roundConfig/types';
+import usePageTitle from "../hooks/usePageTitle";
 
 export default function RoundConfigPage() {
+  usePageTitle("Configurar Rodada");
   const navigate = useNavigate();
   const toast    = useToast();
 

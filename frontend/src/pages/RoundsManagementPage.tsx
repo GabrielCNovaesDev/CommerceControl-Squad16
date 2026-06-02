@@ -5,6 +5,7 @@ import Button from '../components/ui/Button';
 import Skeleton from '../components/ui/Skeleton';
 import ErrorMessage from '../components/ui/ErrorMessage';
 import { useToast } from '../hooks/useToast';
+import usePageTitle from "../hooks/usePageTitle";
 import {
   CreateRoundModal,
   CloseRoundModal,
@@ -16,6 +17,7 @@ import {
 import type { Round, RoundStatus } from '../types';
 
 export default function RoundsManagementPage() {
+  usePageTitle("Gerenciar Rodadas");
   const toast = useToast();
   const [rounds, setRounds] = useState<Round[]>([]);
   const [loading, setLoading] = useState(true);
