@@ -2,9 +2,9 @@ import { z } from 'zod';
 
 export const roundConfigSchema = z.object({
   otherExpenses:     z.coerce.number({ error: 'Valor inválido' }).min(0),
-  cashierOperators:  z.coerce.number({ error: 'Valor inválido' }).int().min(0),
+  cashierOperators:  z.coerce.number({ error: 'Valor inválido' }).int().min(0).max(10),
   serviceOperators:  z.coerce.number({ error: 'Valor inválido' }).int().min(0),
-  quizScore:         z.coerce.number({ error: 'Valor inválido' }).min(0).max(1),
+  quizScore:         z.coerce.number({ error: 'Valor inválido' }).min(0).max(100),
   numPdvs:           z.coerce.number({ error: 'Valor inválido' }).int().min(0),
   capexSeguranca:    z.boolean().default(false),
   capexBalanca:      z.boolean().default(false),
@@ -16,7 +16,7 @@ export const roundConfigSchema = z.object({
     z.object({
       productId:   z.string(),
       margin:      z.coerce.number({ error: 'Valor inválido' }).min(0),
-      salesVolume: z.coerce.number({ error: 'Valor inválido' }).int().positive(),
+      salesVolume: z.coerce.number({ error: 'Valor inválido' }).int().min(0),
     })
   ).min(1),
 });
@@ -32,4 +32,8 @@ export interface CapexDef {
   label: string;
   cost: number;
   desc: string;
+  benefits: string;
+  strategicImpact: string;
+  penaltyAvoided: string;
+  operationalRisk: string;
 }

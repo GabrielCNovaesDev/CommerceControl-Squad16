@@ -6,6 +6,7 @@ import Button from '../components/ui/Button';
 import Skeleton from '../components/ui/Skeleton';
 import ErrorMessage from '../components/ui/ErrorMessage';
 import { useToast } from '../hooks/useToast';
+import usePageTitle from "../hooks/usePageTitle";
 import {
   ConfirmModal,
   CreateSquadModal,
@@ -18,6 +19,7 @@ import {
 import type { Squad, SquadUser, UserRecord } from '../types';
 
 export default function SquadsManagementPage() {
+  usePageTitle("Gerenciar Squads");
   const toast = useToast();
   const [squads, setSquads] = useState<Squad[]>([]);
   const [users, setUsers] = useState<UserRecord[]>([]);

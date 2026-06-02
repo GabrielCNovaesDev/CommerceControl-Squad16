@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import useThemeStore from '../store/themeStore';
+import usePageTitle from "../hooks/usePageTitle";
 
 const CencosudLogo = () => (
   <svg width="48" height="48" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -12,6 +13,7 @@ const CencosudLogo = () => (
 );
 
 export default function UnauthorizedPage() {
+  usePageTitle("Acesso Negado | Sistema");
   const navigate = useNavigate();
   const isDark = useThemeStore((state) => state.isDark);
 

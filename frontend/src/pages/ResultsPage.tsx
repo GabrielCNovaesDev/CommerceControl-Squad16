@@ -6,6 +6,7 @@ import Skeleton from '../components/ui/Skeleton';
 import ErrorMessage from '../components/ui/ErrorMessage';
 import { formatCurrency } from '../utils/formatters';
 import type { Round, FinancialResult, RankingEntry, RoundConfigItem } from '../types';
+import usePageTitle from "../hooks/usePageTitle";
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
 
@@ -349,10 +350,12 @@ function AiReportCard({ aiReport }: { aiReport?: string | null }) {
 // ─── Componente principal ───────────────────────────────────────────────────
 
 export default function ResultsPage() {
+  usePageTitle("Resultados por Rodada");
   const [closedRounds, setClosedRounds] = useState<Round[]>([]);
   const [selectedRoundId, setSelectedRoundId] = useState<string | null>(null);
   const [result, setResult] = useState<FinancialResult | null>(null);
   const [rankingPosition, setRankingPosition] = useState<number | null>(null);
+  const [playerEvents, setPlayerEvents] = useState<RoundEvent[]>([]);
   const [loadingRounds, setLoadingRounds] = useState(true);
   const [loadError, setLoadError] = useState('');
   const [loadingResult, setLoadingResult] = useState(false);
@@ -384,11 +387,13 @@ export default function ResultsPage() {
     setResult(null);
     setNoResult(false);
     setRankingPosition(null);
+    setPlayerEvents([]);
 
     Promise.allSettled([
       roundService.getResults(selectedRoundId),
       roundService.getRanking(selectedRoundId),
-    ]).then(([resultResp, rankingResp]) => {
+      roundService.getRoundEvents(selectedRoundId),
+    ]).then(([resultResp, rankingResp, eventsResp]) => {
       if (resultResp.status === 'fulfilled') {
         setResult(resultResp.value as FinancialResult);
 
@@ -402,6 +407,9 @@ export default function ResultsPage() {
         if (status === 404) {
           setNoResult(true);
         }
+      }
+      if (eventsResp.status === 'fulfilled') {
+        setPlayerEvents(eventsResp.value as RoundEvent[]);
       }
     }).finally(() => setLoadingResult(false));
   }, [selectedRoundId]);
@@ -511,6 +519,37 @@ export default function ResultsPage() {
 
             {/* Alertas */}
             <FeedbackList feedbacks={feedbacks} />
+
+            {/* Eventos da rodada */}
+            {playerEvents.length > 0 && (
+              <div className="rounded-xl border border-gray-200 bg-white shadow-sm px-5 py-4">
+                <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
+                  ⚡ Eventos da Rodada
+                </h3>
+                <div className="flex flex-col gap-2">
+                  {playerEvents.map((event) => (
+                    <div
+                      key={event.id}
+                      className="flex items-center justify-between rounded-lg px-4 py-3 text-sm border"
+                      style={{
+                        background: event.mitigated ? '#f0fdf4' : '#fef2f2',
+                        borderColor: event.mitigated ? '#bbf7d0' : '#fecaca',
+                      }}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span>{event.mitigated ? '🛡' : '⚠'}</span>
+                        <span className={event.mitigated ? 'text-green-800' : 'text-red-800'}>
+                          {event.description}
+                        </span>
+                      </div>
+                      <span className={`font-semibold ${event.mitigated ? 'text-green-700' : 'text-red-700'}`}>
+                        {event.mitigated ? 'Mitigado' : `−${formatCurrency(event.penalty)}`}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Relatório de IA */}
             <AiReportCard aiReport={result.aiReport} />

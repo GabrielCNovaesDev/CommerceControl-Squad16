@@ -1,5 +1,5 @@
 import api from './api';
-import { Round, FinancialResult, RankingEntry, DREResult, CashSummary } from '../types';
+import { Round, FinancialResult, RankingEntry, DREResult, CashSummary, RoundEvent } from '../types';
 
 interface RoundConfigItem {
   productId: string;
@@ -48,6 +48,9 @@ const roundService = {
   closeRound: (id: string): Promise<{ message: string }> =>
     api.patch(`/rounds/${id}/close`).then((r) => r.data),
 
+  extendRound: (id: string, additionalMinutes: number): Promise<{ message: string; endsAt: string }> =>
+    api.patch(`/rounds/${id}/extend`, { additionalMinutes }).then((r) => r.data),
+
   deleteLastRound: (): Promise<{ message: string }> =>
     api.delete('/rounds/last').then((r) => r.data),
 
@@ -57,6 +60,9 @@ const roundService = {
   submitConfig: (roundId: string, data: SubmitConfigData): Promise<unknown> =>
     api.post(`/rounds/${roundId}/config`, data).then((r) => r.data),
 
+  getMyConfig: (roundId: string): Promise<Record<string, unknown> | null> =>
+    api.get(`/rounds/${roundId}/my-config`).then((r) => r.data).catch(() => null),
+
   previewSimulation: (data: SubmitConfigData): Promise<PreviewResponse> =>
     api.post('/simulation/preview', data).then((r) => r.data),
 
@@ -65,6 +71,9 @@ const roundService = {
 
   getRanking: (roundId: string): Promise<RankingEntry[]> =>
     api.get('/simulation/ranking', { params: { roundId } }).then((r) => r.data),
+
+  getRoundEvents: (roundId: string): Promise<RoundEvent[]> =>
+    api.get(`/rounds/${roundId}/events`).then((r) => r.data),
 };
 
 export default roundService;

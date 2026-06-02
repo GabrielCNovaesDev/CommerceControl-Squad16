@@ -1,4 +1,4 @@
-# Commerce Control — Cencosud
+# Commerce Control
 
 **Simulador estratégico de gestão de loja que treina equipes a tomar decisões financeiras reais (margens, CAPEX, staffing) e mede impacto via DRE automatizado com ranking competitivo.**
 
