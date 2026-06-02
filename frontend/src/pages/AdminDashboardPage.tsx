@@ -107,7 +107,7 @@ function ConfirmCloseModal({ round, onConfirm, onCancel, loading, error }: {
           </div>
         </div>
         {error && (
-          <div style={{ background: '#fee2e2', border: '1px solid #fecaca', borderRadius: '10px', padding: '10px 14px', fontSize: '13px', color: '#b91c1c' }}>
+          <div style={{ background: 'var(--cenc-danger-bg)', border: '1px solid rgba(220, 38, 38, 0.25)', borderRadius: '10px', padding: '10px 14px', fontSize: '13px', color: 'var(--cenc-danger)' }}>
             {error}
           </div>
         )}
@@ -177,7 +177,7 @@ function CreateRoundModal({ onSuccess, onCancel, nextNumber }: {
             {errors.demandFactor && <p style={{ margin: 0, fontSize: '12px', color: 'var(--cenc-danger)' }}>{errors.demandFactor.message}</p>}
           </div>
           {serverError && (
-            <div style={{ background: '#fee2e2', border: '1px solid #fecaca', borderRadius: '10px', padding: '10px 14px', fontSize: '13px', color: '#b91c1c' }}>
+            <div style={{ background: 'var(--cenc-danger-bg)', border: '1px solid rgba(220, 38, 38, 0.25)', borderRadius: '10px', padding: '10px 14px', fontSize: '13px', color: 'var(--cenc-danger)' }}>
               {serverError}
             </div>
           )}

@@ -34,8 +34,8 @@ function RoundTimer({ endsAt }: { endsAt: string }) {
   const { timeLeft, expired } = useCountdown(endsAt);
   if (expired) {
     return (
-      <div style={{ borderRadius: 10, background: '#fff7ed', border: '1px solid #fed7aa', padding: '10px 14px', textAlign: 'center' }}>
-        <p style={{ margin: 0, fontSize: '12px', color: '#c2410c', fontWeight: 600 }}>Tempo esgotado — aguardando encerramento</p>
+      <div style={{ borderRadius: 10, background: 'var(--cenc-warning-bg)', border: '1px solid rgba(217, 119, 6, 0.25)', padding: '10px 14px', textAlign: 'center' }}>
+        <p style={{ margin: 0, fontSize: '12px', color: 'var(--cenc-warning)', fontWeight: 600 }}>Tempo esgotado — aguardando encerramento</p>
       </div>
     );
   }
@@ -180,14 +180,14 @@ export default function StoresDashboardPage() {
           {/* Cash card */}
           <div style={{
             borderRadius: 14, padding: '14px 20px', textAlign: 'right',
-            background: cashPositive ? '#f0fdf4' : '#fff1f2',
-            border: `1px solid ${cashPositive ? '#86efac' : '#fca5a5'}`,
+            background: cashPositive ? 'var(--cenc-success-bg)' : 'var(--cenc-danger-bg)',
+            border: `1px solid ${cashPositive ? 'rgba(22, 163, 74, 0.25)' : 'rgba(220, 38, 38, 0.25)'}`,
           }}>
             <p style={{ margin: 0, fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--cenc-gray-400)' }}>Caixa Atual</p>
-            <p style={{ margin: '4px 0 2px', fontSize: '28px', fontWeight: 800, color: cashPositive ? '#15803d' : '#b91c1c', lineHeight: 1 }}>
+            <p style={{ margin: '4px 0 2px', fontSize: '28px', fontWeight: 800, color: cashPositive ? 'var(--cenc-success)' : 'var(--cenc-danger)', lineHeight: 1 }}>
               {formatCurrency(store.currentCash ?? store.initialCapital)}
             </p>
-            <p style={{ margin: 0, fontSize: '12px', color: cashPositive ? '#16a34a' : '#dc2626' }}>
+            <p style={{ margin: 0, fontSize: '12px', color: cashPositive ? 'var(--cenc-success)' : 'var(--cenc-danger)' }}>
               {cashPct.toFixed(1)}% do capital inicial
             </p>
           </div>

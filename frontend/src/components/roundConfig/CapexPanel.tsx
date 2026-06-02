@@ -2,6 +2,7 @@ import type { Control, UseFormRegister } from 'react-hook-form';
 import { useWatch } from 'react-hook-form';
 import { formatCurrency } from '../../utils/formatters';
 import type { FormData, CapexDef } from './types';
+import useThemeStore from '../../store/themeStore';
 
 export const CAPEX_DEFS: CapexDef[] = [
   { key: 'capexSeguranca',    label: 'Segurança',        cost: 50000, desc: 'Monitoramento contra ataques. Risco sem CAPEX: 2+SLA dias sem venda.' },
@@ -30,16 +31,17 @@ export function CapexPanel({ register, control }: {
   });
   const capexValues = Object.fromEntries(CAPEX_DEFS.map((d, i) => [d.key, watched[i]])) as Record<string, boolean>;
   const totalCapex = calcCapexTotal(capexValues);
+  const isDark = useThemeStore((state) => state.isDark);
 
   return (
-    <div className="rounded-xl bg-white border border-gray-200 shadow-sm">
+    <div className="rounded-xl shadow-sm" style={{ background: 'var(--cenc-surface)', border: `1px solid ${isDark ? 'var(--cenc-gray-300)' : 'var(--cenc-gray-200)'}` }}>
       <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
         <div>
-          <h2 className="text-sm font-semibold text-gray-700">CAPEX — Investimentos</h2>
-          <p className="text-xs text-gray-400 mt-0.5">Investimentos únicos deduzidos do capital inicial.</p>
+          <h2 className="text-sm font-semibold" style={{ color: 'var(--cenc-gray-700)' }}>CAPEX — Investimentos</h2>
+          <p className="text-xs mt-0.5" style={{ color: 'var(--cenc-gray-400)' }}>Investimentos únicos deduzidos do capital inicial.</p>
         </div>
         {totalCapex > 0 && (
-          <span className="text-sm font-semibold text-orange-700 bg-orange-50 border border-orange-200 px-3 py-1 rounded-full">
+          <span className="text-sm font-semibold px-3 py-1 rounded-full" style={{ background: isDark ? '#241a00' : '#fffbeb', color: isDark ? '#fcd34d' : '#c2410c', border: `1px solid ${isDark ? '#92400e' : '#fed7aa'}` }}>
             Total: {formatCurrency(totalCapex)}
           </span>
         )}
@@ -48,14 +50,21 @@ export function CapexPanel({ register, control }: {
         {CAPEX_DEFS.map((def) => {
           const checked = capexValues[def.key];
           return (
-            <label key={def.key} className={`flex items-start gap-3 rounded-lg border px-4 py-3 cursor-pointer transition-colors ${checked ? 'bg-indigo-50 border-indigo-200' : 'bg-gray-50 border-gray-200 hover:border-gray-300'}`}>
-              <input type="checkbox" className="mt-0.5 h-4 w-4 rounded text-indigo-600 border-gray-300 focus:ring-indigo-500" {...register(def.key)} />
+            <label
+              key={def.key}
+              className="flex items-start gap-3 rounded-lg border px-4 py-3 cursor-pointer transition-colors"
+              style={{
+                background: checked ? (isDark ? '#0f1b34' : '#eef2ff') : (isDark ? 'var(--cenc-gray-100)' : 'var(--cenc-gray-50)'),
+                borderColor: checked ? (isDark ? '#1d4ed8' : '#c7d2fe') : (isDark ? 'var(--cenc-gray-300)' : 'var(--cenc-gray-200)'),
+              }}
+            >
+              <input type="checkbox" className="mt-0.5 h-4 w-4 rounded border-gray-300 focus:ring-indigo-500" {...register(def.key)} />
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium text-gray-800">{def.label}</span>
-                  <span className="text-xs font-semibold text-indigo-700">{formatCurrency(def.cost)}</span>
+                  <span className="text-sm font-medium" style={{ color: 'var(--cenc-gray-800)' }}>{def.label}</span>
+                  <span className="text-xs font-semibold" style={{ color: isDark ? '#bfdbfe' : '#4338ca' }}>{formatCurrency(def.cost)}</span>
                 </div>
-                <p className="text-xs text-gray-500 mt-0.5">{def.desc}</p>
+                <p className="text-xs mt-0.5" style={{ color: 'var(--cenc-gray-500)' }}>{def.desc}</p>
               </div>
             </label>
           );
