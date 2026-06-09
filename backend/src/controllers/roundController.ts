@@ -25,9 +25,9 @@ async function listRounds(req: Request, res: Response): Promise<void> {
   const [rounds, totalElements] = await roundRepository.findPaginated(params.skip, params.size);
   res.status(200).json(
     paginate(
-      rounds.map((r: Round) => ({
+      rounds.map((r: Round & { _count?: { roundConfigs: number } }) => ({
         ...r,
-        submittedConfigsCount: r._count.roundConfigs,
+        submittedConfigsCount: r._count?.roundConfigs ?? 0,
         _count: undefined,
       })),
       totalElements,

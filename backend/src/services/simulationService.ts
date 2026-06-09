@@ -279,7 +279,7 @@ export async function processRound(roundId: string): Promise<void> {
   }
 
   // Attach inventory snapshot to each config for scoring
-  const enrichedConfigs = configs.map((c) => ({
+  const enrichedConfigs = configs.map((c: typeof configs[number]) => ({
     ...c,
     _inventory: inventoryByStore[c.storeId] ?? {},
   }));
