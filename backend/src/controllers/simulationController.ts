@@ -14,6 +14,7 @@ import {
 import gameSettingsRepository from '../repositories/gameSettingsRepository';
 import { getRanking } from '../services/rankingService';
 import prisma, { toNum } from '../utils/prisma';
+import type { Inventory } from '@prisma/client';
 import asyncHandler from '../utils/asyncHandler';
 import { sendError } from '../utils/errorResponse';
 
@@ -193,7 +194,7 @@ async function previewConfig(req: Request, res: Response): Promise<void> {
 
   const realInventoryList = await inventoryRepository.findByStoreId(store.id);
   const realInventoryMap = Object.fromEntries(
-    realInventoryList.map((inv) => [inv.productId, inv.quantity])
+    realInventoryList.map((inv: Inventory) => [inv.productId, inv.quantity])
   );
 
   const configForCalc = {

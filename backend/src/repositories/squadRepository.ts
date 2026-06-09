@@ -1,4 +1,5 @@
 import prisma from '../utils/prisma';
+import type { Prisma } from '@prisma/client';
 
 const squadInclude = {
   users: {
@@ -33,7 +34,7 @@ function update(id: string, data: { name: string }) {
 }
 
 async function remove(id: string) {
-  return prisma.$transaction(async (tx) => {
+  return prisma.$transaction(async (tx: Prisma.TransactionClient) => {
     // 1. Desvincular todos os usuários do squad
     await tx.user.updateMany({
       where: { squadId: id },
@@ -56,7 +57,7 @@ async function hasActiveRound(id: string) {
   if (stores.length === 0) return null;
   return prisma.roundConfig.findFirst({
     where: {
-      storeId: { in: stores.map((s) => s.id) },
+      storeId: { in: stores.map((s: { id: string }) => s.id) },
       round: { status: { in: ['OPEN', 'PROCESSING'] } },
     },
   });

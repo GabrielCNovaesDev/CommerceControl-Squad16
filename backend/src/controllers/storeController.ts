@@ -7,6 +7,7 @@ import prisma from '../utils/prisma';
 import asyncHandler from '../utils/asyncHandler';
 import { sendError } from '../utils/errorResponse';
 import { parsePagination, paginate } from '../utils/pagination';
+import type { Product } from '@prisma/client';
 
 const createSchema = z.object({
   name: z.string().min(1, 'Nome é obrigatório'),
@@ -57,7 +58,7 @@ async function createStore(req: Request, res: Response): Promise<void> {
   const products = await productRepository.findAll();
   if (products.length > 0) {
     await prisma.inventory.createMany({
-      data: products.map((p) => ({
+      data: products.map((p: Product) => ({
         storeId: store.id,
         productId: p.id,
         quantity: 0,

@@ -1,4 +1,5 @@
 import prisma from '../utils/prisma';
+import type { Prisma } from '@prisma/client';
 
 /**
  * Exclui a última rodada (maior número) e reverte o inventário se estava CLOSED.
@@ -16,7 +17,7 @@ export async function deleteLastRound(): Promise<{ roundNumber: number }> {
     throw err;
   }
 
-  await prisma.$transaction(async (tx) => {
+  await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
     if (lastRound.status === 'CLOSED') {
       const configs = await tx.roundConfig.findMany({
         where: { roundId: lastRound.id },
@@ -38,7 +39,7 @@ export async function deleteLastRound(): Promise<{ roundNumber: number }> {
 
     const configIds = await tx.roundConfig
       .findMany({ where: { roundId: lastRound.id }, select: { id: true } })
-      .then((rows) => rows.map((r) => r.id));
+      .then((rows: { id: string }[]) => rows.map((r: { id: string }) => r.id));
 
     if (configIds.length > 0) {
       await tx.roundConfigItem.deleteMany({ where: { roundConfigId: { in: configIds } } });
@@ -55,7 +56,7 @@ export async function deleteLastRound(): Promise<{ roundNumber: number }> {
  * e restaura o caixa de cada loja ao capital inicial.
  */
 export async function resetGame(): Promise<void> {
-  await prisma.$transaction(async (tx) => {
+  await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
     await tx.financialResult.deleteMany({});
     await tx.roundConfigItem.deleteMany({});
     await tx.roundConfig.deleteMany({});

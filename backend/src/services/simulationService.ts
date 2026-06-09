@@ -1,4 +1,5 @@
 import prisma, { toNum } from '../utils/prisma';
+import type { Prisma } from '@prisma/client';
 import { calcularDRE, calcularPreco } from './financeService';
 import roundConfigRepository from '../repositories/roundConfigRepository';
 import { generateAiReport, generateGmReport, MarketAggregates } from './aiReportService';
@@ -209,8 +210,8 @@ function computeDemandShares(
 ): DemandShareResult {
   if (configs.length === 0) return { shares: {}, priceScores: {}, availScores: {}, csatScores: {}, totalScores: {} };
 
-  const basketPrices = configs.map((c) => ({ storeId: c.storeId, value: calcBasketPrice(c) }));
-  const availabilities = configs.map((c) => ({ storeId: c.storeId, value: calcAvailability(c) }));
+  const basketPrices = configs.map((c: typeof configs[number]) => ({ storeId: c.storeId, value: calcBasketPrice(c) }));
+  const availabilities = configs.map((c: typeof configs[number]) => ({ storeId: c.storeId, value: calcAvailability(c) }));
   const csats = configs.map((c) => ({
     storeId: c.storeId,
     value: calcCsat({ cashierOperators: c.cashierOperators, quizScore: toNum(c.quizScore) }),
@@ -269,7 +270,7 @@ export async function processRound(roundId: string): Promise<void> {
 
   // Fetch inventory for all stores at once
   const allInventories = await prisma.inventory.findMany({
-    where: { storeId: { in: configs.map((c) => c.storeId) } },
+    where: { storeId: { in: configs.map((c: { storeId: string }) => c.storeId) } },
   });
   const inventoryByStore: Record<string, Record<string, number>> = {};
   for (const inv of allInventories) {
@@ -321,13 +322,13 @@ export async function processRound(roundId: string): Promise<void> {
         capexMelhoria: config.capexMelhoria,
       };
 
-      await prisma.$transaction(async (tx) => {
+      await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
         const inventoryList = Object.entries(config._inventory).map(([productId, quantity]) => ({
           productId,
           quantity: quantity as number,
         }));
 
-        const items = config.roundConfigItems.map((item) => ({
+        const items = config.roundConfigItems.map((item: { productId: string; margin: { toNumber(): number } | number; salesVolume: number; product: { purchasePrice: { toNumber(): number }; taxRate: { toNumber(): number }; breakageRate: { toNumber(): number }; agingRate: { toNumber(): number } } }) => ({
           productId: item.productId,
           margin: toNum(item.margin),
           salesVolume: item.salesVolume,
@@ -341,7 +342,7 @@ export async function processRound(roundId: string): Promise<void> {
 
         // Compute stock purchase cost and CAPEX outlay
         const stockCost = config.roundConfigItems.reduce(
-          (sum, item) => sum + item.salesVolume * toNum(item.product.purchasePrice),
+          (sum: number, item: { salesVolume: number; product: { purchasePrice: { toNumber(): number } } }) => sum + item.salesVolume * toNum(item.product.purchasePrice),
           0
         );
         const capexCost   = calcCapexCost(configNum);
@@ -697,7 +698,7 @@ export async function submitStoreConfig(input: SubmitConfigInput): Promise<Submi
   const interestPenalty = calcInterest(stockCost + capexCost, input.currentCash);
   const totalDeduction  = stockCost + capexCost + interestPenalty;
 
-  const roundConfig = await prisma.$transaction(async (tx) => {
+  const roundConfig = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
     // If resubmitting, reverse the previous config effects
     if (input.existingConfigId) {
       const oldConfig = await tx.roundConfig.findUnique({
@@ -723,7 +724,7 @@ export async function submitStoreConfig(input: SubmitConfigInput): Promise<Submi
 
         // Compute old deduction to reverse cash
         const oldStockCost = oldConfig.roundConfigItems.reduce(
-          (sum, item) => sum + item.salesVolume * (input.items.find((i) => i.productId === item.productId)?.purchasePrice ?? 0),
+          (sum: number, item: { salesVolume: number; productId: string }) => sum + item.salesVolume * (input.items.find((i: { productId: string }) => i.productId === item.productId)?.purchasePrice ?? 0),
           0
         );
         const oldCapexCost = calcCapexCost(oldConfig);

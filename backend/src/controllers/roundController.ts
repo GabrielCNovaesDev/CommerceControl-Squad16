@@ -8,6 +8,7 @@ import asyncHandler from '../utils/asyncHandler';
 import { sendError } from '../utils/errorResponse';
 import { parsePagination, paginate } from '../utils/pagination';
 import prisma from '../utils/prisma';
+import type { Round } from '@prisma/client';
 
 const createSchema = z.object({
   number: z.number().int('Número deve ser um inteiro').positive('Número deve ser positivo'),
@@ -24,7 +25,7 @@ async function listRounds(req: Request, res: Response): Promise<void> {
   const [rounds, totalElements] = await roundRepository.findPaginated(params.skip, params.size);
   res.status(200).json(
     paginate(
-      rounds.map((r) => ({
+      rounds.map((r: Round) => ({
         ...r,
         submittedConfigsCount: r._count.roundConfigs,
         _count: undefined,
@@ -47,7 +48,7 @@ async function getRound(req: Request, res: Response): Promise<void> {
   res.status(200).json({
     ...round,
     submittedConfigsCount: round._count.roundConfigs,
-    submittedStoreIds: round.roundConfigs.map((rc) => rc.storeId),
+    submittedStoreIds: round.roundConfigs.map((rc: { storeId: string }) => rc.storeId),
     _count: undefined,
     roundConfigs: undefined,
   });

@@ -1,4 +1,5 @@
 import prisma from '../utils/prisma';
+import type { Prisma } from '@prisma/client';
 
 function findByRoundAndStore(roundId: string, storeId: string) {
   return prisma.roundConfig.findUnique({
@@ -25,7 +26,7 @@ async function create(
   },
   items: Array<{ productId: string; margin: number; salesVolume: number }>
 ) {
-  return prisma.$transaction(async (tx) => {
+  return prisma.$transaction(async (tx: Prisma.TransactionClient) => {
     const roundConfig = await tx.roundConfig.create({
       data: {
         roundId,
