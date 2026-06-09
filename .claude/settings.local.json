@@ -20,5 +20,9 @@
       "PowerShell($env:GH_TOKEN)",
       "PowerShell(git config --global credential.helper; $env:GITHUB_TOKEN; [System.Environment]::GetEnvironmentVariable\\(\"GITHUB_TOKEN\", \"User\"\\))"
     ]
-  }
+  },
+  "enabledMcpjsonServers": [
+    "supabase"
+  ],
+  "enableAllProjectMcpServers": true
 }
