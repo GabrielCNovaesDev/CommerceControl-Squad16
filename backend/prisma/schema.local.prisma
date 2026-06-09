@@ -18,7 +18,7 @@ model User {
   leader    Boolean  @default(false)
   squadId   String?
   createdAt DateTime @default(now())
-  squad     Squad?   @relation(fields: [squadId], references: [id])
+  squad     Squad?   @relation(fields: [squadId], references: [id], onDelete: SetNull)
 }
 
 model Squad {
@@ -40,7 +40,8 @@ model Store {
   financialResults FinancialResult[]
   inventories      Inventory[]
   roundConfigs     RoundConfig[]
-  squad            Squad             @relation(fields: [squadId], references: [id])
+  events           RoundEvent[]
+  squad            Squad             @relation(fields: [squadId], references: [id], onDelete: Cascade)
 }
 
 model Product {
@@ -61,8 +62,8 @@ model Inventory {
   storeId   String
   productId String
   quantity  Int
-  product   Product @relation(fields: [productId], references: [id])
-  store     Store   @relation(fields: [storeId], references: [id])
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  store     Store   @relation(fields: [storeId], references: [id], onDelete: Cascade)
 
   @@unique([storeId, productId])
 }
@@ -75,8 +76,10 @@ model Round {
   endsAt           DateTime
   status           String            @default("OPEN")
   aiReportGm       String?
+  createdAt        DateTime          @default(now())
   financialResults FinancialResult[]
   roundConfigs     RoundConfig[]
+  events           RoundEvent[]
 }
 
 model RoundConfig {
@@ -96,8 +99,8 @@ model RoundConfig {
   capexMelhoria     Boolean           @default(false)
   submittedAt       DateTime          @default(now())
   financialResult   FinancialResult?
-  store             Store             @relation(fields: [storeId], references: [id])
-  round             Round             @relation(fields: [roundId], references: [id])
+  store             Store             @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  round             Round             @relation(fields: [roundId], references: [id], onDelete: Cascade)
   roundConfigItems  RoundConfigItem[]
 
   @@unique([roundId, storeId])
@@ -109,8 +112,8 @@ model RoundConfigItem {
   productId     String
   margin        Float
   salesVolume   Int
-  product       Product     @relation(fields: [productId], references: [id])
-  roundConfig   RoundConfig @relation(fields: [roundConfigId], references: [id])
+  product       Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  roundConfig   RoundConfig @relation(fields: [roundConfigId], references: [id], onDelete: Cascade)
 
   @@unique([roundConfigId, productId])
 }
@@ -132,9 +135,42 @@ model FinancialResult {
   ebitda        Float
   ebitdaMargin  Float
   demandShare   Float       @default(0)
+  priceScore    Int?
+  availScore    Int?
+  csatScore     Int?
+  totalScore    Int?
   aiReport      String?
   calculatedAt  DateTime    @default(now())
-  roundConfig   RoundConfig @relation(fields: [roundConfigId], references: [id])
-  store         Store       @relation(fields: [storeId], references: [id])
-  round         Round       @relation(fields: [roundId], references: [id])
+  roundConfig   RoundConfig @relation(fields: [roundConfigId], references: [id], onDelete: Cascade)
+  store         Store       @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  round         Round       @relation(fields: [roundId], references: [id], onDelete: Cascade)
+}
+
+model GameSettings {
+  id                    String   @id @default("singleton")
+  licenseSoPerUser      Float    @default(120)
+  licenseSoUsers        Int      @default(5)
+  licensePdvPerUnit     Float    @default(80)
+  licenseScoPerUnit     Float    @default(80)
+  licenseScoUnits       Int      @default(4)
+  licenseSiteBase       Float    @default(500)
+  licenseSiteCapex      Float    @default(650)
+  licenseSecurityBase   Float    @default(500)
+  licenseSecurityCapex  Float    @default(600)
+  maintenanceFee        Float    @default(400)
+  updatedAt             DateTime @updatedAt
+}
+
+model RoundEvent {
+  id          String   @id @default(uuid())
+  roundId     String
+  storeId     String
+  eventKey    String
+  description String
+  penalty     Float
+  mitigated   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  round Round @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
 }

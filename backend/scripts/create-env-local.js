@@ -9,7 +9,8 @@ if (fs.existsSync(envPath)) {
 }
 
 const content = [
-  'DATABASE_URL="file:./prisma/local.db"',
+  '# Caminho relativo ao diretório do schema (prisma/)',
+  'DATABASE_URL="file:./local.db"',
   'JWT_SECRET="local_dev_secret_key_insecure_do_not_use_in_production"',
   'PORT=3333',
   'NODE_ENV=development',

@@ -123,8 +123,8 @@ export function EditSquadModal({ squad, onSuccess, onCancel }: { squad: Squad; o
   }
 
   return (
-    <div style={MODAL_OVERLAY}>
-      <div className="animate-scale-in" style={MODAL_BOX}>
+    <div className="modal-overlay">
+      <div className="modal-box animate-scale-in">
         <div>
           <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: 'var(--cenc-gray-900)' }}>Editar Squad</h2>
         </div>
@@ -266,8 +266,8 @@ export function AddUserModal({
   }
 
   return (
-    <div style={MODAL_OVERLAY}>
-      <div className="animate-scale-in" style={MODAL_BOX}>
+    <div className="modal-overlay">
+      <div className="modal-box animate-scale-in">
         <div>
           <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: 'var(--cenc-gray-900)' }}>Adicionar membro</h2>
           <p style={{ margin: '4px 0 0', fontSize: 13, color: 'var(--cenc-gray-500)' }}>Squad: <strong>{squadName}</strong></p>
@@ -337,8 +337,8 @@ export function BulkCreateUsersModal({ squad, onSuccess, onCancel }: {
   const storeName = squad.stores?.[0]?.name ?? squad.name;
 
   return (
-    <div style={MODAL_OVERLAY}>
-      <div className="animate-scale-in" style={{ ...MODAL_BOX, maxWidth: 500 }}>
+    <div className="modal-overlay">
+      <div className="modal-box animate-scale-in" style={{ maxWidth: 500 }}>
         {step === 'config' ? (
           <>
             <div>
