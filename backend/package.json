@@ -26,6 +26,11 @@
   "dependencies": {
     "@prisma/client": "^5.22.0",
     "@prisma/client-local": "file:./node_modules/.prisma/client-local",
+    "@types/bcryptjs": "^2.4.6",
+    "@types/cors": "^2.8.17",
+    "@types/express": "^5.0.1",
+    "@types/jsonwebtoken": "^9.0.9",
+    "@types/node": "^22.15.3",
     "bcryptjs": "^3.0.3",
     "commercecontrol-squad16": "file:..",
     "cors": "^2.8.6",
@@ -38,12 +43,7 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
-    "@types/bcryptjs": "^2.4.6",
-    "@types/cors": "^2.8.17",
-    "@types/express": "^5.0.1",
     "@types/jest": "^30.0.0",
-    "@types/jsonwebtoken": "^9.0.9",
-    "@types/node": "^22.15.3",
     "@types/supertest": "^6.0.3",
     "cross-env": "^10.1.0",
     "dotenv-cli": "^7.4.4",
