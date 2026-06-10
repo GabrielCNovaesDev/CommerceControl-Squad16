@@ -3,14 +3,16 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   // Ensure proper server-side rendering
   reactStrictMode: true,
-  // Output configuration for Vercel
-  output: 'standalone',
   // Image configuration
   images: {
     remotePatterns: [
       { protocol: 'https', hostname: 'images.unsplash.com' },
       { protocol: 'https', hostname: 'picsum.photos' },
     ],
+  },
+  // Pin Turbopack root so Next stops warning about multiple lockfiles in monorepo
+  turbopack: {
+    root: process.cwd(),
   },
 };
 
