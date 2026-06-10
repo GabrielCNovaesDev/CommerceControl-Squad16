@@ -1,0 +1,197 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum UserRole {
+  GAME_MASTER
+  PLAYER
+  OBSERVER
+}
+
+enum RoundStatus {
+  OPEN
+  PROCESSING
+  CLOSED
+}
+
+model User {
+  id        String   @id @default(uuid(7))
+  name      String
+  email     String   @unique
+  password  String
+  role      UserRole @default(PLAYER)
+  cargo     String?
+  leader    Boolean  @default(false)
+  squadId   String?
+  createdAt DateTime @default(now())
+
+  squad Squad? @relation(fields: [squadId], references: [id], onDelete: SetNull)
+}
+
+model Squad {
+  id        String   @id @default(uuid(7))
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users  User[]
+  stores Store[]
+}
+
+model Store {
+  id             String  @id @default(uuid(7))
+  name           String
+  initialCapital Decimal @db.Decimal(18, 2)
+  currentCash    Decimal @default(700000) @db.Decimal(18, 2)
+  squadId        String
+  createdAt      DateTime @default(now())
+
+  squad            Squad             @relation(fields: [squadId], references: [id], onDelete: Cascade)
+  inventories      Inventory[]
+  roundConfigs     RoundConfig[]
+  financialResults FinancialResult[]
+  events           RoundEvent[]
+}
+
+model Product {
+  id            String   @id @default(uuid(7))
+  name          String
+  purchasePrice Decimal  @db.Decimal(18, 2)
+  taxRate       Decimal  @default(0) @db.Decimal(8, 6)
+  breakageRate  Decimal  @default(0) @db.Decimal(8, 6)
+  agingRate     Decimal  @default(0) @db.Decimal(8, 6)
+  mixAvailable  Int      @default(0)
+  createdAt     DateTime @default(now())
+
+  inventories      Inventory[]
+  roundConfigItems RoundConfigItem[]
+}
+
+model Inventory {
+  id        String @id @default(uuid(7))
+  storeId   String
+  productId String
+  quantity  Int
+
+  store   Store   @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([storeId, productId])
+}
+
+model Round {
+  id            String      @id @default(uuid(7))
+  number        Int
+  durationHours Int         @default(1)
+  endsAt        DateTime
+  status        RoundStatus @default(OPEN)
+  demandFactor  Decimal     @default(0.5) @db.Decimal(5, 4)
+  aiReportGm    String?
+  createdAt     DateTime    @default(now())
+
+  roundConfigs     RoundConfig[]
+  financialResults FinancialResult[]
+  events           RoundEvent[]
+}
+
+model RoundConfig {
+  id                String   @id @default(uuid(7))
+  roundId           String
+  storeId           String
+  otherExpenses     Decimal  @default(0) @db.Decimal(18, 2)
+  cashierOperators  Int      @default(10)
+  serviceOperators  Int      @default(5)
+  quizScore         Decimal  @default(1.0) @db.Decimal(5, 4)
+  numPdvs           Int      @default(6)
+  capexSeguranca    Boolean  @default(false)
+  capexBalanca      Boolean  @default(false)
+  capexRedes        Boolean  @default(false)
+  capexSite         Boolean  @default(false)
+  capexSelfCheckout Boolean  @default(false)
+  capexMelhoria     Boolean  @default(false)
+  submittedAt       DateTime @default(now())
+
+  round            Round             @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  store            Store             @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  roundConfigItems RoundConfigItem[]
+  financialResult  FinancialResult?
+
+  @@unique([roundId, storeId])
+}
+
+model RoundConfigItem {
+  id            String  @id @default(uuid(7))
+  roundConfigId String
+  productId     String
+  margin        Decimal @db.Decimal(8, 6)
+  salesVolume   Int
+
+  roundConfig RoundConfig @relation(fields: [roundConfigId], references: [id], onDelete: Cascade)
+  product     Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([roundConfigId, productId])
+}
+
+model FinancialResult {
+  id            String   @id @default(uuid(7))
+  roundId       String
+  storeId       String
+  roundConfigId String   @unique
+  grossRevenue  Decimal  @db.Decimal(18, 2)
+  taxes         Decimal  @db.Decimal(18, 2)
+  netRevenue    Decimal  @db.Decimal(18, 2)
+  costs         Decimal  @db.Decimal(18, 2)
+  grossMargin   Decimal  @db.Decimal(18, 2)
+  totalBreakage Decimal  @db.Decimal(18, 2)
+  totalAging    Decimal  @db.Decimal(18, 2)
+  netMarginMass Decimal  @db.Decimal(18, 2)
+  otherExpenses Decimal  @db.Decimal(18, 2)
+  ebitda        Decimal  @db.Decimal(18, 2)
+  ebitdaMargin  Decimal  @db.Decimal(8, 6)
+  demandShare   Decimal  @default(0) @db.Decimal(8, 6)
+  priceScore    Int?
+  availScore    Int?
+  csatScore     Int?
+  totalScore    Int?
+  aiReport      String?
+  calculatedAt  DateTime @default(now())
+
+  round       Round       @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  store       Store       @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  roundConfig RoundConfig @relation(fields: [roundConfigId], references: [id], onDelete: Cascade)
+}
+
+model GameSettings {
+  id                    String   @id @default("singleton")
+  licenseSoPerUser       Decimal  @default(120) @db.Decimal(10, 2)
+  licenseSoUsers        Int      @default(5)
+  licensePdvPerUnit     Decimal  @default(80) @db.Decimal(10, 2)
+  licenseScoPerUnit     Decimal  @default(80) @db.Decimal(10, 2)
+  licenseScoUnits       Int      @default(4)
+  licenseSiteBase       Decimal  @default(500) @db.Decimal(10, 2)
+  licenseSiteCapex     Decimal  @default(650) @db.Decimal(10, 2)
+  licenseSecurityBase   Decimal  @default(500) @db.Decimal(10, 2)
+  licenseSecurityCapex  Decimal  @default(600) @db.Decimal(10, 2)
+  maintenanceFee        Decimal  @default(400) @db.Decimal(10, 2)
+  updatedAt             DateTime @updatedAt
+}
+
+model RoundEvent {
+  id          String   @id @default(uuid(7))
+  roundId     String
+  storeId     String
+  eventKey    String
+  description String
+  penalty     Decimal  @db.Decimal(18, 2)
+  mitigated   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  round Round @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+}
