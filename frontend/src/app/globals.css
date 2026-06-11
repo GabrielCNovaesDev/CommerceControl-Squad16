@@ -1,32 +1,486 @@
 @import "tailwindcss";
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+/* ─── Cencosud Design System ─────────────────────────────────────────────── */
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Brand Colors */
+  --cenc-blue-900: #001a4d;
+  --cenc-blue-800: #002266;
+  --cenc-blue-700: #003087;
+  --cenc-blue-600: #0044aa;
+  --cenc-blue-500: #0055cc;
+  --cenc-blue-400: #0066ff;
+  --cenc-blue-300: #3385ff;
+  --cenc-blue-200: #80b3ff;
+  --cenc-blue-100: #cce0ff;
+  --cenc-blue-50:  #e8f1ff;
+
+  /* Accent - Cencosud uses a warm gold/orange for highlights */
+  --cenc-gold-500: #f5a623;
+  --cenc-gold-400: #f7b84b;
+  --cenc-gold-100: #fef3dc;
+
+  /* Neutrals */
+  --cenc-gray-950: #0a0f1a;
+  --cenc-gray-900: #111827;
+  --cenc-gray-800: #1f2937;
+  --cenc-gray-700: #374151;
+  --cenc-gray-600: #4b5563;
+  --cenc-gray-500: #6b7280;
+  --cenc-gray-400: #9ca3af;
+  --cenc-gray-300: #d1d5db;
+  --cenc-gray-200: #e5e7eb;
+  --cenc-gray-100: #f3f4f6;
+  --cenc-gray-50:  #f9fafb;
+
+  /* Semantic */
+  --cenc-success: #16a34a;
+  --cenc-success-bg: #dcfce7;
+  --cenc-warning: #d97706;
+  --cenc-warning-bg: #fef3c7;
+  --cenc-danger: #dc2626;
+  --cenc-danger-bg: #fee2e2;
+  --cenc-info: #0066ff;
+  --cenc-info-bg: #e8f1ff;
+
+  /* Surface (cards, headers, inputs) */
+  --cenc-surface: #ffffff;
+
+  /* Login tokens */
+  --login-shell-bg: linear-gradient(135deg, #f0f4ff 0%, #e8f1ff 50%, #f5f8ff 100%);
+  --login-right-decor-dot: rgba(0, 48, 135, 0.06);
+  --login-right-decor-circle-a: rgba(0, 102, 255, 0.12);
+  --login-right-decor-circle-b: rgba(0, 48, 135, 0.10);
+  --login-brand-panel-bg: linear-gradient(160deg, var(--cenc-blue-900) 0%, var(--cenc-blue-700) 60%, var(--cenc-blue-500) 100%);
+  --login-brand-muted: rgba(255,255,255,0.7);
+  --login-brand-footer: rgba(255,255,255,0.35);
+  --login-card-shadow: 0 4px 32px rgba(0, 48, 135, 0.08);
+  --login-placeholder: var(--cenc-gray-400);
+  --login-toggle-bg: rgba(255,255,255,0.75);
+  --login-toggle-border: var(--cenc-gray-200);
+  --login-toggle-text: var(--cenc-gray-700);
+  --login-toggle-hover: rgba(255,255,255,0.95);
+
+  /* Sidebar */
+  --sidebar-width: clamp(64px, 16vw, 240px);
+  --header-height: clamp(48px, 4vh, 80px);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* ─── Dark Mode ──────────────────────────────────────────────────────────── */
+
+html.dark {
+  --cenc-gray-50:  #0f1117;
+  --cenc-gray-100: #1a1f2e;
+  --cenc-gray-200: #252b3b;
+  --cenc-gray-300: #323a4f;
+  --cenc-gray-400: #6b7280;
+  --cenc-gray-500: #9ca3af;
+  --cenc-gray-600: #c4c9d4;
+  --cenc-gray-700: #d1d5db;
+  --cenc-gray-800: #e5e7eb;
+  --cenc-gray-900: #f3f4f6;
+  --cenc-gray-950: #f9fafb;
+
+  --cenc-surface: #1a1f2e;
+
+  --cenc-success-bg: #052e16;
+  --cenc-warning-bg: #1c1400;
+  --cenc-danger-bg:  #1f0707;
+  --cenc-info-bg:    #0a1628;
+
+  /* Login tokens (dark premium) */
+  --login-shell-bg: radial-gradient(1200px 600px at 80% -10%, rgba(0,102,255,0.18), transparent 50%),
+                    linear-gradient(145deg, #0e1524 0%, #111b2d 45%, #0f1729 100%);
+  --login-right-decor-dot: rgba(128, 179, 255, 0.08);
+  --login-right-decor-circle-a: rgba(0, 102, 255, 0.18);
+  --login-right-decor-circle-b: rgba(51, 133, 255, 0.14);
+  --login-brand-panel-bg: linear-gradient(160deg, #07183d 0%, #0a2557 55%, #0d3880 100%);
+  --login-brand-muted: rgba(226, 235, 255, 0.78);
+  --login-brand-footer: rgba(214, 227, 255, 0.45);
+  --login-card-shadow: 0 16px 44px rgba(2, 7, 24, 0.52);
+  --login-placeholder: #9aa8c3;
+  --login-toggle-bg: rgba(21, 32, 52, 0.82);
+  --login-toggle-border: #2d3d5b;
+  --login-toggle-text: #d7e3ff;
+  --login-toggle-hover: rgba(30, 44, 72, 0.92);
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
   margin: 0;
-  padding: 0;
+  font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: var(--cenc-gray-50);
+  color: var(--cenc-gray-900);
 }
 
-* {
+/* Premium but subtle theme transition */
+@media (prefers-reduced-motion: no-preference) {
+  body,
+  .input-cenc,
+  .modal-box,
+  .card-hover,
+  button,
+  a {
+    transition: background-color 220ms ease, color 220ms ease, border-color 220ms ease, box-shadow 220ms ease;
+  }
+}
+
+/* ─── Scrollbar ──────────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--cenc-gray-300); border-radius: 99px; }
+::-webkit-scrollbar-thumb:hover { background: var(--cenc-gray-400); }
+
+/* ─── Animations ─────────────────────────────────────────────────────────── */
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeInLeft {
+  from { opacity: 0; transform: translateX(-16px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes fadeInRight {
+  from { opacity: 0; transform: translateX(16px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes pulse-ring {
+  0%   { box-shadow: 0 0 0 0 rgba(0, 102, 255, 0.4); }
+  70%  { box-shadow: 0 0 0 8px rgba(0, 102, 255, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(0, 102, 255, 0); }
+}
+
+@keyframes shrink {
+  from { width: 100%; }
+  to   { width: 0%; }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes countUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes gradientShift {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  0%   { background-position: 0% 50%; }
+}
+
+/* ─── Utility Classes ────────────────────────────────────────────────────── */
+
+.animate-fade-in       { animation: fadeIn 0.35s ease both; }
+.animate-fade-in-left  { animation: fadeInLeft 0.35s ease both; }
+.animate-fade-in-right { animation: fadeInRight 0.35s ease both; }
+.animate-slide-down    { animation: slideDown 0.3s ease both; }
+.animate-scale-in      { animation: scaleIn 0.25s ease both; }
+
+/* Staggered children */
+.stagger > *:nth-child(1) { animation-delay: 0ms; }
+.stagger > *:nth-child(2) { animation-delay: 60ms; }
+.stagger > *:nth-child(3) { animation-delay: 120ms; }
+.stagger > *:nth-child(4) { animation-delay: 180ms; }
+.stagger > *:nth-child(5) { animation-delay: 240ms; }
+.stagger > *:nth-child(6) { animation-delay: 300ms; }
+
+/* Skeleton shimmer */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--cenc-gray-200) 25%,
+    var(--cenc-gray-100) 50%,
+    var(--cenc-gray-200) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 8px;
+}
+
+/* Cencosud gradient brand bar */
+.cenc-brand-gradient {
+  background: linear-gradient(135deg, var(--cenc-blue-900) 0%, var(--cenc-blue-600) 60%, var(--cenc-blue-400) 100%);
+}
+
+.cenc-brand-gradient-animated {
+  background: linear-gradient(270deg, var(--cenc-blue-900), var(--cenc-blue-600), var(--cenc-blue-400), var(--cenc-blue-600));
+  background-size: 400% 400%;
+  animation: gradientShift 8s ease infinite;
+}
+
+/* Card hover lift */
+.card-hover {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 48, 135, 0.12);
+}
+
+/* ─── Responsiveness Utilities & Global Fixes ───────────────────────────── */
+
+/* Standard breakpoints used in the project:
+  sm: 640px | md: 768px | lg: 1024px | xl: 1280px */
+
+/* Fluid typography base (mobile-first) */
+html {
+  font-size: clamp(13px, 1.6vw, 16px);
+}
+
+/* Containers */
+.container {
+  width: 100%;
+  max-width: 1200px;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 16px;
+  padding-right: 16px;
   box-sizing: border-box;
+}
+
+/* Prevent unexpected horizontal overflow (apply on root-level wrappers) */
+.prevent-overflow {
+  max-width: 100vw;
+  overflow-x: hidden;
+}
+
+/* Ensure flex children can shrink to prevent overflow */
+.min-w-0 { min-width: 0; }
+/* Make direct children of flex containers shrink by default to avoid overflow */
+.flex > * { min-width: 0; }
+
+/* Media-friendly images and svgs */
+img, svg, picture, video {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* Inputs and form controls defaults */
+.input-cenc {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  font-size: 0.95rem;
+}
+
+.login-input::placeholder {
+  color: var(--login-placeholder);
+  opacity: 1;
+}
+
+/* Modal utilities (use classes to avoid changing markup) */
+.modal-overlay {
+  position: fixed; inset: 0; z-index: 50;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(0,0,0,0.45); backdrop-filter: blur(4px);
+  padding: 12px; box-sizing: border-box;
+}
+.modal-box {
+  background: var(--cenc-surface); border-radius: 20px;
+  box-shadow: 0 24px 64px rgba(0,0,0,0.18);
+  border: 1px solid var(--cenc-gray-200);
+  width: 100%; max-width: 520px; margin: 0 auto; padding: 28px; box-sizing: border-box;
+}
+
+/* Responsive tables: wrapper adds horizontal scroll on small devices */
+.table-responsive { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.table-responsive table { width: 100%; border-collapse: collapse; min-width: 560px; }
+.table-responsive th, .table-responsive td { word-break: break-word; white-space: normal; }
+
+/* Break long words and emails */
+.break-word { overflow-wrap: anywhere; word-break: break-word; }
+
+/* Utility to hide unnecessary scrollbars if needed */
+.hide-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
+.hide-scrollbar::-webkit-scrollbar { display: none; }
+
+/* Make badges and inline elements wrap when necessary */
+.inline-wrap { display: inline-flex; flex-wrap: wrap; gap: 6px; }
+
+/* Ensure buttons and small controls don't overflow */
+.btn-fixed { max-width: 100%; box-sizing: border-box; }
+
+/* Login theme toggle */
+.login-theme-toggle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  border: 1px solid var(--login-toggle-border);
+  background: var(--login-toggle-bg);
+  color: var(--login-toggle-text);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+  backdrop-filter: blur(10px);
+}
+.login-theme-toggle:hover {
+  background: var(--login-toggle-hover);
+  transform: translateY(-1px);
+}
+.login-theme-toggle:focus-visible {
+  outline: 2px solid var(--cenc-blue-500);
+  outline-offset: 2px;
+}
+
+/* Small-screen modal adjustments */
+@media (max-width: 420px) {
+  .modal-box { padding: 16px; border-radius: 14px; }
+}
+
+
+/* Focus ring */
+.focus-cenc:focus-visible {
+  outline: 2px solid var(--cenc-blue-500);
+  outline-offset: 2px;
+}
+
+/* Sidebar nav active indicator */
+.nav-active-bar {
+  position: relative;
+}
+.nav-active-bar::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 60%;
+  background: var(--cenc-blue-500);
+  border-radius: 0 3px 3px 0;
+}
+
+/* Glass card effect */
+.glass-card {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+}
+
+/* Stat number animation */
+.stat-number {
+  animation: countUp 0.5s ease both;
+}
+
+/* Table row hover */
+.table-row-hover {
+  transition: background-color 0.15s ease;
+}
+.table-row-hover:hover {
+  background-color: var(--cenc-blue-50) !important;
+}
+
+/* Input focus glow */
+.input-cenc:focus {
+  border-color: var(--cenc-blue-500);
+  box-shadow: 0 0 0 3px rgba(0, 102, 255, 0.12);
+  outline: none;
+}
+
+/* Badge pulse for active status */
+.badge-pulse {
+  animation: pulse-ring 2s infinite;
+}
+
+/* Page transition wrapper */
+.page-enter {
+  animation: fadeIn 0.4s ease both;
+}
+
+/* ─── Dark shell overrides for admin/player pages ────────────────────────── */
+
+html.dark .app-shell {
+  color: var(--cenc-gray-800);
+}
+
+html.dark .app-shell :is(.bg-white) {
+  background-color: var(--cenc-surface) !important;
+}
+
+html.dark .app-shell :is(.bg-gray-50) {
+  background-color: var(--cenc-gray-100) !important;
+}
+
+html.dark .app-shell :is(.bg-gray-100) {
+  background-color: var(--cenc-gray-200) !important;
+}
+
+html.dark .app-shell :is(.border-gray-100) {
+  border-color: var(--cenc-gray-200) !important;
+}
+
+html.dark .app-shell :is(.border-gray-200) {
+  border-color: var(--cenc-gray-300) !important;
+}
+
+html.dark .app-shell :is(.border-gray-300) {
+  border-color: var(--cenc-gray-400) !important;
+}
+
+html.dark .app-shell :is(.text-gray-900) {
+  color: var(--cenc-gray-900) !important;
+}
+
+html.dark .app-shell :is(.text-gray-800) {
+  color: var(--cenc-gray-800) !important;
+}
+
+html.dark .app-shell :is(.text-gray-700) {
+  color: var(--cenc-gray-700) !important;
+}
+
+html.dark .app-shell :is(.text-gray-600) {
+  color: var(--cenc-gray-600) !important;
+}
+
+html.dark .app-shell :is(.text-gray-500) {
+  color: var(--cenc-gray-500) !important;
+}
+
+html.dark .app-shell :is(.text-gray-400) {
+  color: var(--cenc-gray-400) !important;
+}
+
+html.dark .app-shell :is(.hover\:bg-gray-50:hover) {
+  background-color: var(--cenc-gray-100) !important;
+}
+
+html.dark .app-shell :is(.hover\:bg-gray-100:hover) {
+  background-color: var(--cenc-gray-200) !important;
 }
