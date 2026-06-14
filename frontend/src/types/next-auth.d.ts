@@ -7,11 +7,11 @@ declare module 'next-auth' {
     email: string;
     role: 'GAME_MASTER' | 'PLAYER' | 'OBSERVER';
     squadId: string | null;
+    token?: string;
   }
 
   interface Session {
     user: User;
-    token: string;
   }
 }
 
@@ -22,5 +22,6 @@ declare module 'next-auth/jwt' {
     email: string;
     role: 'GAME_MASTER' | 'PLAYER' | 'OBSERVER';
     squadId: string | null;
+    token?: string;
   }
 }

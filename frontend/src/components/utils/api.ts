@@ -27,7 +27,7 @@ export async function apiFetch<T = unknown>(
   try {
     // Get session to include auth token
     const session = await getSession();
-    const token = session?.token as string | undefined;
+    const token = (session?.user as { token?: string } | undefined)?.token;
 
     const res = await fetch(url, {
       ...options,
@@ -77,7 +77,7 @@ export async function authFetch(
   options: RequestInit = {}
 ): Promise<Response> {
   const session = await getSession();
-  const token = session?.token as string | undefined;
+  const token = (session?.user as { token?: string } | undefined)?.token;
 
   return fetch(url, {
     ...options,
