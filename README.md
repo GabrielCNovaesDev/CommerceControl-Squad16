@@ -71,7 +71,7 @@ graph LR
 | Runtime | Node.js + TypeScript 5.8 | Type safety end-to-end no monorepo |
 | API | Express 5 | Framework maduro, middleware ecosystem rico |
 | ORM | Prisma 5.22 | Schema declarativo, migrations type-safe, multi-provider |
-| Banco (prod) | PostgreSQL (Supabase) | ACID, suporte a Decimal para cálculos financeiros |
+| Banco (prod) | PostgreSQL (Neon) | ACID, suporte a Decimal para cálculos financeiros |
 | Banco (local) | SQLite | Zero-config para desenvolvimento local |
 | Auth | JWT + bcryptjs | Stateless, sem infraestrutura adicional |
 | Validação | Zod 4 | Schema validation com inferência de tipos |
@@ -173,7 +173,7 @@ cd frontend && npm run build
 | Variável | Descrição | Exemplo | Obrigatória |
 |----------|-----------|---------|-------------|
 | `DATABASE_URL` | Connection string do banco | `postgresql://user:pass@host:5432/db` | Sim |
-| `DIRECT_URL` | URL direta para Prisma (Supabase) | `postgresql://...` | Apenas prod |
+| `DIRECT_URL` | URL direta para Prisma (Neon) | `postgresql://...` | Apenas prod |
 | `JWT_SECRET` | Chave de assinatura JWT | `minha-chave-secreta-forte` | Sim |
 | `PORT` | Porta do servidor Express | `3333` | Não (default: 3333) |
 | `ALLOWED_ORIGINS` | Origens CORS permitidas | `http://localhost:5173` | Não |

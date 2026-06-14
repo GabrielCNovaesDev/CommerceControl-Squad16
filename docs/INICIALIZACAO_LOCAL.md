@@ -73,7 +73,7 @@ Estas credenciais são criadas automaticamente pelo setup e **sempre estarão di
 
 ## Sobre o banco de dados local
 
-A aplicação usa **SQLite** em desenvolvimento, sem necessidade de conexão com Supabase ou qualquer serviço externo.
+A aplicação usa **SQLite** em desenvolvimento local e **Neon PostgreSQL** em produção, sem necessidade de Supabase ou qualquer outro serviço externo.
 
 - O arquivo do banco fica em `backend/prisma/local.db`
 - Os dados **persistem** entre reinicializações da aplicação
