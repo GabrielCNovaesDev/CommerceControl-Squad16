@@ -10,7 +10,7 @@ import Skeleton from '@/components/ui/Skeleton';
 import ErrorMessage from '@/components/ui/ErrorMessage';
 import { useToast } from '@/components/hooks/useToast';
 import usePageTitle from '@/components/hooks/usePageTitle';
-import { apiFetch, asArray } from '@/components/utils/api';
+import { apiFetch, authFetch, asArray } from '@/components/utils/api';
 import type { Round, Squad, RoundStatus } from '@/components/types';
 import React from 'react';
 
@@ -137,9 +137,8 @@ function CreateRoundModal({ onSuccess, onCancel, nextNumber }: {
   async function onSubmit(data: CreateRoundFormData) {
     setServerError('');
     try {
-      const res = await fetch(`${API_BASE}/rounds`, {
+      const res = await authFetch(`${API_BASE}/rounds`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           number: Number(data.number),
           durationHours: Number(data.durationHours),
@@ -317,7 +316,7 @@ export default function AdminDashboardPage() {
     if (!activeRound) return;
     setClosingRound(true); setCloseError('');
     try {
-      const res = await fetch(`${API_BASE}/rounds/${activeRound.id}/close`, { method: 'POST' });
+      const res = await authFetch(`${API_BASE}/rounds/${activeRound.id}/close`, { method: 'POST' });
       if (!res.ok) {
         const err = await res.json();
         throw new Error(err.message ?? 'Erro ao encerrar rodada');

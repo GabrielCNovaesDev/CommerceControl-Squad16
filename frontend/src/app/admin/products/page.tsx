@@ -9,7 +9,7 @@ import Skeleton from '@/components/ui/Skeleton';
 import ErrorMessage from '@/components/ui/ErrorMessage';
 import { useToast } from '@/components/hooks/useToast';
 import { formatCurrency } from '@/components/utils/formatters';
-import { apiFetch, asArray } from '@/components/utils/api';
+import { apiFetch, authFetch, asArray } from '@/components/utils/api';
 import type { Product } from '@/components/types';
 import React from 'react';
 import usePageTitle from '@/components/hooks/usePageTitle';
@@ -60,8 +60,8 @@ function ProductModal({ product, onSuccess, onCancel }: { product?: Product; onS
     setServerError('');
     try {
       const res = isEdit
-        ? await fetch(`${API_BASE}/products/${product.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })
-        : await fetch(`${API_BASE}/products`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+        ? await authFetch(`${API_BASE}/products/${product.id}`, { method: 'PUT', body: JSON.stringify(data) })
+        : await authFetch(`${API_BASE}/products`, { method: 'POST', body: JSON.stringify(data) });
       if (!res.ok) {
         const err = await res.json();
         throw new Error(err.message ?? 'Erro ao salvar produto');
@@ -197,7 +197,7 @@ export default function ProductsManagementPage() {
     setDeletingProduct(true);
     setDeleteError('');
     try {
-      const res = await fetch(`${API_BASE}/products/${deleteProduct.id}`, { method: 'DELETE' });
+      const res = await authFetch(`${API_BASE}/products/${deleteProduct.id}`, { method: 'DELETE' });
       if (!res.ok) {
         if (res.status === 409) throw new Error('Esta categoria está em uso e não pode ser removida.');
         const err = await res.json();

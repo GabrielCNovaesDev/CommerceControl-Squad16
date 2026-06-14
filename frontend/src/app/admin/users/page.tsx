@@ -10,7 +10,7 @@ import Skeleton from '@/components/ui/Skeleton';
 import ErrorMessage from '@/components/ui/ErrorMessage';
 import { CARGO_OPTIONS } from '@/components/squads/SquadsComponents';
 import { useToast } from '@/components/hooks/useToast';
-import { apiFetch, asArray } from '@/components/utils/api';
+import { apiFetch, authFetch, asArray } from '@/components/utils/api';
 import type { Squad, UserRecord, UserRole } from '@/components/types';
 import React from 'react';
 import usePageTitle from '@/components/hooks/usePageTitle';
@@ -65,9 +65,8 @@ function CreateUserModal({ squads, onSuccess, onCancel }: { squads: Squad[]; onS
     setServerError('');
     try {
       const payload = { ...data, squadId: data.squadId || null, cargo: data.cargo || null };
-      const res = await fetch(`${API_BASE}/users`, {
+      const res = await authFetch(`${API_BASE}/users`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
       if (!res.ok) {
@@ -175,9 +174,8 @@ function EditUserModal({ user, squads, onSuccess, onCancel }: { user: UserRecord
         squadId: data.squadId || null,
         ...(data.password ? { password: data.password } : {}),
       };
-      const res = await fetch(`${API_BASE}/users/${user.id}`, {
+      const res = await authFetch(`${API_BASE}/users/${user.id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
       if (!res.ok) {
@@ -303,7 +301,7 @@ export default function UsersManagementPage() {
     if (!deleteUser) return;
     setDeleting(true);
     try {
-      const res = await fetch(`${API_BASE}/users/${deleteUser.id}`, { method: 'DELETE' });
+      const res = await authFetch(`${API_BASE}/users/${deleteUser.id}`, { method: 'DELETE' });
       if (!res.ok) {
         const err = await res.json();
         throw new Error(err.message ?? 'Erro ao deletar usuário');

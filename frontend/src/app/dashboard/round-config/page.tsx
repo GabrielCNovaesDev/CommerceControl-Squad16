@@ -15,7 +15,7 @@ import { LicensingPanel } from '@/components/roundConfig/LicensingPanel';
 import { CashSummaryPanel } from '@/components/roundConfig/CashSummaryPanel';
 import { ProductRow } from '@/components/roundConfig/ProductRow';
 import { CountdownBadge } from '@/components/roundConfig/CountdownBadge';
-import { apiFetch, asArray } from '@/components/utils/api';
+import { apiFetch, authFetch, asArray } from '@/components/utils/api';
 import type { Round, Store, Product, DREResult } from '@/components/types';
 import type { FormData } from '@/components/roundConfig/types';
 
@@ -161,9 +161,8 @@ export default function RoundConfigPage() {
     const isValid = await trigger();
     if (!isValid) return;
     try {
-      const res = await fetch(`${API_BASE}/rounds/${activeRound?.id}/preview`, {
+      const res = await authFetch(`${API_BASE}/rounds/${activeRound?.id}/preview`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(collectPayload(getValues())),
       }).then(r => r.json());
 
@@ -178,9 +177,8 @@ export default function RoundConfigPage() {
   async function onSubmit(data: FormData) {
     if (!activeRound) return;
     try {
-      const res = await fetch(`${API_BASE}/rounds/${activeRound.id}/config`, {
+      const res = await authFetch(`${API_BASE}/rounds/${activeRound.id}/config`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(collectPayload(data)),
       }).then(r => r.json());
 

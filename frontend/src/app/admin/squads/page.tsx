@@ -6,7 +6,7 @@ import Skeleton from '@/components/ui/Skeleton';
 import ErrorMessage from '@/components/ui/ErrorMessage';
 import { useToast } from '@/components/hooks/useToast';
 import usePageTitle from '@/components/hooks/usePageTitle';
-import { apiFetch, asArray } from '@/components/utils/api';
+import { apiFetch, authFetch, asArray } from '@/components/utils/api';
 import {
   ConfirmModal,
   CreateSquadModal,
@@ -81,7 +81,7 @@ export default function SquadsManagementPage() {
     if (!deleteSquad) return;
     setDeletingSquad(true);
     try {
-      const res = await fetch(`${API_BASE}/squads/${deleteSquad.id}`, { method: 'DELETE' });
+      const res = await authFetch(`${API_BASE}/squads/${deleteSquad.id}`, { method: 'DELETE' });
       if (!res.ok) {
         const err = await res.json();
         throw new Error(err.message ?? 'Erro ao deletar squad');
@@ -124,7 +124,7 @@ export default function SquadsManagementPage() {
     if (!removeUser) return;
     setRemovingUser(true);
     try {
-      const res = await fetch(`${API_BASE}/squads/${removeUser.squadId}/users/${removeUser.user.id}`, { method: 'DELETE' });
+      const res = await authFetch(`${API_BASE}/squads/${removeUser.squadId}/users/${removeUser.user.id}`, { method: 'DELETE' });
       if (!res.ok) {
         const err = await res.json();
         throw new Error(err.message ?? 'Erro ao remover usuário');

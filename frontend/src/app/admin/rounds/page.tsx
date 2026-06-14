@@ -6,7 +6,7 @@ import Skeleton from '@/components/ui/Skeleton';
 import ErrorMessage from '@/components/ui/ErrorMessage';
 import { useToast } from '@/components/hooks/useToast';
 import usePageTitle from '@/components/hooks/usePageTitle';
-import { apiFetch, asArray } from '@/components/utils/api';
+import { apiFetch, authFetch, asArray } from '@/components/utils/api';
 import {
   CreateRoundModal,
   CloseRoundModal,
@@ -67,7 +67,7 @@ export default function RoundsManagementPage() {
     if (!roundToClose) return;
     setClosingRound(true);
     try {
-      const res = await fetch(`${API_BASE}/rounds/${roundToClose.id}/close`, { method: 'POST' });
+      const res = await authFetch(`${API_BASE}/rounds/${roundToClose.id}/close`, { method: 'POST' });
       if (!res.ok) {
         const err = await res.json();
         throw new Error(err.message ?? 'Erro ao encerrar rodada');
@@ -90,7 +90,7 @@ export default function RoundsManagementPage() {
     if (!roundToDelete) return;
     setDeletingRound(true);
     try {
-      const res = await fetch(`${API_BASE}/rounds/last`, { method: 'DELETE' });
+      const res = await authFetch(`${API_BASE}/rounds/last`, { method: 'DELETE' });
       if (!res.ok) {
         const err = await res.json();
         throw new Error(err.message ?? 'Erro ao excluir rodada');
@@ -110,7 +110,7 @@ export default function RoundsManagementPage() {
   async function handleResetGame() {
     setResetting(true);
     try {
-      const res = await fetch(`${API_BASE}/rounds/reset`, { method: 'POST' });
+      const res = await authFetch(`${API_BASE}/rounds/reset`, { method: 'POST' });
       if (!res.ok) {
         const err = await res.json();
         throw new Error(err.message ?? 'Erro ao reiniciar jogo');
@@ -130,9 +130,8 @@ export default function RoundsManagementPage() {
     if (!roundToExtend) return;
     setExtending(true);
     try {
-      const res = await fetch(`${API_BASE}/rounds/${roundToExtend.id}/extend`, {
+      const res = await authFetch(`${API_BASE}/rounds/${roundToExtend.id}/extend`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ minutes }),
       });
       if (!res.ok) {

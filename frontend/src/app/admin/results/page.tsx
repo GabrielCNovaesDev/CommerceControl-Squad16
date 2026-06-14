@@ -12,6 +12,7 @@ import Skeleton from '@/components/ui/Skeleton';
 import ErrorMessage from '@/components/ui/ErrorMessage';
 import { useToast } from '@/components/hooks/useToast';
 import { formatCurrency } from '@/components/utils/formatters';
+import { authFetch } from '@/components/utils/api';
 import type { Round, FinancialResult, AdminResultsResponse, RoundEvent } from '@/components/types';
 import usePageTitle from '@/components/hooks/usePageTitle';
 
@@ -315,7 +316,7 @@ function AdminResultsContent() {
 
   function loadRounds() {
     setLoadError(''); setLoadingRounds(true);
-    fetch(`${API_BASE}/rounds`)
+    authFetch(`${API_BASE}/rounds`)
       .then(r => r.json())
       .then((data: unknown) => {
         const rounds: Round[] = (data as { data?: Round[] }).data ?? (data as Round[]) ?? [];
@@ -334,7 +335,7 @@ function AdminResultsContent() {
     const round = allRounds.find((r) => r.id === selectedRoundId);
     if (!round || round.status !== 'CLOSED') { setResults([]); setRoundEvents([]); return; }
     setLoadingResults(true); setResults([]); setGmReport(null); setRoundEvents([]);
-    fetch(`${API_BASE}/rounds/${selectedRoundId}/results`)
+    authFetch(`${API_BASE}/rounds/${selectedRoundId}/results`)
       .then(r => r.json())
       .then((data: unknown) => {
         if (data && typeof data === 'object' && 'results' in data) {
@@ -351,7 +352,7 @@ function AdminResultsContent() {
         setResults([]);
       })
       .finally(() => setLoadingResults(false));
-    fetch(`${API_BASE}/rounds/${selectedRoundId}/events`)
+    authFetch(`${API_BASE}/rounds/${selectedRoundId}/events`)
       .then(r => r.json())
       .then((data: unknown) => setRoundEvents(Array.isArray(data) ? data as RoundEvent[] : (data as { data?: RoundEvent[] }).data ?? []))
       .catch(() => setRoundEvents([]));
@@ -361,7 +362,7 @@ function AdminResultsContent() {
     const closedRounds = allRounds.filter((r) => r.status === 'CLOSED');
     if (closedRounds.length < 2) { setHistoryData([]); return; }
     setLoadingHistory(true);
-    Promise.allSettled(closedRounds.map((r) => fetch(`${API_BASE}/rounds/${r.id}/results`).then(res => res.json()).then((res: unknown) => ({ round: r.number, results: res }))))
+    Promise.allSettled(closedRounds.map((r) => authFetch(`${API_BASE}/rounds/${r.id}/results`).then(res => res.json()).then((res: unknown) => ({ round: r.number, results: res }))))
       .then((settled) => {
         const points: LineDataPoint[] = [];
         settled.forEach((s) => {
