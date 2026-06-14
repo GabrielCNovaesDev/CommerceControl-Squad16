@@ -1,231 +1,200 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import api from '@/lib/api';
-import { useRouter } from 'next/navigation';
+import { useEffect, useState, useCallback } from 'react';
+import Button from '@/components/ui/Button';
+import Skeleton from '@/components/ui/Skeleton';
+import ErrorMessage from '@/components/ui/ErrorMessage';
+import { useToast } from '@/components/hooks/useToast';
+import usePageTitle from '@/components/hooks/usePageTitle';
+import {
+  CreateRoundModal,
+  CloseRoundModal,
+  DeleteLastRoundModal,
+  ResetGameModal,
+  ExtendRoundModal,
+  RoundsTable,
+} from '@/components/rounds/RoundsComponents';
+import type { Round, RoundStatus } from '@/components/types';
 
-interface Round {
-  id: string;
-  number: number;
-  status: 'OPEN' | 'PROCESSING' | 'CLOSED';
-  endsAt: string;
-  durationHours: number;
-  demandFactor: string;
-  createdAt: string;
-  _count?: {
-    roundConfigs: number;
-    financialResults: number;
-  };
-}
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || '/api';
 
 export default function RoundsManagementPage() {
-  const router = useRouter();
+  usePageTitle("Gerenciar Rodadas");
+  const toast = useToast();
   const [rounds, setRounds] = useState<Round[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [newRound, setNewRound] = useState({ number: '', durationHours: '1', demandFactor: '0.5' });
+  const [roundToClose, setRoundToClose] = useState<Round | null>(null);
+  const [closingRound, setClosingRound] = useState(false);
+  const [closeSuccess, setCloseSuccess] = useState(false);
+  const [roundToDelete, setRoundToDelete] = useState<Round | null>(null);
+  const [deletingRound, setDeletingRound] = useState(false);
+  const [showResetModal, setShowResetModal] = useState(false);
+  const [resetting, setResetting] = useState(false);
+  const [roundToExtend, setRoundToExtend] = useState<Round | null>(null);
+  const [extending, setExtending] = useState(false);
 
-  useEffect(() => {
-    fetchRounds();
-  }, []);
-
-  const fetchRounds = async () => {
+  const loadRounds = useCallback(async () => {
+    setLoadError('');
     try {
-      const res = await api.get('/rounds');
-      setRounds(res.data.data || []);
-    } catch (error) {
-      console.error('Erro ao carregar rodadas:', error);
+      const res = await fetch(`${API_BASE}/rounds`);
+      const data = await res.json();
+      const list: Round[] = data.data ?? data ?? [];
+      setRounds(list);
+    } catch {
+      setLoadError('Não foi possível carregar as rodadas.');
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const handleCreateRound = async () => {
-    try {
-      await api.post('/rounds', {
-        number: parseInt(newRound.number),
-        durationHours: parseInt(newRound.durationHours),
-        demandFactor: parseFloat(newRound.demandFactor),
-      });
-      setShowCreateModal(false);
-      setNewRound({ number: '', durationHours: '1', demandFactor: '0.5' });
-      fetchRounds();
-    } catch (error) {
-      console.error('Erro ao criar rodada:', error);
-      alert('Erro ao criar rodada');
-    }
-  };
+  useEffect(() => { loadRounds(); }, [loadRounds]);
 
-  const handleCloseRound = async (id: string) => {
-    if (!confirm('Tem certeza que deseja encerrar esta rodada?')) return;
-    try {
-      await api.patch(`/rounds/${id}/close`);
-      fetchRounds();
-    } catch (error) {
-      console.error('Erro ao encerrar rodada:', error);
-    }
-  };
-
-  const handleDeleteLastRound = async () => {
-    if (!confirm('Tem certeza que deseja deletar a última rodada?')) return;
-    try {
-      await api.delete('/rounds/last');
-      fetchRounds();
-    } catch (error) {
-      console.error('Erro ao deletar rodada:', error);
-    }
-  };
-
-  const getStatusBadge = (status: string) => {
-    const styles = {
-      OPEN: 'bg-green-100 text-green-800',
-      PROCESSING: 'bg-yellow-100 text-yellow-800',
-      CLOSED: 'bg-gray-100 text-gray-800',
-    };
-    const labels = { OPEN: 'Aberta', PROCESSING: 'Processando', CLOSED: 'Encerrada' };
-    return (
-      <span className={`px-2 py-1 rounded-full text-xs font-medium ${styles[status as keyof typeof styles]}`}>
-        {labels[status as keyof typeof labels]}
-      </span>
-    );
-  };
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-      </div>
+  function handleRoundCreated(newRound: Round) {
+    setShowCreateModal(false);
+    toast.success(`Rodada #${newRound.number} criada! Encerra em ${newRound.durationHours}h.`);
+    setRounds((prev) =>
+      [...prev, { ...newRound, submittedConfigsCount: 0 }].sort((a, b) => b.number - a.number)
     );
   }
 
+  async function handleCloseRound() {
+    if (!roundToClose) return;
+    setClosingRound(true);
+    try {
+      const res = await fetch(`${API_BASE}/rounds/${roundToClose.id}/close`, { method: 'POST' });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.message ?? 'Erro ao encerrar rodada');
+      }
+      setCloseSuccess(true);
+      toast.success(`Rodada #${roundToClose.number} encerrada com sucesso!`);
+      setRounds((prev) =>
+        prev.map((r) => (r.id === roundToClose.id ? { ...r, status: 'CLOSED' as RoundStatus } : r))
+      );
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Erro ao encerrar rodada');
+      setRoundToClose(null);
+      loadRounds();
+    } finally {
+      setClosingRound(false);
+    }
+  }
+
+  async function handleDeleteLastRound() {
+    if (!roundToDelete) return;
+    setDeletingRound(true);
+    try {
+      const res = await fetch(`${API_BASE}/rounds/last`, { method: 'DELETE' });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.message ?? 'Erro ao excluir rodada');
+      }
+      toast.success(`Rodada #${roundToDelete.number} excluída.`);
+      setRoundToDelete(null);
+      setLoading(true);
+      loadRounds();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Erro ao excluir rodada');
+      setRoundToDelete(null);
+    } finally {
+      setDeletingRound(false);
+    }
+  }
+
+  async function handleResetGame() {
+    setResetting(true);
+    try {
+      const res = await fetch(`${API_BASE}/rounds/reset`, { method: 'POST' });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.message ?? 'Erro ao reiniciar jogo');
+      }
+      toast.success('Jogo reiniciado com sucesso!');
+      setShowResetModal(false);
+      setLoading(true);
+      loadRounds();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Erro ao reiniciar jogo');
+    } finally {
+      setResetting(false);
+    }
+  }
+
+  async function handleExtendRound(minutes: number) {
+    if (!roundToExtend) return;
+    setExtending(true);
+    try {
+      const res = await fetch(`${API_BASE}/rounds/${roundToExtend.id}/extend`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ minutes }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.message ?? 'Erro ao adicionar tempo');
+      }
+      toast.success(`+${minutes} minutos adicionados à Rodada #${roundToExtend.number}`);
+      setRoundToExtend(null);
+      setLoading(true);
+      loadRounds();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Erro ao adicionar tempo');
+    } finally {
+      setExtending(false);
+    }
+  }
+
+  const hasOpenRound = rounds.some((r) => r.status === 'OPEN' || r.status === 'PROCESSING');
+  const nextNumber = rounds.length > 0 ? Math.max(...rounds.map((r) => r.number)) + 1 : 1;
+  const lastRoundId = rounds.length > 0 ? rounds[0].id : null;
+
   return (
-    <div>
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-2xl font-bold text-gray-900">Gerenciar Rodadas</h1>
-        <div className="flex space-x-3">
-          <button
+    <div style={{ maxWidth: 900, display: 'flex', flexDirection: 'column', gap: 24 }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16 }}>
+        <div>
+          <h1 style={{ margin: 0, fontSize: '22px', fontWeight: 800, color: 'var(--cenc-gray-900)' }}>Rodadas</h1>
+          <p style={{ margin: '4px 0 0', fontSize: '13px', color: 'var(--cenc-gray-500)' }}>Gerencie o ciclo de vida das rodadas da simulação.</p>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          {rounds.length > 0 && (
+            <button
+              onClick={() => setShowResetModal(true)}
+              style={{ fontSize: '13px', fontWeight: 600, color: '#b91c1c', background: 'none', border: '1.5px solid #fecaca', borderRadius: '10px', padding: '8px 14px', cursor: 'pointer', transition: 'all 0.15s' }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = '#fee2e2'; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'none'; }}
+            >
+              ↺ Reiniciar jogo
+            </button>
+          )}
+          <Button
+            disabled={hasOpenRound}
             onClick={() => setShowCreateModal(true)}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+            title={hasOpenRound ? 'Encerre a rodada atual antes de criar uma nova' : undefined}
           >
-            Nova Rodada
-          </button>
-          <button
-            onClick={handleDeleteLastRound}
-            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition"
-          >
-            Deletar Última
-          </button>
+            + Nova Rodada
+          </Button>
         </div>
       </div>
 
-      {/* Rounds Table */}
-      <div className="bg-white rounded-lg shadow overflow-hidden">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Número</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Termina em</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Duração</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Configs</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Resultados</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Ações</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-200">
-            {rounds.map((round) => (
-              <tr key={round.id}>
-                <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900">
-                  Rodada {round.number}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">{getStatusBadge(round.status)}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                  {new Date(round.endsAt).toLocaleString('pt-BR')}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                  {round.durationHours}h
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                  {round._count?.roundConfigs || 0}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                  {round._count?.financialResults || 0}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  {round.status === 'OPEN' && (
-                    <button
-                      onClick={() => handleCloseRound(round.id)}
-                      className="text-blue-600 hover:text-blue-800 text-sm font-medium"
-                    >
-                      Encerrar
-                    </button>
-                  )}
-                </td>
-              </tr>
-            ))}
-            {rounds.length === 0 && (
-              <tr>
-                <td colSpan={7} className="px-6 py-4 text-center text-gray-500">
-                  Nenhuma rodada encontrada
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-
-      {/* Create Modal */}
-      {showCreateModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md">
-            <h2 className="text-xl font-bold mb-4">Nova Rodada</h2>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Número da Rodada</label>
-                <input
-                  type="number"
-                  value={newRound.number}
-                  onChange={(e) => setNewRound({ ...newRound, number: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                  placeholder="1"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Duração (horas)</label>
-                <input
-                  type="number"
-                  value={newRound.durationHours}
-                  onChange={(e) => setNewRound({ ...newRound, durationHours: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Fator de Demanda</label>
-                <input
-                  type="number"
-                  step="0.1"
-                  value={newRound.demandFactor}
-                  onChange={(e) => setNewRound({ ...newRound, demandFactor: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                />
-              </div>
-            </div>
-            <div className="flex justify-end space-x-3 mt-6">
-              <button
-                onClick={() => setShowCreateModal(false)}
-                className="px-4 py-2 text-gray-600 hover:text-gray-800"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={handleCreateRound}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-              >
-                Criar
-              </button>
-            </div>
-          </div>
+      {loading ? (
+        <Skeleton variant="table" rows={3} />
+      ) : loadError ? (
+        <ErrorMessage message={loadError} onRetry={() => { setLoading(true); loadRounds(); }} />
+      ) : rounds.length === 0 ? (
+        <div style={{ borderRadius: '14px', border: '1px solid var(--cenc-gray-200)', background: 'white', padding: '48px 24px', textAlign: 'center' }}>
+          <p style={{ margin: 0, fontSize: '14px', fontWeight: 600, color: 'var(--cenc-gray-500)' }}>Nenhuma rodada criada ainda.</p>
+          <p style={{ margin: '4px 0 0', fontSize: '13px', color: 'var(--cenc-gray-400)' }}>Crie a primeira rodada para iniciar a simulação.</p>
         </div>
+      ) : (
+        <RoundsTable
+          rounds={rounds}
+          onClose={(round) => { setRoundToClose(round); setCloseSuccess(false); }}
+          onDeleteLast={(round) => setRoundToDelete(round)}
+          onExtend={(round) => setRoundToExtend(round)}
+          lastRoundId={lastRoundId}
+        />
       )}
     </div>
   );

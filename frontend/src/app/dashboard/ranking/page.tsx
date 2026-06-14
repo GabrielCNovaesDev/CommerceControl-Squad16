@@ -1,106 +1,274 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import api from '@/lib/api';
+import { useSession } from 'next-auth/react';
+import Skeleton from '@/components/ui/Skeleton';
+import ErrorMessage from '@/components/ui/ErrorMessage';
+import { formatCurrency, formatPercent } from '@/components/utils/formatters';
+import type { Round, RankingEntry } from '@/components/types';
 
-interface RankingEntry {
-  rank: number;
-  storeId: string;
-  storeName: string;
-  squadName: string;
-  totalEbitda: number;
-  avgEbitda: number;
-  roundsPlayed: number;
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || '/api';
+
+// ─── Position medal colors ────────────────────────────────────────────────────
+
+const MEDAL: Record<number, { bg: string; color: string; border: string; emoji: string; rowBg: string }> = {
+  1: { bg: '#fef9c3', color: '#854d0e', border: '#fde047', emoji: '🥇', rowBg: '#fefce8' },
+  2: { bg: '#f1f5f9', color: '#475569', border: '#cbd5e1', emoji: '🥈', rowBg: '#f8fafc' },
+  3: { bg: '#fff7ed', color: '#9a3412', border: '#fdba74', emoji: '🥉', rowBg: '#fff7ed' },
+};
+
+// ─── Round Selector ───────────────────────────────────────────────────────────
+
+function RoundSelector({ rounds, selectedId, onChange }: {
+  rounds: Round[]; selectedId: string | null; onChange: (id: string) => void;
+}) {
+  if (rounds.length === 0) return null;
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+      <label style={{ fontSize: '13px', fontWeight: 600, color: 'var(--cenc-gray-600)', whiteSpace: 'nowrap' }}>Rodada</label>
+      <select
+        value={selectedId ?? ''}
+        onChange={(e) => onChange(e.target.value)}
+        style={{
+          borderRadius: 10, border: '1.5px solid var(--cenc-gray-300)',
+          padding: '7px 12px', fontSize: '13px', fontWeight: 600,
+          color: 'var(--cenc-gray-800)', background: 'white', outline: 'none', cursor: 'pointer',
+        }}
+      >
+        {rounds.map((r) => (
+          <option key={r.id} value={r.id}>Rodada #{r.number}</option>
+        ))}
+      </select>
+    </div>
+  );
 }
 
+// ─── Top Banner ───────────────────────────────────────────────────────────────
+
+function TopBanner({ position }: { position: number }) {
+  const configs: Record<number, { text: string; bg: string; border: string; color: string }> = {
+    1: { text: 'Parabéns! Sua loja está em 1º lugar nesta rodada!', bg: '#fefce8', border: '#fde047', color: '#854d0e' },
+    2: { text: 'Muito bem! Sua loja está em 2º lugar nesta rodada!', bg: '#f8fafc', border: '#cbd5e1', color: '#475569' },
+    3: { text: 'Ótimo resultado! Sua loja está em 3º lugar nesta rodada!', bg: '#fff7ed', border: '#fdba74', color: '#9a3412' },
+  };
+  const cfg = configs[position];
+  if (!cfg) return null;
+  const medal = MEDAL[position];
+  return (
+    <div className="animate-slide-down" style={{
+      display: 'flex', alignItems: 'center', gap: 14,
+      borderRadius: 14, padding: '14px 20px',
+      background: cfg.bg, border: `1px solid ${cfg.border}`,
+    }}>
+      <span style={{ fontSize: '28px', lineHeight: 1 }}>{medal.emoji}</span>
+      <p style={{ margin: 0, fontSize: '14px', fontWeight: 600, color: cfg.color }}>{cfg.text}</p>
+    </div>
+  );
+}
+
+// ─── Position Cell ────────────────────────────────────────────────────────────
+
+function PositionCell({ position }: { position: number }) {
+  const medal = MEDAL[position];
+  if (medal) {
+    return (
+      <span style={{
+        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+        width: 30, height: 30, borderRadius: '50%',
+        background: medal.bg, border: `1.5px solid ${medal.border}`,
+        fontSize: '13px', fontWeight: 800, color: medal.color,
+      }}>
+        {position}
+      </span>
+    );
+  }
+  return (
+    <span style={{
+      display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+      width: 30, height: 30, borderRadius: '50%',
+      background: 'var(--cenc-gray-100)', border: '1px solid var(--cenc-gray-200)',
+      fontSize: '12px', fontWeight: 600, color: 'var(--cenc-gray-600)',
+    }}>
+      {position}
+    </span>
+  );
+}
+
+// ─── Ranking Table ────────────────────────────────────────────────────────────
+
+function RankingTable({ ranking, mySquadId }: { ranking: RankingEntry[]; mySquadId: string | null | undefined }) {
+  return (
+    <div style={{ borderRadius: 14, border: '1px solid var(--cenc-gray-200)', overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+        <thead>
+          <tr style={{ background: 'var(--cenc-gray-50)', borderBottom: '1px solid var(--cenc-gray-200)' }}>
+            {[
+              { label: '#', align: 'center', width: 56 },
+              { label: 'Squad', align: 'left' },
+              { label: 'Loja', align: 'left' },
+              { label: 'Receita Bruta', align: 'right' },
+              { label: 'Margem Líq.', align: 'right' },
+              { label: 'Lucro Líquido', align: 'right' },
+            ].map((col) => (
+              <th key={col.label} style={{
+                padding: '12px 16px', fontWeight: 700, fontSize: '11px',
+                color: 'var(--cenc-gray-500)', textTransform: 'uppercase',
+                letterSpacing: '0.06em', textAlign: col.align as 'left' | 'right' | 'center',
+                width: col.width,
+              }}>
+                {col.label}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {ranking.map((entry) => {
+            const isMe = entry.squadId === mySquadId;
+            const medal = MEDAL[entry.position];
+            const isPositive = entry.ebitda >= 0;
+
+            return (
+              <tr key={entry.position} style={{
+                borderTop: '1px solid var(--cenc-gray-100)',
+                background: isMe
+                  ? 'var(--cenc-blue-50)'
+                  : medal ? medal.rowBg : 'white',
+                borderLeft: isMe ? '3px solid var(--cenc-blue-500)' : '3px solid transparent',
+              }}>
+                <td style={{ padding: '12px 16px', textAlign: 'center' }}>
+                  <PositionCell position={entry.position} />
+                </td>
+                <td style={{ padding: '12px 16px', fontWeight: 600, color: 'var(--cenc-gray-800)' }}>
+                  {entry.squadName}
+                  {isMe && (
+                    <span style={{
+                      marginLeft: 8, display: 'inline-flex', alignItems: 'center',
+                      borderRadius: 99, padding: '2px 8px', fontSize: '11px', fontWeight: 700,
+                      background: 'var(--cenc-blue-100)', color: 'var(--cenc-blue-700)',
+                      border: '1px solid var(--cenc-blue-200)',
+                    }}>você</span>
+                  )}
+                </td>
+                <td style={{ padding: '12px 16px', color: 'var(--cenc-gray-600)' }}>{entry.storeName}</td>
+                <td style={{ padding: '12px 16px', textAlign: 'right', color: 'var(--cenc-gray-700)', fontWeight: 500 }}>
+                  {formatCurrency(entry.grossRevenue)}
+                </td>
+                <td style={{ padding: '12px 16px', textAlign: 'right', fontWeight: 600, color: entry.ebitdaMargin < 0 ? 'var(--cenc-danger)' : 'var(--cenc-success)' }}>
+                  {formatPercent(entry.ebitdaMargin)}
+                </td>
+                <td style={{ padding: '12px 16px', textAlign: 'right', fontWeight: 700, color: isPositive ? 'var(--cenc-success)' : 'var(--cenc-danger)' }}>
+                  {isPositive ? '' : '−'}{formatCurrency(Math.abs(entry.ebitda))}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+// ─── Main ─────────────────────────────────────────────────────────────────────
+
 export default function RankingPage() {
+  const { data: session } = useSession();
+  const [closedRounds, setClosedRounds] = useState<Round[]>([]);
+  const [selectedRoundId, setSelectedRoundId] = useState<string | null>(null);
   const [ranking, setRanking] = useState<RankingEntry[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [roundId, setRoundId] = useState<string>('');
+  const [loadingRounds, setLoadingRounds] = useState(true);
+  const [loadError, setLoadError] = useState('');
+  const [loadingRanking, setLoadingRanking] = useState(false);
+
+  // Get squadId from session
+  const mySquadId = (session?.user as { squadId?: string } | undefined)?.squadId;
+  const myRole = (session?.user as { role?: string } | undefined)?.role;
+
+  function loadRounds() {
+    setLoadError(''); setLoadingRounds(true);
+    fetch(`${API_BASE}/rounds`)
+      .then(r => r.json())
+      .then((data) => {
+        const rounds = data.data || data || [];
+        const closed = rounds.filter((r: Round) => r.status === 'CLOSED').sort((a: Round, b: Round) => b.number - a.number);
+        setClosedRounds(closed);
+        if (closed.length > 0) setSelectedRoundId(closed[0].id);
+      })
+      .catch(() => setLoadError('Não foi possível carregar as rodadas.'))
+      .finally(() => setLoadingRounds(false));
+  }
+
+  useEffect(() => { loadRounds(); }, []);
 
   useEffect(() => {
-    fetchRanking();
-  }, [roundId]);
+    if (!selectedRoundId) return;
+    setLoadingRanking(true); setRanking([]);
+    fetch(`${API_BASE}/rounds/${selectedRoundId}/ranking`)
+      .then(r => r.json())
+      .then((data) => {
+        if (data.error) throw new Error(data.error.message || data.message);
+        setRanking(data.data || data || []);
+      })
+      .catch((err: Error) => {
+        setLoadError(err.message || 'Não foi possível carregar o ranking.');
+        setRanking([]);
+      })
+      .finally(() => setLoadingRanking(false));
+  }, [selectedRoundId]);
 
-  const fetchRanking = async () => {
-    try {
-      const params = roundId ? `?roundId=${roundId}` : '';
-      const res = await api.get(`/simulation/ranking${params}`);
-      setRanking(res.data.data || []);
-    } catch (error) {
-      console.error('Erro ao carregar ranking:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const myEntry = ranking.find((e) => e.squadId === mySquadId);
+  const myPosition = myEntry?.position ?? null;
+  const showTopBanner = myRole === 'PLAYER' && myPosition != null && myPosition <= 3;
 
-  const getRankStyle = (rank: number) => {
-    if (rank === 1) return 'bg-yellow-100 text-yellow-800';
-    if (rank === 2) return 'bg-gray-100 text-gray-800';
-    if (rank === 3) return 'bg-orange-100 text-orange-800';
-    return 'bg-gray-50 text-gray-600';
-  };
-
-  if (loading) {
+  if (loadingRounds) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      <div style={{ maxWidth: 860, display: 'flex', flexDirection: 'column', gap: 20 }}>
+        <Skeleton variant="line" width="140px" height="28px" />
+        <Skeleton variant="table" rows={5} />
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return <ErrorMessage message={loadError} onRetry={loadRounds} />;
+  }
+
+  if (closedRounds.length === 0) {
+    return (
+      <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 240, gap: 12 }}>
+        <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'var(--cenc-blue-50)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--cenc-blue-400)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+          </svg>
+        </div>
+        <p style={{ margin: 0, fontSize: '15px', fontWeight: 600, color: 'var(--cenc-gray-700)' }}>Nenhuma rodada encerrada ainda</p>
+        <p style={{ margin: 0, fontSize: '13px', color: 'var(--cenc-gray-400)' }}>O ranking aparece aqui após o encerramento de cada rodada.</p>
       </div>
     );
   }
 
   return (
-    <div>
-      <h1 className="text-2xl font-bold text-gray-900 mb-8">Ranking</h1>
+    <div style={{ maxWidth: 860, display: 'flex', flexDirection: 'column', gap: 24 }} className="page-enter">
 
-      {/* Ranking Table */}
-      <div className="bg-white rounded-lg shadow overflow-hidden">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Posição</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Loja</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Squad</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total EBITDA</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Média EBITDA</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Rodadas</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-200">
-            {ranking.map((entry) => (
-              <tr key={entry.storeId} className="hover:bg-gray-50">
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className={`inline-flex items-center justify-center w-8 h-8 rounded-full font-bold text-sm ${getRankStyle(entry.rank)}`}>
-                    {entry.rank}º
-                  </span>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900">
-                  {entry.storeName}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-gray-600">
-                  {entry.squadName}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap font-semibold text-green-600">
-                  R$ {entry.totalEbitda.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-gray-600">
-                  R$ {entry.avgEbitda.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-gray-600">
-                  {entry.roundsPlayed}
-                </td>
-              </tr>
-            ))}
-            {ranking.length === 0 && (
-              <tr>
-                <td colSpan={6} className="px-6 py-4 text-center text-gray-500">
-                  Nenhum resultado encontrado
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
+        <div>
+          <h1 style={{ margin: 0, fontSize: '22px', fontWeight: 800, color: 'var(--cenc-gray-900)' }}>Ranking</h1>
+          <p style={{ margin: '4px 0 0', fontSize: '13px', color: 'var(--cenc-gray-500)' }}>Classificação das lojas por rodada.</p>
+        </div>
+        <RoundSelector rounds={closedRounds} selectedId={selectedRoundId} onChange={setSelectedRoundId} />
       </div>
+
+      {showTopBanner && myPosition && <TopBanner position={myPosition} />}
+
+      {loadingRanking ? (
+        <Skeleton variant="table" rows={5} />
+      ) : ranking.length === 0 ? (
+        <div style={{ borderRadius: 14, border: '1px solid var(--cenc-gray-200)', background: 'white', padding: '48px 24px', textAlign: 'center' }}>
+          <p style={{ margin: 0, fontSize: '13px', color: 'var(--cenc-gray-400)' }}>Nenhum dado de ranking disponível para esta rodada.</p>
+        </div>
+      ) : (
+        <RankingTable ranking={ranking} mySquadId={mySquadId} />
+      )}
     </div>
   );
 }

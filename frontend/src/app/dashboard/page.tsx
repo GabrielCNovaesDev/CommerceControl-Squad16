@@ -1,140 +1,312 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import api from '@/lib/api';
-import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import Button from '@/components/ui/Button';
+import Input from '@/components/ui/Input';
+import Skeleton from '@/components/ui/Skeleton';
+import ErrorMessage from '@/components/ui/ErrorMessage';
+import { useCountdown } from '@/components/hooks/useCountdown';
+import { formatCurrency } from '@/components/utils/formatters';
+import type { Store, InventoryItem, Round, RoundStatus } from '@/components/types';
 
-interface DashboardData {
-  store: { id: string; name: string; currentCash: string } | null;
-  activeRound: { id: string; number: number; endsAt: string; status: string } | null;
-  lastResult: { ebitda: string; rank: number } | null;
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || '/api';
+
+const ROUND_STATUS_BADGE: Record<RoundStatus, { label: string; variant: 'green' | 'yellow' | 'gray' | 'red' | 'blue' }> = {
+  OPEN: { label: 'Aberta', variant: 'green' },
+  PROCESSING: { label: 'Processando', variant: 'yellow' },
+  CLOSED: { label: 'Encerrada', variant: 'gray' },
+};
+
+const createStoreSchema = z.object({
+  name: z.string().min(1, 'Nome é obrigatório'),
+  initialCapital: z.coerce.number({ error: 'Informe um valor numérico' }).positive('O capital deve ser positivo'),
+});
+type CreateStoreFormData = z.infer<typeof createStoreSchema>;
+
+// ─── Timer ────────────────────────────────────────────────────────────────────
+
+function RoundTimer({ endsAt }: { endsAt: string }) {
+  const { timeLeft, expired } = useCountdown(endsAt);
+  if (expired) {
+    return (
+      <div style={{ borderRadius: 10, background: 'var(--cenc-warning-bg)', border: '1px solid rgba(217, 119, 6, 0.25)', padding: '10px 14px', textAlign: 'center' }}>
+        <p style={{ margin: 0, fontSize: '12px', color: 'var(--cenc-warning)', fontWeight: 600 }}>Tempo esgotado — aguardando encerramento</p>
+      </div>
+    );
+  }
+  return (
+    <div style={{ borderRadius: 10, background: 'var(--cenc-blue-50)', border: '1px solid var(--cenc-blue-100)', padding: '10px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      <span style={{ fontSize: '12px', color: 'var(--cenc-blue-500)', fontWeight: 600 }}>Tempo restante</span>
+      <span style={{ fontSize: '20px', fontFamily: 'monospace', fontWeight: 800, color: 'var(--cenc-blue-700)', letterSpacing: '0.05em' }}>{timeLeft}</span>
+    </div>
+  );
 }
 
-export default function PlayerDashboardPage() {
-  const [data, setData] = useState<DashboardData | null>(null);
+// ─── Main ─────────────────────────────────────────────────────────────────────
+
+export default function StoresDashboardPage() {
+  const router = useRouter();
+  const [store, setStore] = useState<Store | null>(null);
+  const [inventory, setInventory] = useState<InventoryItem[]>([]);
+  const [activeRound, setActiveRound] = useState<Round | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
+  const [creating, setCreating] = useState(false);
+  const [toastMsg, setToastMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [storeRes, roundsRes] = await Promise.all([
-          api.get('/stores/my'),
-          api.get('/rounds'),
-        ]);
+  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<CreateStoreFormData, unknown, CreateStoreFormData>({
+    resolver: zodResolver(createStoreSchema) as never,
+  });
 
-        const activeRound = roundsRes.data.data?.find(
-          (r: { status: string }) => r.status === 'OPEN'
-        );
+  function showToast(type: 'success' | 'error', text: string) {
+    setToastMsg({ type, text });
+    setTimeout(() => setToastMsg(null), 3000);
+  }
 
-        // Buscar último resultado se houver rodada ativa
-        let lastResult = null;
-        if (activeRound) {
-          try {
-            const resultsRes = await api.get(`/rounds/${activeRound.id}/results`);
-            if (resultsRes.data.data?.length > 0) {
-              lastResult = resultsRes.data.data[0];
-            }
-          } catch (e) {
-            // Sem resultados ainda
-          }
-        }
-
-        setData({
-          store: storeRes.data.data || null,
-          activeRound: activeRound || null,
-          lastResult,
-        });
-      } catch (error) {
-        console.error('Erro ao carregar dados:', error);
-      } finally {
+  async function load() {
+    setLoadError('');
+    try {
+      const storeRes = await fetch(`${API_BASE}/stores/me`).then(r => r.json());
+      if (storeRes.error?.code === 'NOT_FOUND' || storeRes.message?.includes('não encontrada')) {
+        setStore(null);
         setLoading(false);
+        return;
       }
-    };
+      if (storeRes.error) throw new Error(storeRes.error.message || storeRes.message);
 
-    fetchData();
-  }, []);
+      const s = storeRes.data || storeRes;
+      setStore(s);
+
+      const [invRes, roundsRes] = await Promise.all([
+        fetch(`${API_BASE}/stores/${s.id}/inventory`).then(r => r.json()),
+        fetch(`${API_BASE}/rounds`).then(r => r.json()),
+      ]);
+
+      setInventory(invRes.data || invRes || []);
+      const rounds = roundsRes.data || roundsRes || [];
+      const open = rounds.find((r: Round) => r.status === 'OPEN' || r.status === 'PROCESSING');
+      setActiveRound(open ?? null);
+    } catch (err: unknown) {
+      const error = err as Error;
+      setLoadError(error.message || 'Não foi possível carregar os dados da loja.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => { load(); }, []);
+
+  async function onCreateStore(data: CreateStoreFormData) {
+    try {
+      const res = await fetch(`${API_BASE}/stores`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      }).then(r => r.json());
+
+      if (res.error) throw new Error(res.error.message || res.message);
+
+      setStore(res.data || res);
+      setCreating(false);
+      showToast('success', 'Loja criada com sucesso!');
+    } catch (err: unknown) {
+      const error = err as Error;
+      showToast('error', error.message || 'Erro ao criar loja');
+    }
+  }
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      <div style={{ maxWidth: 800, display: 'flex', flexDirection: 'column', gap: 20 }}>
+        <Skeleton variant="line" width="200px" height="28px" />
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+          <Skeleton variant="stat" /><Skeleton variant="stat" />
+        </div>
+        <Skeleton variant="table" rows={4} />
       </div>
     );
   }
 
+  if (loadError) {
+    return <ErrorMessage message={loadError} onRetry={() => { setLoading(true); load(); }} />;
+  }
+
+  // Toast notification
+  if (toastMsg) {
+    return (
+      <div style={{
+        position: 'fixed', top: 20, right: 20, zIndex: 1000,
+        padding: '12px 20px', borderRadius: 10,
+        background: toastMsg.type === 'success' ? 'var(--cenc-success-bg)' : 'var(--cenc-danger-bg)',
+        border: `1px solid ${toastMsg.type === 'success' ? 'rgba(22, 163, 74, 0.25)' : 'rgba(220, 38, 38, 0.25)'}`,
+        color: toastMsg.type === 'success' ? 'var(--cenc-success)' : 'var(--cenc-danger)',
+        fontWeight: 600, boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+      }}>
+        {toastMsg.text}
+      </div>
+    );
+  }
+
+  // No store yet
+  if (!store) {
+    return (
+      <div style={{ maxWidth: 420, margin: '48px auto' }} className="animate-fade-in">
+        <div style={{ background: 'white', borderRadius: 20, border: '1px solid var(--cenc-gray-200)', boxShadow: '0 4px 24px rgba(0,48,135,0.08)', overflow: 'hidden' }}>
+          <div style={{ padding: '24px 28px', borderBottom: '1px solid var(--cenc-gray-100)', background: 'linear-gradient(135deg, var(--cenc-blue-900), var(--cenc-blue-700))', textAlign: 'center' }}>
+            <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
+              </svg>
+            </div>
+            <h2 style={{ margin: 0, fontSize: '18px', fontWeight: 700, color: 'white' }}>Criar sua Loja</h2>
+            <p style={{ margin: '6px 0 0', fontSize: '13px', color: 'rgba(255,255,255,0.7)' }}>Seu squad ainda não possui uma loja</p>
+          </div>
+          <div style={{ padding: '24px 28px' }}>
+            {!creating ? (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16, padding: '8px 0' }}>
+                <p style={{ margin: 0, fontSize: '13px', color: 'var(--cenc-gray-500)', textAlign: 'center' }}>
+                  Crie uma loja para começar a participar das rodadas de simulação.
+                </p>
+                <Button onClick={() => setCreating(true)} icon={
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                }>Criar Loja</Button>
+              </div>
+            ) : (
+              <form onSubmit={handleSubmit(onCreateStore)} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                <Input label="Nome da loja" placeholder="Ex: Supermercado Alpha" error={errors.name?.message} {...register('name')} />
+                <Input label="Capital inicial (R$)" type="number" step="0.01" placeholder="10000.00" error={errors.initialCapital?.message} {...register('initialCapital')} />
+                <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
+                  <Button type="submit" loading={isSubmitting} style={{ flex: 1 }}>Criar</Button>
+                  <Button type="button" variant="secondary" onClick={() => setCreating(false)}>Cancelar</Button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const roundBadge = activeRound ? ROUND_STATUS_BADGE[activeRound.status] : null;
+  const cashPct = ((store.currentCash ?? store.initialCapital) / store.initialCapital) * 100;
+  const cashPositive = (store.currentCash ?? store.initialCapital) >= 0;
+
   return (
-    <div>
-      <h1 className="text-2xl font-bold text-gray-900 mb-8">Meu Dashboard</h1>
+    <div style={{ maxWidth: 860, display: 'flex', flexDirection: 'column', gap: 24 }} className="page-enter">
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {/* Minha Loja */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="text-sm font-medium text-gray-500">Minha Loja</div>
-          <div className="mt-2 text-2xl font-bold text-gray-900">
-            {data?.store?.name || 'Sem loja'}
+      {/* Store header */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+            <div style={{ width: 40, height: 40, borderRadius: 12, background: 'linear-gradient(135deg, var(--cenc-blue-700), var(--cenc-blue-500))', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
+              </svg>
+            </div>
+            <h1 style={{ margin: 0, fontSize: '22px', fontWeight: 800, color: 'var(--cenc-gray-900)' }}>{store.name}</h1>
           </div>
-          <div className="mt-4 text-sm text-gray-600">
-            Capital Atual: R$ {parseFloat(data?.store?.currentCash || '0').toLocaleString('pt-BR')}
-          </div>
+          <p style={{ margin: 0, fontSize: '13px', color: 'var(--cenc-gray-500)' }}>Capital inicial: {formatCurrency(store.initialCapital)}</p>
         </div>
 
-        {/* Rodada Atual */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="text-sm font-medium text-gray-500">Rodada Atual</div>
-          <div className="mt-2 text-2xl font-bold text-gray-900">
-            {data?.activeRound ? `Rodada ${data.activeRound.number}` : 'Nenhuma'}
-          </div>
-          {data?.activeRound && (
-            <div className="mt-4 text-sm text-gray-600">
-              Termina em: {new Date(data.activeRound.endsAt).toLocaleString('pt-BR')}
-            </div>
-          )}
-        </div>
-
-        {/* Último Resultado */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="text-sm font-medium text-gray-500">Último Resultado</div>
-          <div className="mt-2 text-2xl font-bold text-gray-900">
-            {data?.lastResult ? `R$ ${parseFloat(data.lastResult.ebitda).toLocaleString('pt-BR')}` : 'Nenhum'}
-          </div>
-          {data?.lastResult && (
-            <div className="mt-4 text-sm text-gray-600">
-              Posição: {data.lastResult.rank}º
-            </div>
-          )}
+        {/* Cash card */}
+        <div style={{
+          borderRadius: 14, padding: '14px 20px', textAlign: 'right',
+          background: cashPositive ? 'var(--cenc-success-bg)' : 'var(--cenc-danger-bg)',
+          border: `1px solid ${cashPositive ? 'rgba(22, 163, 74, 0.25)' : 'rgba(220, 38, 38, 0.25)'}`,
+        }}>
+          <p style={{ margin: 0, fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--cenc-gray-400)' }}>Caixa Atual</p>
+          <p style={{ margin: '4px 0 2px', fontSize: '28px', fontWeight: 800, color: cashPositive ? 'var(--cenc-success)' : 'var(--cenc-danger)', lineHeight: 1 }}>
+            {formatCurrency(store.currentCash ?? store.initialCapital)}
+          </p>
+          <p style={{ margin: 0, fontSize: '12px', color: cashPositive ? 'var(--cenc-success)' : 'var(--cenc-danger)' }}>
+            {cashPct.toFixed(1)}% do capital inicial
+          </p>
         </div>
       </div>
 
-      {/* Ações */}
-      <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
-        {data?.activeRound ? (
-          <Link
-            href="/dashboard/round-config"
-            className="block p-6 bg-blue-600 rounded-lg hover:bg-blue-700 transition text-white"
-          >
-            <div className="font-semibold text-lg">Configurar Rodada {data.activeRound.number}</div>
-            <div className="text-sm text-blue-200 mt-2">
-              Configure sua estratégia para esta rodada
-            </div>
-          </Link>
-        ) : (
-          <div className="p-6 bg-gray-200 rounded-lg text-gray-500">
-            <div className="font-semibold text-lg">Aguardando Próxima Rodada</div>
-            <div className="text-sm mt-2">
-              O administrador irá iniciar uma nova rodada em breve
-            </div>
-          </div>
-        )}
+      {/* Cards grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 16 }}>
 
-        <Link
-          href="/dashboard/results"
-          className="block p-6 bg-green-600 rounded-lg hover:bg-green-700 transition text-white"
-        >
-          <div className="font-semibold text-lg">Ver Meus Resultados</div>
-          <div className="text-sm text-green-200 mt-2">
-            Acompanhe seu desempenho histórico
+        {/* Round card */}
+        <div style={{ background: 'white', borderRadius: 16, border: '1px solid var(--cenc-gray-200)', boxShadow: '0 2px 8px rgba(0,0,0,0.05)', overflow: 'hidden' }}>
+          <div style={{ padding: '14px 20px', borderBottom: '1px solid var(--cenc-gray-100)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <h2 style={{ margin: 0, fontSize: '13px', fontWeight: 700, color: 'var(--cenc-gray-700)' }}>Rodada Atual</h2>
+            {roundBadge && <span style={{
+              padding: '3px 10px', borderRadius: 99, fontSize: '11px', fontWeight: 700,
+              background: roundBadge.variant === 'green' ? 'var(--cenc-success-bg)' : roundBadge.variant === 'yellow' ? 'var(--cenc-warning-bg)' : 'var(--cenc-gray-100)',
+              color: roundBadge.variant === 'green' ? 'var(--cenc-success)' : roundBadge.variant === 'yellow' ? 'var(--cenc-warning)' : 'var(--cenc-gray-500)',
+              border: `1px solid ${roundBadge.variant === 'green' ? 'rgba(22, 163, 74, 0.25)' : roundBadge.variant === 'yellow' ? 'rgba(217, 119, 6, 0.25)' : 'var(--cenc-gray-200)'}`,
+            }}>{roundBadge.label}</span>}
           </div>
-        </Link>
+          <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {activeRound ? (
+              <>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontSize: '32px', fontWeight: 800, color: 'var(--cenc-gray-900)' }}>#{activeRound.number}</span>
+                </div>
+                {activeRound.status === 'OPEN' && activeRound.endsAt && <RoundTimer endsAt={activeRound.endsAt} />}
+                <Button onClick={() => router.push('/dashboard/round-config')} disabled={activeRound.status !== 'OPEN'} style={{ width: '100%' }}
+                  icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>}
+                >
+                  Configurar Rodada
+                </Button>
+                {activeRound.status !== 'OPEN' && (
+                  <p style={{ margin: 0, fontSize: '12px', color: 'var(--cenc-gray-400)', textAlign: 'center' }}>
+                    Configuração disponível somente em rodadas abertas
+                  </p>
+                )}
+              </>
+            ) : (
+              <div style={{ padding: '16px 0', textAlign: 'center' }}>
+                <p style={{ margin: 0, fontSize: '13px', color: 'var(--cenc-gray-400)' }}>Nenhuma rodada ativa no momento.</p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Inventory card */}
+        <div style={{ background: 'white', borderRadius: 16, border: '1px solid var(--cenc-gray-200)', boxShadow: '0 2px 8px rgba(0,0,0,0.05)', overflow: 'hidden' }}>
+          <div style={{ padding: '14px 20px', borderBottom: '1px solid var(--cenc-gray-100)' }}>
+            <h2 style={{ margin: 0, fontSize: '13px', fontWeight: 700, color: 'var(--cenc-gray-700)' }}>Estoque Disponível</h2>
+          </div>
+          <div style={{ padding: '0' }}>
+            {inventory.length === 0 ? (
+              <div style={{ padding: '32px 20px', textAlign: 'center' }}>
+                <p style={{ margin: 0, fontSize: '13px', color: 'var(--cenc-gray-400)' }}>Estoque não disponível.</p>
+              </div>
+            ) : (
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '1px solid var(--cenc-gray-100)' }}>
+                      {['Categoria', 'Qtd.', 'Disp.', 'Valor'].map((h, i) => (
+                        <th key={h} style={{ padding: '10px 16px', fontWeight: 600, fontSize: '11px', color: 'var(--cenc-gray-400)', textTransform: 'uppercase', letterSpacing: '0.06em', textAlign: i === 0 ? 'left' : 'right' }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {inventory.map((item) => {
+                      const pct = item.product.mixAvailable > 0 ? ((item.quantity / item.product.mixAvailable) * 100).toFixed(0) : '—';
+                      const val = item.quantity * item.product.purchasePrice;
+                      return (
+                        <tr key={item.productId} style={{ borderTop: '1px solid var(--cenc-gray-50)' }}>
+                          <td style={{ padding: '10px 16px', color: 'var(--cenc-gray-700)', fontWeight: 500 }}>{item.product.name}</td>
+                          <td style={{ padding: '10px 16px', textAlign: 'right', fontWeight: 700, color: 'var(--cenc-gray-900)' }}>{item.quantity}</td>
+                          <td style={{ padding: '10px 16px', textAlign: 'right', fontSize: '12px', color: 'var(--cenc-gray-500)' }}>{pct}%</td>
+                          <td style={{ padding: '10px 16px', textAlign: 'right', fontSize: '12px', color: 'var(--cenc-gray-500)' }}>{formatCurrency(val)}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );

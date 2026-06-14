@@ -1,348 +1,327 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import api from '@/lib/api';
 import { useRouter } from 'next/navigation';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import Button from '@/components/ui/Button';
+import DREPreview from '@/components/DREPreview';
+import Skeleton from '@/components/ui/Skeleton';
+import ErrorMessage from '@/components/ui/ErrorMessage';
+import { roundConfigSchema } from '@/components/roundConfig/types';
+import { OperatorsPanel } from '@/components/roundConfig/OperatorsPanel';
+import { CapexPanel } from '@/components/roundConfig/CapexPanel';
+import { LicensingPanel } from '@/components/roundConfig/LicensingPanel';
+import { CashSummaryPanel } from '@/components/roundConfig/CashSummaryPanel';
+import { ProductRow } from '@/components/roundConfig/ProductRow';
+import { CountdownBadge } from '@/components/roundConfig/CountdownBadge';
+import type { Round, Store, Product, DREResult } from '@/components/types';
+import type { FormData } from '@/components/roundConfig/types';
 
-interface Product {
-  id: string;
-  name: string;
-  purchasePrice: string;
-}
-
-interface RoundConfigItem {
-  productId: string;
-  margin: string;
-  salesVolume: number;
-}
-
-interface ExistingConfig {
-  id: string;
-  otherExpenses: string;
-  cashierOperators: number;
-  serviceOperators: number;
-  quizScore: string;
-  numPdvs: number;
-  capexSeguranca: boolean;
-  capexBalanca: boolean;
-  capexRedes: boolean;
-  capexSite: boolean;
-  capexSelfCheckout: boolean;
-  capexMelhoria: boolean;
-  roundConfigItems: RoundConfigItem[];
-}
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || '/api';
 
 export default function RoundConfigPage() {
   const router = useRouter();
-  const [activeRound, setActiveRound] = useState<{ id: string; number: number; endsAt: string } | null>(null);
-  const [store, setStore] = useState<{ id: string; name: string } | null>(null);
-  const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [existingConfig, setExistingConfig] = useState<ExistingConfig | null>(null);
+  const [activeRound,   setActiveRound]   = useState<Round | null>(null);
+  const [store,         setStore]         = useState<Store | null>(null);
+  const [inventoryMap,  setInventoryMap]  = useState<Record<string, number>>({});
+  const [products,      setProducts]      = useState<Product[]>([]);
+  const [previousCapex, setPreviousCapex] = useState<string[]>([]);
+  const [loading,       setLoading]       = useState(true);
+  const [loadError,     setLoadError]     = useState('');
+  const [preview,       setPreview]       = useState<DREResult | null>(null);
+  const [submitSuccess, setSubmitSuccess] = useState(false);
+  const [isResubmit,    setIsResubmit]    = useState(false);
+  const [toastMsg, setToastMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
-  // Form state
-  const [otherExpenses, setOtherExpenses] = useState('0');
-  const [cashierOperators, setCashierOperators] = useState('10');
-  const [serviceOperators, setServiceOperators] = useState('5');
-  const [quizScore, setQuizScore] = useState('1.0');
-  const [numPdvs, setNumPdvs] = useState('6');
-  const [capexOptions, setCapexOptions] = useState({
-    capexSeguranca: false,
-    capexBalanca: false,
-    capexRedes: false,
-    capexSite: false,
-    capexSelfCheckout: false,
-    capexMelhoria: false,
+  const { register, handleSubmit, control, getValues, trigger, reset, formState: { errors, isSubmitting } } = useForm<FormData, unknown, FormData>({
+    resolver: zodResolver(roundConfigSchema) as never,
+    defaultValues: {
+      otherExpenses: 0, cashierOperators: 10, serviceOperators: 5, quizScore: 100,
+      numPdvs: 6, capexSeguranca: false, capexBalanca: false, capexRedes: false,
+      capexSite: false, capexSelfCheckout: false, capexMelhoria: false, items: [],
+    },
   });
-  const [productConfigs, setProductConfigs] = useState<Record<string, { margin: string; salesVolume: string }>>({});
 
-  useEffect(() => {
-    loadData();
-  }, []);
+  function showToast(type: 'success' | 'error', text: string) {
+    setToastMsg({ type, text });
+    setTimeout(() => setToastMsg(null), 3000);
+  }
 
-  const loadData = async () => {
+  async function load() {
+    setLoadError('');
     try {
-      // Get active round
-      const roundsRes = await api.get('/rounds');
-      const active = roundsRes.data.data?.find((r: { status: string }) => r.status === 'OPEN');
-      if (!active) {
-        setLoading(false);
-        return;
+      const [roundsRes, storeRes, prodsRes] = await Promise.all([
+        fetch(`${API_BASE}/rounds`).then(r => r.json()),
+        fetch(`${API_BASE}/stores/me`).then(r => r.json()),
+        fetch(`${API_BASE}/products`).then(r => r.json()),
+      ]);
+
+      const roundsList = roundsRes.data || roundsRes || [];
+      const open = roundsList.find((r: Round) => r.status === 'OPEN');
+      setActiveRound(open ?? null);
+      setProducts((prodsRes.data || prodsRes || []).filter(Boolean));
+
+      const s = storeRes.data || storeRes;
+      if (s && !s.error) {
+        setStore(s);
+        reset({
+          otherExpenses: 0, cashierOperators: 10, serviceOperators: 5, quizScore: 100,
+          numPdvs: 6, capexSeguranca: false, capexBalanca: false, capexRedes: false,
+          capexSite: false, capexSelfCheckout: false, capexMelhoria: false,
+          items: (prodsRes.data || prodsRes || []).map((p: Product) => ({ productId: p.id, margin: 12, salesVolume: open && open.number >= 3 ? 0 : 1 })),
+        });
       }
-      setActiveRound(active);
 
-      // Get player store
-      const storeRes = await api.get('/stores/my');
-      if (storeRes.data.data) {
-        setStore(storeRes.data.data);
-      }
-
-      // Get products
-      const productsRes = await api.get('/products');
-      setProducts(productsRes.data.data || []);
-
-      // Get existing config
-      try {
-        const configRes = await api.get(`/rounds/${active.id}/my-config`);
-        if (configRes.data.data) {
-          setExistingConfig(configRes.data.data);
-          // Populate form with existing config
-          setOtherExpenses(configRes.data.data.otherExpenses);
-          setCashierOperators(configRes.data.data.cashierOperators.toString());
-          setServiceOperators(configRes.data.data.serviceOperators.toString());
-          setQuizScore(configRes.data.data.quizScore);
-          setNumPdvs(configRes.data.data.numPdvs.toString());
-          setCapexOptions({
-            capexSeguranca: configRes.data.data.capexSeguranca,
-            capexBalanca: configRes.data.data.capexBalanca,
-            capexRedes: configRes.data.data.capexRedes,
-            capexSite: configRes.data.data.capexSite,
-            capexSelfCheckout: configRes.data.data.capexSelfCheckout,
-            capexMelhoria: configRes.data.data.capexMelhoria,
-          });
-
-          // Populate product configs
-          const configs: Record<string, { margin: string; salesVolume: string }> = {};
-          configRes.data.data.roundConfigItems?.forEach((item: RoundConfigItem) => {
-            configs[item.productId] = {
-              margin: item.margin,
-              salesVolume: item.salesVolume.toString(),
-            };
-          });
-          setProductConfigs(configs);
+      // Check for existing config (resubmission)
+      if (open) {
+        try {
+          const configRes = await fetch(`${API_BASE}/rounds/${open.id}/my-config`).then(r => r.json());
+          if (configRes.data && !configRes.error) {
+            const existingConfig = configRes.data;
+            setIsResubmit(true);
+            reset({
+              otherExpenses: Number(existingConfig.otherExpenses) || 0,
+              cashierOperators: Number(existingConfig.cashierOperators) ?? 10,
+              serviceOperators: Number(existingConfig.serviceOperators) ?? 5,
+              quizScore: Math.round((Number(existingConfig.quizScore) || 1) * 100),
+              numPdvs: Number(existingConfig.numPdvs) ?? 6,
+              capexSeguranca: !!existingConfig.capexSeguranca,
+              capexBalanca: !!existingConfig.capexBalanca,
+              capexRedes: !!existingConfig.capexRedes,
+              capexSite: !!existingConfig.capexSite,
+              capexSelfCheckout: !!existingConfig.capexSelfCheckout,
+              capexMelhoria: !!existingConfig.capexMelhoria,
+              items: (existingConfig.roundConfigItems || []).map((item: { productId: string; margin: number; salesVolume: number }) => ({
+                productId: item.productId,
+                margin: Math.round(Number(item.margin) * 100),
+                salesVolume: item.salesVolume,
+              })),
+            });
+          }
+        } catch {
+          // No existing config — first submission
         }
-      } catch (e) {
-        // No existing config yet
       }
-    } catch (error) {
-      console.error('Erro ao carregar dados:', error);
+
+      if (s && !s.error && s.id) {
+        const invRes = await fetch(`${API_BASE}/stores/${s.id}/inventory`).then(r => r.json());
+        const inv = invRes.data || invRes || [];
+        setInventoryMap(Object.fromEntries(inv.map((i: { productId: string; quantity: number }) => [i.productId, i.quantity])));
+
+        try {
+          const capexRes = await fetch(`${API_BASE}/stores/${s.id}/previous-capex`).then(r => r.json());
+          if (capexRes.data) setPreviousCapex(capexRes.data);
+        } catch {
+          // Non-critical — continue without previous capex info
+        }
+      }
+    } catch {
+      setLoadError('Não foi possível carregar os dados da rodada.');
     } finally {
       setLoading(false);
     }
-  };
+  }
 
-  const handleSave = async () => {
-    if (!activeRound) return;
-    setSaving(true);
+  useEffect(() => { load(); }, []);
 
+  function collectPayload(values: FormData) {
+    return {
+      otherExpenses:     Number(values.otherExpenses),
+      cashierOperators:  Number(values.cashierOperators),
+      serviceOperators:  Number(values.serviceOperators),
+      quizScore:         Number(values.quizScore) / 100,
+      numPdvs:           Number(values.numPdvs),
+      capexSeguranca:    !!values.capexSeguranca,
+      capexBalanca:      !!values.capexBalanca,
+      capexRedes:        !!values.capexRedes,
+      capexSite:         !!values.capexSite,
+      capexSelfCheckout: !!values.capexSelfCheckout,
+      capexMelhoria:     !!values.capexMelhoria,
+      items: values.items.map((item) => ({
+        productId:   item.productId,
+        margin:      Number(item.margin) / 100,
+        salesVolume: Number(item.salesVolume),
+      })),
+    };
+  }
+
+  async function handlePreview() {
+    const isValid = await trigger();
+    if (!isValid) return;
     try {
-      const productsData = products.map((p) => ({
-        productId: p.id,
-        margin: productConfigs[p.id]?.margin || '0.3',
-        salesVolume: parseInt(productConfigs[p.id]?.salesVolume || '100'),
-      }));
+      const res = await fetch(`${API_BASE}/rounds/${activeRound?.id}/preview`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(collectPayload(getValues())),
+      }).then(r => r.json());
 
-      await api.post(`/rounds/${activeRound.id}/config`, {
-        otherExpenses: parseFloat(otherExpenses),
-        cashierOperators: parseInt(cashierOperators),
-        serviceOperators: parseInt(serviceOperators),
-        quizScore: parseFloat(quizScore),
-        numPdvs: parseInt(numPdvs),
-        ...capexOptions,
-        products: productsData,
-      });
-
-      alert('Configuração salva com sucesso!');
-      router.push('/dashboard');
-    } catch (error) {
-      console.error('Erro ao salvar configuração:', error);
-      alert('Erro ao salvar configuração');
-    } finally {
-      setSaving(false);
+      if (res.error) throw new Error(res.error.message || res.message);
+      setPreview(res.data?.dre || res.dre);
+    } catch (err: unknown) {
+      const error = err as Error;
+      showToast('error', error.message || 'Erro ao simular');
     }
-  };
+  }
 
-  const timeRemaining = () => {
-    if (!activeRound) return '';
-    const ends = new Date(activeRound.endsAt).getTime();
-    const now = Date.now();
-    const diff = ends - now;
-    if (diff <= 0) return 'Encerrada';
-    const hours = Math.floor(diff / (1000 * 60 * 60));
-    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-    return `${hours}h ${minutes}m`;
-  };
+  async function onSubmit(data: FormData) {
+    if (!activeRound) return;
+    try {
+      const res = await fetch(`${API_BASE}/rounds/${activeRound.id}/config`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(collectPayload(data)),
+      }).then(r => r.json());
+
+      if (res.error) throw new Error(res.error.message || res.message);
+      showToast('success', isResubmit ? 'Estratégia reenviada com sucesso!' : 'Estratégia enviada com sucesso!');
+      setSubmitSuccess(true);
+      setTimeout(() => router.push('/dashboard'), 1500);
+    } catch (err: unknown) {
+      const error = err as Error;
+      showToast('error', error.message || 'Erro ao enviar configuração');
+    }
+  }
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      <div className="max-w-3xl flex flex-col gap-4">
+        <Skeleton variant="line" className="w-64 h-6" />
+        <Skeleton variant="card" className="h-28" />
+        <Skeleton variant="table" rows={5} />
       </div>
     );
   }
 
+  if (loadError) {
+    return <ErrorMessage message={loadError} onRetry={() => { setLoading(true); load(); }} />;
+  }
+
   if (!activeRound) {
     return (
-      <div className="text-center py-16">
-        <h1 className="text-2xl font-bold text-gray-900 mb-4">Nenhuma Rodada Ativa</h1>
-        <p className="text-gray-500">Aguarde o administrador iniciar uma nova rodada.</p>
-        <button onClick={() => router.push('/dashboard')} className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-          Voltar ao Dashboard
-        </button>
+      <div className="mx-auto flex max-w-2xl flex-col items-center justify-center rounded-2xl border border-dashed border-[var(--cenc-gray-300)] bg-[var(--cenc-surface)] px-6 py-12 text-center shadow-sm">
+        <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-[var(--cenc-blue-50)] text-[var(--cenc-blue-700)]">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="9" />
+            <path d="M12 8v5" />
+            <path d="M12 16h.01" />
+          </svg>
+        </div>
+        <h1 className="text-2xl font-bold text-[var(--cenc-gray-900)]">Configurar Rodada</h1>
+        <p className="mt-2 max-w-lg text-sm text-[var(--cenc-gray-500)]">
+          Nenhuma rodada aberta no momento. Esta tela só libera a configuração quando o Game Master inicia uma rodada com status aberta.
+        </p>
+        <div className="mt-6 flex flex-wrap justify-center gap-3">
+          <Button type="button" variant="secondary" onClick={() => router.push('/dashboard')}>
+            Voltar ao dashboard
+          </Button>
+          <Button type="button" onClick={() => { setLoading(true); load(); }}>
+            Recarregar
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (submitSuccess) {
+    return (
+      <div className="flex flex-col items-center justify-center h-40 gap-2">
+        <p className="text-green-600 font-semibold text-lg">Estratégia enviada com sucesso!</p>
+        <p className="text-sm text-gray-400">Redirecionando...</p>
       </div>
     );
   }
 
   return (
-    <div>
-      <div className="flex justify-between items-center mb-8">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Configurar Rodada {activeRound.number}</h1>
-          <p className="text-gray-500">Tempo restante: <span className="font-semibold text-orange-600">{timeRemaining()}</span></p>
+    <div className="max-w-3xl flex flex-col gap-6">
+      {/* Toast */}
+      {toastMsg && (
+        <div style={{
+          position: 'fixed', top: 20, right: 20, zIndex: 1000,
+          padding: '12px 20px', borderRadius: 10,
+          background: toastMsg.type === 'success' ? 'var(--cenc-success-bg)' : 'var(--cenc-danger-bg)',
+          border: `1px solid ${toastMsg.type === 'success' ? 'rgba(22, 163, 74, 0.25)' : 'rgba(220, 38, 38, 0.25)'}`,
+          color: toastMsg.type === 'success' ? 'var(--cenc-success)' : 'var(--cenc-danger)',
+          fontWeight: 600, boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+        }}>
+          {toastMsg.text}
         </div>
-        <button
-          onClick={() => router.push('/dashboard')}
-          className="px-4 py-2 text-gray-600 hover:text-gray-800"
-        >
-          Voltar
-        </button>
+      )}
+
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-xl font-bold text-gray-900">Configurar Rodada #{activeRound.number}</h1>
+          <p className="text-sm text-gray-500 mt-0.5">Defina margem, volume, operadores, CAPEX e estratégia de caixa.</p>
+        </div>
+        {activeRound.endsAt && <CountdownBadge endsAt={activeRound.endsAt} />}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Operacionais */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Configurações Operacionais</h2>
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Caixas/Operadores de Caixa</label>
-              <input
-                type="number"
-                value={cashierOperators}
-                onChange={(e) => setCashierOperators(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Operadores de Serviço</label>
-              <input
-                type="number"
-                value={serviceOperators}
-                onChange={(e) => setServiceOperators(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Número de PDVs</label>
-              <input
-                type="number"
-                value={numPdvs}
-                onChange={(e) => setNumPdvs(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Pontuação do Quiz (0-1)</label>
-              <input
-                type="number"
-                step="0.1"
-                min="0"
-                max="1"
-                value={quizScore}
-                onChange={(e) => setQuizScore(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Outros Custos (R$)</label>
-              <input
-                type="number"
-                step="100"
-                value={otherExpenses}
-                onChange={(e) => setOtherExpenses(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-              />
-            </div>
-          </div>
+      <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-6">
+        <OperatorsPanel register={register} errors={errors} control={control} />
+        <CapexPanel register={register} control={control} previousCapex={previousCapex} />
+        <LicensingPanel register={register} errors={errors} control={control} />
+
+        {/* Outros gastos */}
+        <div className="rounded-xl bg-white border border-gray-200 shadow-sm px-5 py-4 flex flex-col gap-2">
+          <label className="text-sm font-semibold text-gray-700">Outros Gastos (R$)</label>
+          <input type="number" step="0.01" min="0"
+            className={`w-full max-w-xs rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 ${errors.otherExpenses ? 'border-red-400 bg-red-50' : 'border-gray-300'}`}
+            {...register('otherExpenses')} />
+          {errors.otherExpenses && <p className="text-xs text-red-600 mt-0.5">{errors.otherExpenses.message}</p>}
+          <p className="text-xs text-gray-400">Despesas adicionais não cobertas pelas categorias acima.</p>
         </div>
 
-        {/* CAPEX */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Investimentos CAPEX</h2>
-          <p className="text-sm text-gray-500 mb-4">Selecione os investimentos de capital (serão deduzidos do seu capital)</p>
-          <div className="space-y-3">
-            {[
-              { key: 'capexSeguranca', label: 'Sistema de Segurança' },
-              { key: 'capexBalanca', label: 'Balança Inteligente' },
-              { key: 'capexRedes', label: 'Infraestrutura de Redes' },
-              { key: 'capexSite', label: 'Site Institucional' },
-              { key: 'capexSelfCheckout', label: 'Self Checkout (SCO)' },
-              { key: 'capexMelhoria', label: 'Melhorias Gerais' },
-            ].map((option) => (
-              <label key={option.key} className="flex items-center p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={capexOptions[option.key as keyof typeof capexOptions]}
-                  onChange={(e) => setCapexOptions({ ...capexOptions, [option.key]: e.target.checked })}
-                  className="mr-3 w-5 h-5 text-blue-600 rounded"
-                />
-                <span className="text-gray-700">{option.label}</span>
-              </label>
+        {/* Produtos */}
+        <div className="rounded-xl bg-white border border-gray-200 shadow-sm">
+          <div className="px-5 py-4 border-b border-gray-100">
+            <h2 className="text-sm font-semibold text-gray-700">Estratégia por Categoria</h2>
+            <p className="text-xs text-gray-400 mt-0.5">Defina margem e volume de vendas para cada categoria.</p>
+          </div>
+          {activeRound.number >= 3 && (
+            <div className="mx-5 mt-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
+              <p className="text-sm font-medium text-amber-800">Sem novas compras a partir da rodada 3</p>
+              <p className="text-xs text-amber-600 mt-0.5">Você vende apenas o estoque existente. Defina apenas a margem desejada.</p>
+            </div>
+          )}
+          <div className="px-5 py-2">
+            {products.map((product, index) => (
+              <ProductRow
+                key={product.id}
+                index={index}
+                product={product}
+                availableQty={inventoryMap[product.id] ?? 0}
+                control={control}
+                register={register}
+                errors={errors}
+                purchaseDisabled={activeRound.number >= 3}
+              />
             ))}
           </div>
         </div>
-      </div>
 
-      {/* Produtos */}
-      <div className="bg-white rounded-lg shadow p-6 mt-8">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Configuração de Produtos</h2>
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Produto</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Preço Custo</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Margem (%)</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Volume Vendas</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200">
-              {products.map((product) => (
-                <tr key={product.id}>
-                  <td className="px-4 py-3 font-medium text-gray-900">{product.name}</td>
-                  <td className="px-4 py-3 text-gray-600">R$ {parseFloat(product.purchasePrice).toFixed(2)}</td>
-                  <td className="px-4 py-3">
-                    <input
-                      type="number"
-                      step="0.01"
-                      placeholder="30"
-                      value={productConfigs[product.id]?.margin || ''}
-                      onChange={(e) => setProductConfigs({
-                        ...productConfigs,
-                        [product.id]: { ...productConfigs[product.id], margin: e.target.value }
-                      })}
-                      className="w-24 px-2 py-1 border border-gray-300 rounded"
-                    />
-                  </td>
-                  <td className="px-4 py-3">
-                    <input
-                      type="number"
-                      placeholder="100"
-                      value={productConfigs[product.id]?.salesVolume || ''}
-                      onChange={(e) => setProductConfigs({
-                        ...productConfigs,
-                        [product.id]: { ...productConfigs[product.id], salesVolume: e.target.value }
-                      })}
-                      className="w-24 px-2 py-1 border border-gray-300 rounded"
-                    />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        {/* Validação de Caixa — última seção antes do envio */}
+        {store && (
+          <CashSummaryPanel
+            initialCapital={store.initialCapital}
+            currentCash={store.currentCash}
+            products={products}
+            control={control}
+          />
+        )}
+
+        {/* Ações */}
+        <div className="flex gap-3">
+          <Button type="button" variant="secondary" onClick={handlePreview} className="flex-1">
+            Simular
+          </Button>
+          <Button type="submit" loading={isSubmitting} className="flex-1">
+            {isResubmit ? 'Reenviar Estratégia' : 'Enviar Estratégia'}
+          </Button>
         </div>
-      </div>
+      </form>
 
-      {/* Save Button */}
-      <div className="mt-8 flex justify-center">
-        <button
-          onClick={handleSave}
-          disabled={saving}
-          className="px-8 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 disabled:opacity-50 transition text-lg"
-        >
-          {saving ? 'Salvando...' : 'Salvar Configuração'}
-        </button>
-      </div>
+      {/* Preview DRE */}
+      <DREPreview dre={preview} loading={false} />
     </div>
   );
 }

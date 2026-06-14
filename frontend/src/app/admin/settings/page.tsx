@@ -1,199 +1,132 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import api from '@/lib/api';
+import Button from '@/components/ui/Button';
+import Skeleton from '@/components/ui/Skeleton';
+import ErrorMessage from '@/components/ui/ErrorMessage';
+import { useToast } from '@/components/hooks/useToast';
+import { formatCurrency } from '@/components/utils/formatters';
+import usePageTitle from '@/components/hooks/usePageTitle';
 
-interface Settings {
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || '/api';
+
+interface GameSettings {
   id: string;
-  licenseSoPerUser: string;
+  licenseSoPerUser: number;
   licenseSoUsers: number;
-  licensePdvPerUnit: string;
-  licenseScoPerUnit: string;
+  licensePdvPerUnit: number;
+  licenseScoPerUnit: number;
   licenseScoUnits: number;
-  licenseSiteBase: string;
-  licenseSiteCapex: string;
-  licenseSecurityBase: string;
-  licenseSecurityCapex: string;
-  maintenanceFee: string;
+  licenseSiteBase: number;
+  licenseSiteCapex: number;
+  licenseSecurityBase: number;
+  licenseSecurityCapex: number;
+  maintenanceFee: number;
 }
 
-export default function SettingsPage() {
-  const [settings, setSettings] = useState<Settings | null>(null);
+export default function AdminSettingsPage() {
+  usePageTitle("Configurações do Jogo");
+  const toast = useToast();
+  const [settings, setSettings] = useState<GameSettings | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [saving, setSaving] = useState(false);
-  const [formData, setFormData] = useState<Record<string, string | number>>({});
 
-  useEffect(() => {
-    fetchSettings();
-  }, []);
-
-  const fetchSettings = async () => {
+  async function loadSettings() {
+    setLoadError('');
     try {
-      const res = await api.get('/settings');
-      setSettings(res.data.data);
-      setFormData(res.data.data);
-    } catch (error) {
-      console.error('Erro ao carregar configurações:', error);
+      const res = await fetch(`${API_BASE}/settings`);
+      const data = await res.json();
+      setSettings(data.data ?? data);
+    } catch {
+      setLoadError('Não foi possível carregar as configurações.');
     } finally {
       setLoading(false);
     }
-  };
+  }
 
-  const handleSave = async () => {
+  useEffect(() => { loadSettings(); }, []);
+
+  async function handleSave() {
+    if (!settings) return;
     setSaving(true);
     try {
-      await api.put('/settings', formData);
-      alert('Configurações salvas com sucesso!');
-    } catch (error) {
-      console.error('Erro ao salvar configurações:', error);
-      alert('Erro ao salvar configurações');
+      const res = await fetch(`${API_BASE}/settings`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(settings),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.message ?? 'Erro ao salvar');
+      }
+      const updated = await res.json();
+      setSettings(updated.data ?? updated);
+      toast.success('Configurações salvas com sucesso!');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Erro ao salvar configurações.');
     } finally {
       setSaving(false);
     }
-  };
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-      </div>
-    );
   }
 
+  function update(key: keyof GameSettings, value: number) {
+    if (!settings) return;
+    setSettings({ ...settings, [key]: value });
+  }
+
+  if (loading) {
+    return <div style={{ maxWidth: 600 }}><Skeleton variant="card" /></div>;
+  }
+
+  if (loadError) {
+    return <ErrorMessage message={loadError} onRetry={() => { setLoading(true); loadSettings(); }} />;
+  }
+
+  if (!settings) return null;
+
+  const fields: Array<{ key: keyof GameSettings; label: string; hint?: string; isInt?: boolean }> = [
+    { key: 'licenseSoPerUser', label: 'Sistema Operacional (por usuário/mês)', hint: `Atual: ${formatCurrency(settings.licenseSoPerUser)}` },
+    { key: 'licenseSoUsers', label: 'Qtd usuários SO', isInt: true },
+    { key: 'licensePdvPerUnit', label: 'PDV (por unidade/mês)', hint: `Atual: ${formatCurrency(settings.licensePdvPerUnit)}` },
+    { key: 'licenseScoPerUnit', label: 'Self Checkout (por unidade/mês)', hint: `Atual: ${formatCurrency(settings.licenseScoPerUnit)}` },
+    { key: 'licenseScoUnits', label: 'Qtd unidades Self Checkout', isInt: true },
+    { key: 'licenseSiteBase', label: 'Site (sem CAPEX)', hint: `Atual: ${formatCurrency(settings.licenseSiteBase)}` },
+    { key: 'licenseSiteCapex', label: 'Site (com CAPEX)', hint: `Atual: ${formatCurrency(settings.licenseSiteCapex)}` },
+    { key: 'licenseSecurityBase', label: 'Segurança (sem CAPEX)', hint: `Atual: ${formatCurrency(settings.licenseSecurityBase)}` },
+    { key: 'licenseSecurityCapex', label: 'Segurança (com CAPEX)', hint: `Atual: ${formatCurrency(settings.licenseSecurityCapex)}` },
+    { key: 'maintenanceFee', label: 'Manutenção de equipamentos (mensal)', hint: `Atual: ${formatCurrency(settings.maintenanceFee)}` },
+  ];
+
   return (
-    <div>
-      <h1 className="text-2xl font-bold text-gray-900 mb-8">Configurações do Jogo</h1>
+    <div style={{ maxWidth: 600, display: 'flex', flexDirection: 'column', gap: 24 }}>
+      <div>
+        <h1 style={{ margin: 0, fontSize: '22px', fontWeight: 800, color: 'var(--cenc-gray-900)' }}>Configurações do Jogo</h1>
+        <p style={{ margin: '4px 0 0', fontSize: '13px', color: 'var(--cenc-gray-500)' }}>Gerencie os valores de licenças de software e manutenção.</p>
+      </div>
 
-      <div className="bg-white rounded-lg shadow p-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-6">Licenças - Sistema Operacional</h2>
-        <div className="grid grid-cols-2 gap-6">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Preço por Usuário (R$)</label>
-            <input
-              type="number"
-              step="0.01"
-              value={formData.licenseSoPerUser || ''}
-              onChange={(e) => setFormData({ ...formData, licenseSoPerUser: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Quantidade de Usuários</label>
-            <input
-              type="number"
-              value={formData.licenseSoUsers || ''}
-              onChange={(e) => setFormData({ ...formData, licenseSoUsers: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-            />
-          </div>
+      <div style={{ borderRadius: '14px', background: 'white', border: '1px solid var(--cenc-gray-200)', boxShadow: '0 2px 8px rgba(0,0,0,0.05)', padding: '20px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <h2 style={{ margin: 0, fontSize: '14px', fontWeight: 700, color: 'var(--cenc-gray-700)' }}>Licenças de Software e Manutenção</h2>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+          {fields.map(({ key, label, hint, isInt }) => (
+            <div key={key} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--cenc-gray-600)' }}>{label}</label>
+              <input
+                type="number"
+                step={isInt ? '1' : '0.01'}
+                min="0"
+                value={settings[key]}
+                onChange={(e) => update(key, Number(e.target.value))}
+                style={{ borderRadius: '10px', border: '1.5px solid var(--cenc-gray-300)', padding: '10px 14px', fontSize: '14px', color: 'var(--cenc-gray-900)', background: 'white', outline: 'none', boxSizing: 'border-box' }}
+              />
+              {hint && <p style={{ margin: 0, fontSize: '12px', color: 'var(--cenc-gray-400)' }}>{hint}</p>}
+            </div>
+          ))}
         </div>
+      </div>
 
-        <h2 className="text-lg font-semibold text-gray-900 mb-6 mt-8">Licenças - PDV</h2>
-        <div className="grid grid-cols-2 gap-6">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Preço por PDV (R$)</label>
-            <input
-              type="number"
-              step="0.01"
-              value={formData.licensePdvPerUnit || ''}
-              onChange={(e) => setFormData({ ...formData, licensePdvPerUnit: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-            />
-          </div>
-        </div>
-
-        <h2 className="text-lg font-semibold text-gray-900 mb-6 mt-8">Licenças - Self Checkout</h2>
-        <div className="grid grid-cols-2 gap-6">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Preço por SCO (R$)</label>
-            <input
-              type="number"
-              step="0.01"
-              value={formData.licenseScoPerUnit || ''}
-              onChange={(e) => setFormData({ ...formData, licenseScoPerUnit: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Quantidade de SCOs</label>
-            <input
-              type="number"
-              value={formData.licenseScoUnits || ''}
-              onChange={(e) => setFormData({ ...formData, licenseScoUnits: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-            />
-          </div>
-        </div>
-
-        <h2 className="text-lg font-semibold text-gray-900 mb-6 mt-8">Licenças - Site</h2>
-        <div className="grid grid-cols-2 gap-6">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Preço Base (R$)</label>
-            <input
-              type="number"
-              step="0.01"
-              value={formData.licenseSiteBase || ''}
-              onChange={(e) => setFormData({ ...formData, licenseSiteBase: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Preço CAPEX (R$)</label>
-            <input
-              type="number"
-              step="0.01"
-              value={formData.licenseSiteCapex || ''}
-              onChange={(e) => setFormData({ ...formData, licenseSiteCapex: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-            />
-          </div>
-        </div>
-
-        <h2 className="text-lg font-semibold text-gray-900 mb-6 mt-8">Licenças - Segurança</h2>
-        <div className="grid grid-cols-2 gap-6">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Preço Base (R$)</label>
-            <input
-              type="number"
-              step="0.01"
-              value={formData.licenseSecurityBase || ''}
-              onChange={(e) => setFormData({ ...formData, licenseSecurityBase: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Preço CAPEX (R$)</label>
-            <input
-              type="number"
-              step="0.01"
-              value={formData.licenseSecurityCapex || ''}
-              onChange={(e) => setFormData({ ...formData, licenseSecurityCapex: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-            />
-          </div>
-        </div>
-
-        <h2 className="text-lg font-semibold text-gray-900 mb-6 mt-8">Manutenção</h2>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Taxa de Manutenção (R$)</label>
-          <input
-            type="number"
-            step="0.01"
-            value={formData.maintenanceFee || ''}
-            onChange={(e) => setFormData({ ...formData, maintenanceFee: e.target.value })}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-          />
-        </div>
-
-        <div className="mt-8 flex justify-end">
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition"
-          >
-            {saving ? 'Salvando...' : 'Salvar Configurações'}
-          </button>
-        </div>
+      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+        <Button onClick={handleSave} loading={saving}>Salvar Configurações</Button>
       </div>
     </div>
   );
