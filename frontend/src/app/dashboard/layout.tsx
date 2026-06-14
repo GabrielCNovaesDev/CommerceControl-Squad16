@@ -85,7 +85,7 @@ const navLinks = [
   { href: '/dashboard/round-config', label: 'Configurar Rodada', icon: IconConfig },
   { href: '/dashboard/results',       label: 'Resultados',        icon: IconResults },
   { href: '/dashboard/ranking',       label: 'Ranking',           icon: IconRanking },
-  { href: '/tutorials',              label: 'Tutoriais',         icon: IconBook },
+  { href: '/dashboard/tutorials',     label: 'Tutoriais',         icon: IconBook },
 ];
 
 export default function PlayerLayout({

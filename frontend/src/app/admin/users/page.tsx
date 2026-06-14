@@ -10,6 +10,7 @@ import Skeleton from '@/components/ui/Skeleton';
 import ErrorMessage from '@/components/ui/ErrorMessage';
 import { CARGO_OPTIONS } from '@/components/squads/SquadsComponents';
 import { useToast } from '@/components/hooks/useToast';
+import { apiFetch, asArray } from '@/components/utils/api';
 import type { Squad, UserRecord, UserRole } from '@/components/types';
 import React from 'react';
 import usePageTitle from '@/components/hooks/usePageTitle';
@@ -266,11 +267,17 @@ export default function UsersManagementPage() {
     setLoadError('');
     try {
       const [userRes, squadRes] = await Promise.all([
-        fetch(`${API_BASE}/users`).then(r => r.json()),
-        fetch(`${API_BASE}/squads`).then(r => r.json()),
+        apiFetch<unknown>(`${API_BASE}/users`),
+        apiFetch<unknown>(`${API_BASE}/squads`),
       ]);
-      setUsers(userRes.data ?? userRes ?? []);
-      setSquads(squadRes.data ?? squadRes ?? []);
+      if (userRes.error && squadRes.error) {
+        setLoadError(userRes.error);
+        setUsers([]);
+        setSquads([]);
+        return;
+      }
+      setUsers(asArray<UserRecord>(userRes.data));
+      setSquads(asArray<Squad>(squadRes.data));
     } catch {
       setLoadError('Não foi possível carregar os usuários.');
     } finally {

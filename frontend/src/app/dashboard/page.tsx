@@ -10,7 +10,9 @@ import Input from '@/components/ui/Input';
 import Skeleton from '@/components/ui/Skeleton';
 import ErrorMessage from '@/components/ui/ErrorMessage';
 import { useCountdown } from '@/components/hooks/useCountdown';
+import { useToast } from '@/components/hooks/useToast';
 import { formatCurrency } from '@/components/utils/formatters';
+import { apiFetch, asArray } from '@/components/utils/api';
 import type { Store, InventoryItem, Round, RoundStatus } from '@/components/types';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || '/api';
@@ -50,49 +52,51 @@ function RoundTimer({ endsAt }: { endsAt: string }) {
 
 export default function StoresDashboardPage() {
   const router = useRouter();
+  const toast = useToast();
   const [store, setStore] = useState<Store | null>(null);
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [activeRound, setActiveRound] = useState<Round | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
   const [creating, setCreating] = useState(false);
-  const [toastMsg, setToastMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<CreateStoreFormData, unknown, CreateStoreFormData>({
     resolver: zodResolver(createStoreSchema) as never,
   });
 
-  function showToast(type: 'success' | 'error', text: string) {
-    setToastMsg({ type, text });
-    setTimeout(() => setToastMsg(null), 3000);
-  }
-
   async function load() {
     setLoadError('');
     try {
-      const storeRes = await fetch(`${API_BASE}/stores/me`).then(r => r.json());
-      if (storeRes.error?.code === 'NOT_FOUND' || storeRes.message?.includes('não encontrada')) {
+      const storeRes = await apiFetch<Store>(`${API_BASE}/stores/me`);
+      // 404 = usuário não tem loja ainda (estado normal)
+      if (storeRes.status === 404) {
         setStore(null);
         setLoading(false);
         return;
       }
-      if (storeRes.error) throw new Error(storeRes.error.message || storeRes.message);
-
-      const s = storeRes.data || storeRes;
+      if (storeRes.error) {
+        setLoadError(storeRes.error);
+        setLoading(false);
+        return;
+      }
+      if (!storeRes.data) {
+        setStore(null);
+        setLoading(false);
+        return;
+      }
+      const s = storeRes.data;
       setStore(s);
 
       const [invRes, roundsRes] = await Promise.all([
-        fetch(`${API_BASE}/stores/${s.id}/inventory`).then(r => r.json()),
-        fetch(`${API_BASE}/rounds`).then(r => r.json()),
+        apiFetch<unknown>(`${API_BASE}/stores/${s.id}/inventory`),
+        apiFetch<unknown>(`${API_BASE}/rounds`),
       ]);
-
-      setInventory(invRes.data || invRes || []);
-      const rounds = roundsRes.data || roundsRes || [];
+      setInventory(asArray<InventoryItem>(invRes.data));
+      const rounds = asArray<Round>(roundsRes.data);
       const open = rounds.find((r: Round) => r.status === 'OPEN' || r.status === 'PROCESSING');
       setActiveRound(open ?? null);
-    } catch (err: unknown) {
-      const error = err as Error;
-      setLoadError(error.message || 'Não foi possível carregar os dados da loja.');
+    } catch {
+      setLoadError('Não foi possível carregar os dados da loja.');
     } finally {
       setLoading(false);
     }
@@ -102,20 +106,18 @@ export default function StoresDashboardPage() {
 
   async function onCreateStore(data: CreateStoreFormData) {
     try {
-      const res = await fetch(`${API_BASE}/stores`, {
+      const res = await apiFetch<Store>(`${API_BASE}/stores`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
-      }).then(r => r.json());
-
-      if (res.error) throw new Error(res.error.message || res.message);
-
-      setStore(res.data || res);
+      });
+      if (res.error) throw new Error(res.error);
+      if (res.data) {
+        setStore(res.data);
+      }
       setCreating(false);
-      showToast('success', 'Loja criada com sucesso!');
-    } catch (err: unknown) {
-      const error = err as Error;
-      showToast('error', error.message || 'Erro ao criar loja');
+      toast.success('Loja criada com sucesso!');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Erro ao criar loja');
     }
   }
 
@@ -133,22 +135,6 @@ export default function StoresDashboardPage() {
 
   if (loadError) {
     return <ErrorMessage message={loadError} onRetry={() => { setLoading(true); load(); }} />;
-  }
-
-  // Toast notification
-  if (toastMsg) {
-    return (
-      <div style={{
-        position: 'fixed', top: 20, right: 20, zIndex: 1000,
-        padding: '12px 20px', borderRadius: 10,
-        background: toastMsg.type === 'success' ? 'var(--cenc-success-bg)' : 'var(--cenc-danger-bg)',
-        border: `1px solid ${toastMsg.type === 'success' ? 'rgba(22, 163, 74, 0.25)' : 'rgba(220, 38, 38, 0.25)'}`,
-        color: toastMsg.type === 'success' ? 'var(--cenc-success)' : 'var(--cenc-danger)',
-        fontWeight: 600, boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-      }}>
-        {toastMsg.text}
-      </div>
-    );
   }
 
   // No store yet

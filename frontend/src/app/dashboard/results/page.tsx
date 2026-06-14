@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Skeleton from '@/components/ui/Skeleton';
 import ErrorMessage from '@/components/ui/ErrorMessage';
 import { formatCurrency } from '@/components/utils/formatters';
+import { apiFetch, asArray } from '@/components/utils/api';
 import type { Round, FinancialResult, RankingEntry, RoundConfigItem, RoundEvent } from '@/components/types';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || '/api';
@@ -361,23 +362,24 @@ export default function ResultsPage() {
   const [loadingResult, setLoadingResult] = useState(false);
   const [noResult, setNoResult] = useState(false);
 
-  function loadRounds() {
+  async function loadRounds() {
     setLoadError('');
     setLoadingRounds(true);
-    fetch(`${API_BASE}/rounds`)
-      .then(r => r.json())
-      .then((data) => {
-        const rounds = data.data || data || [];
-        const closed = rounds
-          .filter((r: Round) => r.status === 'CLOSED')
-          .sort((a: Round, b: Round) => b.number - a.number);
-        setClosedRounds(closed);
-        if (closed.length > 0) {
-          setSelectedRoundId(closed[0].id);
-        }
-      })
-      .catch(() => setLoadError('Não foi possível carregar as rodadas.'))
-      .finally(() => setLoadingRounds(false));
+    const res = await apiFetch<unknown>(`${API_BASE}/rounds`);
+    if (res.error) {
+      setLoadError(res.error);
+      setLoadingRounds(false);
+      return;
+    }
+    const rounds = asArray<Round>(res.data);
+    const closed = rounds
+      .filter((r: Round) => r.status === 'CLOSED')
+      .sort((a: Round, b: Round) => b.number - a.number);
+    setClosedRounds(closed);
+    if (closed.length > 0) {
+      setSelectedRoundId(closed[0].id);
+    }
+    setLoadingRounds(false);
   }
 
   useEffect(() => { loadRounds(); }, []);
@@ -391,31 +393,26 @@ export default function ResultsPage() {
     setRankingPosition(null);
     setPlayerEvents([]);
 
-    Promise.allSettled([
-      fetch(`${API_BASE}/rounds/${selectedRoundId}/results`).then(r => r.json()),
-      fetch(`${API_BASE}/rounds/${selectedRoundId}/ranking`).then(r => r.json()),
-      fetch(`${API_BASE}/rounds/${selectedRoundId}/events`).then(r => r.json()),
+    Promise.all([
+      apiFetch<unknown>(`${API_BASE}/rounds/${selectedRoundId}/results`),
+      apiFetch<unknown>(`${API_BASE}/rounds/${selectedRoundId}/ranking`),
+      apiFetch<unknown>(`${API_BASE}/rounds/${selectedRoundId}/events`),
     ]).then(([resultResp, rankingResp, eventsResp]) => {
-      if (resultResp.status === 'fulfilled') {
-        const resData = resultResp.value;
-        const res = resData.data || resData;
-        if (res && !resData.error) {
-          setResult(res);
+      if (resultResp.error && resultResp.status === 404) {
+        setNoResult(true);
+      } else if (!resultResp.error && resultResp.data) {
+        const res = resultResp.data as FinancialResult;
+        setResult(res);
 
-          if (rankingResp.status === 'fulfilled') {
-            const rankData = rankingResp.value;
-            const ranking = rankData.data || rankData || [];
-            const storeName = res.store?.name;
-            const entry = ranking.find((r: RankingEntry) => r.storeName === storeName);
-            if (entry) setRankingPosition(entry.position);
-          }
-        } else if (resData.error?.code === 'NOT_FOUND' || resData.message?.includes('não encontrou')) {
-          setNoResult(true);
+        if (!rankingResp.error) {
+          const ranking = asArray<RankingEntry>(rankingResp.data);
+          const storeName = res.store?.name;
+          const entry = ranking.find((r) => r.storeName === storeName);
+          if (entry) setRankingPosition(entry.position);
         }
       }
-      if (eventsResp.status === 'fulfilled') {
-        const eventsData = eventsResp.value;
-        setPlayerEvents(eventsData.data || eventsData || []);
+      if (!eventsResp.error) {
+        setPlayerEvents(asArray<RoundEvent>(eventsResp.data));
       }
     }).finally(() => setLoadingResult(false));
   }, [selectedRoundId]);

@@ -15,6 +15,7 @@ import { LicensingPanel } from '@/components/roundConfig/LicensingPanel';
 import { CashSummaryPanel } from '@/components/roundConfig/CashSummaryPanel';
 import { ProductRow } from '@/components/roundConfig/ProductRow';
 import { CountdownBadge } from '@/components/roundConfig/CountdownBadge';
+import { apiFetch, asArray } from '@/components/utils/api';
 import type { Round, Store, Product, DREResult } from '@/components/types';
 import type { FormData } from '@/components/roundConfig/types';
 
@@ -52,68 +53,78 @@ export default function RoundConfigPage() {
     setLoadError('');
     try {
       const [roundsRes, storeRes, prodsRes] = await Promise.all([
-        fetch(`${API_BASE}/rounds`).then(r => r.json()),
-        fetch(`${API_BASE}/stores/me`).then(r => r.json()),
-        fetch(`${API_BASE}/products`).then(r => r.json()),
+        apiFetch<unknown>(`${API_BASE}/rounds`),
+        apiFetch<unknown>(`${API_BASE}/stores/me`),
+        apiFetch<unknown>(`${API_BASE}/products`),
       ]);
 
-      const roundsList = roundsRes.data || roundsRes || [];
+      if (roundsRes.error || storeRes.error || prodsRes.error) {
+        const err = roundsRes.error || storeRes.error || prodsRes.error;
+        setLoadError(err || 'Erro ao carregar dados');
+        setLoading(false);
+        return;
+      }
+
+      const roundsList = asArray<Round>(roundsRes.data);
       const open = roundsList.find((r: Round) => r.status === 'OPEN');
       setActiveRound(open ?? null);
-      setProducts((prodsRes.data || prodsRes || []).filter(Boolean));
+      const prods = asArray<Product>(prodsRes.data);
+      setProducts(prods);
 
-      const s = storeRes.data || storeRes;
-      if (s && !s.error) {
+      const s = storeRes.data as Store | null;
+      if (s && s.id) {
         setStore(s);
         reset({
           otherExpenses: 0, cashierOperators: 10, serviceOperators: 5, quizScore: 100,
           numPdvs: 6, capexSeguranca: false, capexBalanca: false, capexRedes: false,
           capexSite: false, capexSelfCheckout: false, capexMelhoria: false,
-          items: (prodsRes.data || prodsRes || []).map((p: Product) => ({ productId: p.id, margin: 12, salesVolume: open && open.number >= 3 ? 0 : 1 })),
+          items: prods.map((p: Product) => ({ productId: p.id, margin: 12, salesVolume: open && open.number >= 3 ? 0 : 1 })),
         });
       }
 
       // Check for existing config (resubmission)
       if (open) {
-        try {
-          const configRes = await fetch(`${API_BASE}/rounds/${open.id}/my-config`).then(r => r.json());
-          if (configRes.data && !configRes.error) {
-            const existingConfig = configRes.data;
-            setIsResubmit(true);
-            reset({
-              otherExpenses: Number(existingConfig.otherExpenses) || 0,
-              cashierOperators: Number(existingConfig.cashierOperators) ?? 10,
-              serviceOperators: Number(existingConfig.serviceOperators) ?? 5,
-              quizScore: Math.round((Number(existingConfig.quizScore) || 1) * 100),
-              numPdvs: Number(existingConfig.numPdvs) ?? 6,
-              capexSeguranca: !!existingConfig.capexSeguranca,
-              capexBalanca: !!existingConfig.capexBalanca,
-              capexRedes: !!existingConfig.capexRedes,
-              capexSite: !!existingConfig.capexSite,
-              capexSelfCheckout: !!existingConfig.capexSelfCheckout,
-              capexMelhoria: !!existingConfig.capexMelhoria,
-              items: (existingConfig.roundConfigItems || []).map((item: { productId: string; margin: number; salesVolume: number }) => ({
-                productId: item.productId,
-                margin: Math.round(Number(item.margin) * 100),
-                salesVolume: item.salesVolume,
-              })),
-            });
-          }
-        } catch {
-          // No existing config — first submission
+        const configRes = await apiFetch<unknown>(`${API_BASE}/rounds/${open.id}/my-config`);
+        if (configRes.data && !configRes.error) {
+          const existingConfig = configRes.data as {
+            otherExpenses: number; cashierOperators: number; serviceOperators: number;
+            quizScore: number; numPdvs: number;
+            capexSeguranca: boolean; capexBalanca: boolean; capexRedes: boolean;
+            capexSite: boolean; capexSelfCheckout: boolean; capexMelhoria: boolean;
+            roundConfigItems: Array<{ productId: string; margin: number; salesVolume: number }>;
+          };
+          setIsResubmit(true);
+          reset({
+            otherExpenses: Number(existingConfig.otherExpenses) || 0,
+            cashierOperators: Number(existingConfig.cashierOperators) ?? 10,
+            serviceOperators: Number(existingConfig.serviceOperators) ?? 5,
+            quizScore: Math.round((Number(existingConfig.quizScore) || 1) * 100),
+            numPdvs: Number(existingConfig.numPdvs) ?? 6,
+            capexSeguranca: !!existingConfig.capexSeguranca,
+            capexBalanca: !!existingConfig.capexBalanca,
+            capexRedes: !!existingConfig.capexRedes,
+            capexSite: !!existingConfig.capexSite,
+            capexSelfCheckout: !!existingConfig.capexSelfCheckout,
+            capexMelhoria: !!existingConfig.capexMelhoria,
+            items: (existingConfig.roundConfigItems || []).map((item) => ({
+              productId: item.productId,
+              margin: Math.round(Number(item.margin) * 100),
+              salesVolume: item.salesVolume,
+            })),
+          });
         }
       }
 
-      if (s && !s.error && s.id) {
-        const invRes = await fetch(`${API_BASE}/stores/${s.id}/inventory`).then(r => r.json());
-        const inv = invRes.data || invRes || [];
-        setInventoryMap(Object.fromEntries(inv.map((i: { productId: string; quantity: number }) => [i.productId, i.quantity])));
+      if (s && s.id) {
+        const invRes = await apiFetch<unknown>(`${API_BASE}/stores/${s.id}/inventory`);
+        if (!invRes.error) {
+          const inv = asArray<{ productId: string; quantity: number }>(invRes.data);
+          setInventoryMap(Object.fromEntries(inv.map((i) => [i.productId, i.quantity])));
+        }
 
-        try {
-          const capexRes = await fetch(`${API_BASE}/stores/${s.id}/previous-capex`).then(r => r.json());
-          if (capexRes.data) setPreviousCapex(capexRes.data);
-        } catch {
-          // Non-critical — continue without previous capex info
+        const capexRes = await apiFetch<unknown>(`${API_BASE}/stores/${s.id}/previous-capex`);
+        if (!capexRes.error && capexRes.data) {
+          setPreviousCapex(Array.isArray(capexRes.data) ? capexRes.data : []);
         }
       }
     } catch {

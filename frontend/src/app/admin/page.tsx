@@ -10,6 +10,7 @@ import Skeleton from '@/components/ui/Skeleton';
 import ErrorMessage from '@/components/ui/ErrorMessage';
 import { useToast } from '@/components/hooks/useToast';
 import usePageTitle from '@/components/hooks/usePageTitle';
+import { apiFetch, asArray } from '@/components/utils/api';
 import type { Round, Squad, RoundStatus } from '@/components/types';
 import React from 'react';
 
@@ -278,18 +279,28 @@ export default function AdminDashboardPage() {
     setLoadError('');
     try {
       const [roundsRes, squadsRes] = await Promise.all([
-        fetch(`${API_BASE}/rounds`).then(r => r.json()),
-        fetch(`${API_BASE}/squads`).then(r => r.json()),
+        apiFetch<unknown>(`${API_BASE}/rounds`),
+        apiFetch<unknown>(`${API_BASE}/squads`),
       ]);
-      const rounds: Round[] = roundsRes.data ?? roundsRes ?? [];
-      const squadList: Squad[] = squadsRes.data ?? squadsRes ?? [];
+      if (roundsRes.error && squadsRes.error) {
+        setLoadError(roundsRes.error);
+        setAllRounds([]);
+        setSquads([]);
+        return;
+      }
+      const rounds: Round[] = asArray<Round>(roundsRes.data);
+      const squadList: Squad[] = asArray<Squad>(squadsRes.data);
       setAllRounds(rounds);
       setSquads(squadList);
       const open = rounds.find((r: Round) => r.status === 'OPEN' || r.status === 'PROCESSING');
       setActiveRound(open ?? null);
       if (open) {
-        const detailRes = await fetch(`${API_BASE}/rounds/${open.id}`).then(r => r.json());
-        setRoundDetail(detailRes.data ?? detailRes);
+        const detailRes = await apiFetch<unknown>(`${API_BASE}/rounds/${open.id}`);
+        if (detailRes.data) {
+          setRoundDetail(detailRes.data as Round);
+        } else {
+          setRoundDetail(null);
+        }
       } else {
         setRoundDetail(null);
       }

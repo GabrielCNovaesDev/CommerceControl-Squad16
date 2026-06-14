@@ -6,6 +6,7 @@ import Skeleton from '@/components/ui/Skeleton';
 import ErrorMessage from '@/components/ui/ErrorMessage';
 import { useToast } from '@/components/hooks/useToast';
 import usePageTitle from '@/components/hooks/usePageTitle';
+import { apiFetch, asArray } from '@/components/utils/api';
 import {
   CreateRoundModal,
   CloseRoundModal,
@@ -38,10 +39,13 @@ export default function RoundsManagementPage() {
   const loadRounds = useCallback(async () => {
     setLoadError('');
     try {
-      const res = await fetch(`${API_BASE}/rounds`);
-      const data = await res.json();
-      const list: Round[] = data.data ?? data ?? [];
-      setRounds(list);
+      const res = await apiFetch<unknown>(`${API_BASE}/rounds`);
+      if (res.error) {
+        setLoadError(res.error);
+        setRounds([]);
+        return;
+      }
+      setRounds(asArray<Round>(res.data));
     } catch {
       setLoadError('Não foi possível carregar as rodadas.');
     } finally {

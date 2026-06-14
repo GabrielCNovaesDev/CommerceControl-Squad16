@@ -5,6 +5,7 @@ import { useSession } from 'next-auth/react';
 import Skeleton from '@/components/ui/Skeleton';
 import ErrorMessage from '@/components/ui/ErrorMessage';
 import { formatCurrency, formatPercent } from '@/components/utils/formatters';
+import { apiFetch, asArray } from '@/components/utils/api';
 import type { Round, RankingEntry } from '@/components/types';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || '/api';
@@ -183,18 +184,19 @@ export default function RankingPage() {
   const mySquadId = (session?.user as { squadId?: string } | undefined)?.squadId;
   const myRole = (session?.user as { role?: string } | undefined)?.role;
 
-  function loadRounds() {
+  async function loadRounds() {
     setLoadError(''); setLoadingRounds(true);
-    fetch(`${API_BASE}/rounds`)
-      .then(r => r.json())
-      .then((data) => {
-        const rounds = data.data || data || [];
-        const closed = rounds.filter((r: Round) => r.status === 'CLOSED').sort((a: Round, b: Round) => b.number - a.number);
-        setClosedRounds(closed);
-        if (closed.length > 0) setSelectedRoundId(closed[0].id);
-      })
-      .catch(() => setLoadError('Não foi possível carregar as rodadas.'))
-      .finally(() => setLoadingRounds(false));
+    const res = await apiFetch<unknown>(`${API_BASE}/rounds`);
+    if (res.error) {
+      setLoadError(res.error);
+      setLoadingRounds(false);
+      return;
+    }
+    const rounds = asArray<Round>(res.data);
+    const closed = rounds.filter((r: Round) => r.status === 'CLOSED').sort((a: Round, b: Round) => b.number - a.number);
+    setClosedRounds(closed);
+    if (closed.length > 0) setSelectedRoundId(closed[0].id);
+    setLoadingRounds(false);
   }
 
   useEffect(() => { loadRounds(); }, []);
@@ -202,11 +204,10 @@ export default function RankingPage() {
   useEffect(() => {
     if (!selectedRoundId) return;
     setLoadingRanking(true); setRanking([]);
-    fetch(`${API_BASE}/rounds/${selectedRoundId}/ranking`)
-      .then(r => r.json())
-      .then((data) => {
-        if (data.error) throw new Error(data.error.message || data.message);
-        setRanking(data.data || data || []);
+    apiFetch<unknown>(`${API_BASE}/rounds/${selectedRoundId}/ranking`)
+      .then((res) => {
+        if (res.error) throw new Error(res.error);
+        setRanking(asArray<RankingEntry>(res.data));
       })
       .catch((err: Error) => {
         setLoadError(err.message || 'Não foi possível carregar o ranking.');

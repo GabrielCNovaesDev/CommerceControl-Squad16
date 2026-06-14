@@ -97,7 +97,7 @@ const navLinks = [
   { href: '/admin/products',label: 'Produtos',      icon: IconProducts },
   { href: '/admin/results', label: 'Resultados',    icon: IconResults },
   { href: '/admin/settings',label: 'Configurações', icon: IconSettings },
-  { href: '/tutorials',     label: 'Tutoriais',      icon: IconBook },
+  { href: '/admin/tutorials',label: 'Tutoriais',      icon: IconBook },
 ];
 
 export default function AdminLayout({

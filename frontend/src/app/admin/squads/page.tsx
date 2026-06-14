@@ -6,6 +6,7 @@ import Skeleton from '@/components/ui/Skeleton';
 import ErrorMessage from '@/components/ui/ErrorMessage';
 import { useToast } from '@/components/hooks/useToast';
 import usePageTitle from '@/components/hooks/usePageTitle';
+import { apiFetch, asArray } from '@/components/utils/api';
 import {
   ConfirmModal,
   CreateSquadModal,
@@ -42,11 +43,17 @@ export default function SquadsManagementPage() {
     setLoadError('');
     try {
       const [squadRes, userRes] = await Promise.all([
-        fetch(`${API_BASE}/squads`).then(r => r.json()),
-        fetch(`${API_BASE}/users`).then(r => r.json()),
+        apiFetch<unknown>(`${API_BASE}/squads`),
+        apiFetch<unknown>(`${API_BASE}/users`),
       ]);
-      const squadList: Squad[] = squadRes.data ?? squadRes ?? [];
-      const userList: UserRecord[] = userRes.data ?? userRes ?? [];
+      if (squadRes.error && userRes.error) {
+        setLoadError(squadRes.error);
+        setSquads([]);
+        setUsers([]);
+        return;
+      }
+      const squadList: Squad[] = asArray<Squad>(squadRes.data);
+      const userList: UserRecord[] = asArray<UserRecord>(userRes.data);
       setSquads(squadList);
       setUsers(userList);
     } catch {

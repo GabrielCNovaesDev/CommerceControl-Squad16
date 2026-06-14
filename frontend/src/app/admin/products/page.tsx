@@ -9,6 +9,7 @@ import Skeleton from '@/components/ui/Skeleton';
 import ErrorMessage from '@/components/ui/ErrorMessage';
 import { useToast } from '@/components/hooks/useToast';
 import { formatCurrency } from '@/components/utils/formatters';
+import { apiFetch, asArray } from '@/components/utils/api';
 import type { Product } from '@/components/types';
 import React from 'react';
 import usePageTitle from '@/components/hooks/usePageTitle';
@@ -158,14 +159,17 @@ export default function ProductsManagementPage() {
   const [deletingProduct, setDeletingProduct] = useState(false);
   const [deleteError, setDeleteError] = useState('');
 
-  function loadProducts() {
+  async function loadProducts() {
     setLoadError('');
     setLoading(true);
-    fetch(`${API_BASE}/products`)
-      .then(r => r.json())
-      .then(data => setProducts(data.data ?? data ?? []))
-      .catch(() => setLoadError('Não foi possível carregar os produtos.'))
-      .finally(() => setLoading(false));
+    const res = await apiFetch<unknown>(`${API_BASE}/products`);
+    if (res.error) {
+      setLoadError(res.error);
+      setProducts([]);
+    } else {
+      setProducts(asArray<Product>(res.data));
+    }
+    setLoading(false);
   }
 
   useEffect(() => { loadProducts(); }, []);

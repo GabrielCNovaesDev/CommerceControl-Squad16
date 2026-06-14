@@ -6,6 +6,7 @@ import Skeleton from '@/components/ui/Skeleton';
 import ErrorMessage from '@/components/ui/ErrorMessage';
 import { useToast } from '@/components/hooks/useToast';
 import { formatCurrency } from '@/components/utils/formatters';
+import { apiFetch } from '@/components/utils/api';
 import usePageTitle from '@/components/hooks/usePageTitle';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || '/api';
@@ -24,6 +25,20 @@ interface GameSettings {
   maintenanceFee: number;
 }
 
+const DEFAULT_SETTINGS: GameSettings = {
+  id: 'singleton',
+  licenseSoPerUser: 120,
+  licenseSoUsers: 5,
+  licensePdvPerUnit: 80,
+  licenseScoPerUnit: 80,
+  licenseScoUnits: 4,
+  licenseSiteBase: 500,
+  licenseSiteCapex: 650,
+  licenseSecurityBase: 500,
+  licenseSecurityCapex: 600,
+  maintenanceFee: 400,
+};
+
 export default function AdminSettingsPage() {
   usePageTitle("Configurações do Jogo");
   const toast = useToast();
@@ -35,9 +50,18 @@ export default function AdminSettingsPage() {
   async function loadSettings() {
     setLoadError('');
     try {
-      const res = await fetch(`${API_BASE}/settings`);
-      const data = await res.json();
-      setSettings(data.data ?? data);
+      const res = await apiFetch<unknown>(`${API_BASE}/settings`);
+      if (res.error) {
+        if (res.status === 404) {
+          // Settings ainda não existe, usar defaults
+          setSettings(DEFAULT_SETTINGS);
+        } else {
+          setLoadError(res.error);
+        }
+      } else {
+        const data = (res.data ?? DEFAULT_SETTINGS) as Partial<GameSettings>;
+        setSettings({ ...DEFAULT_SETTINGS, ...data });
+      }
     } catch {
       setLoadError('Não foi possível carregar as configurações.');
     } finally {
@@ -51,17 +75,16 @@ export default function AdminSettingsPage() {
     if (!settings) return;
     setSaving(true);
     try {
-      const res = await fetch(`${API_BASE}/settings`, {
+      const res = await apiFetch<GameSettings>(`${API_BASE}/settings`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(settings),
       });
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.message ?? 'Erro ao salvar');
+      if (res.error) {
+        throw new Error(res.error);
       }
-      const updated = await res.json();
-      setSettings(updated.data ?? updated);
+      if (res.data) {
+        setSettings({ ...DEFAULT_SETTINGS, ...res.data });
+      }
       toast.success('Configurações salvas com sucesso!');
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Erro ao salvar configurações.');
