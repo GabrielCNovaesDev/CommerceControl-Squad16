@@ -23,7 +23,7 @@ import AdminSettingsPage from './pages/AdminSettingsPage';
 import TutorialsPage from './pages/TutorialsPage';
 
 export default function App() {
-  const { isDark, setSystemTheme } = useThemeStore();
+  const { isDark, setSystemTheme, hydrated } = useThemeStore();
   const [mounted, setMounted] = useState(false);
 
   // Marca quando o componente está montado (após hidratação do localStorage)
@@ -31,13 +31,18 @@ export default function App() {
     setMounted(true);
   }, []);
 
-  // Aplica o tema no documento quando isDark ou mounted mudam
+  // Aplica o tema no documento quando isDark ou hydration status mudam
   useEffect(() => {
-    if (!mounted) return;
-    document.documentElement.classList.toggle('dark', isDark);
+    // Only apply theme after both component mount AND store hydration
+    if (!mounted || !hydrated) return;
+
+    // Clear existing theme classes to avoid conflicts
+    document.documentElement.classList.remove('dark', 'light');
+    // Apply the new theme class
+    document.documentElement.classList.add(isDark ? 'dark' : 'light');
     document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
     document.documentElement.style.colorScheme = isDark ? 'dark' : 'light';
-  }, [isDark, mounted]);
+  }, [isDark, mounted, hydrated]);
 
   // Listener para mudanças na preferência do sistema
   useEffect(() => {

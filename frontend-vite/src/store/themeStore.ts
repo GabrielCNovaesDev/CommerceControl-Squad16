@@ -9,6 +9,7 @@ interface ThemeState {
   systemTheme: ThemeResolved;
   isDark: boolean;
   resolvedTheme: ThemeResolved;
+  hydrated: boolean;
   setPreference: (preference: ThemePreference) => void;
   setSystemTheme: (systemTheme: ThemeResolved) => void;
   toggle: () => void;
@@ -26,60 +27,97 @@ function resolveTheme(preference: ThemePreference, systemTheme: ThemeResolved): 
   return preference;
 }
 
-// Função helper para criar estado inicial com base na preferência
-function createInitialState(preference: ThemePreference): Pick<ThemeState, 'preference' | 'systemTheme' | 'resolvedTheme' | 'isDark'> {
-  const systemTheme = getSystemTheme();
-  const resolvedTheme = resolveTheme(preference, systemTheme);
-  return {
-    preference,
-    systemTheme,
-    resolvedTheme,
-    isDark: resolvedTheme === 'dark',
-  };
+function isDarkFromPreference(preference: ThemePreference, systemTheme: ThemeResolved): boolean {
+  return resolveTheme(preference, systemTheme) === 'dark';
+}
+
+// Read persisted preference from localStorage directly to avoid hydration mismatch
+function getPersistedPreference(): ThemePreference {
+  if (typeof window === 'undefined') return 'system';
+
+  try {
+    const stored = localStorage.getItem('simulador-theme');
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      if (parsed.state?.preference) {
+        return parsed.state.preference;
+      }
+    }
+  } catch {
+    // Ignore parse errors
+  }
+  return 'system';
 }
 
 const useThemeStore = create<ThemeState>()(
   persist(
-    (set, get) => ({
-      ...createInitialState('system'),
+    (set, get) => {
+      // Read persisted preference BEFORE creating initial state
+      const persistedPreference = getPersistedPreference();
+      const systemTheme = getSystemTheme();
+      const resolvedTheme = resolveTheme(persistedPreference, systemTheme);
 
-      setPreference: (preference) =>
-        set((state) => {
-          const resolved = resolveTheme(preference, state.systemTheme);
-          return {
-            preference,
-            resolvedTheme: resolved,
-            isDark: resolved === 'dark',
-          };
-        }),
+      return {
+        preference: persistedPreference,
+        systemTheme,
+        resolvedTheme,
+        isDark: resolvedTheme === 'dark',
+        hydrated: false,
 
-      setSystemTheme: (systemTheme) =>
-        set((state) => {
-          const resolved = resolveTheme(state.preference, systemTheme);
-          return {
-            systemTheme,
-            resolvedTheme: resolved,
-            isDark: resolved === 'dark',
-          };
-        }),
+        setPreference: (preference) =>
+          set((state) => {
+            const resolved = resolveTheme(preference, state.systemTheme);
+            return {
+              preference,
+              resolvedTheme: resolved,
+              isDark: resolved === 'dark',
+            };
+          }),
 
-      toggle: () => {
-        const nextPreference: ThemePreference = get().isDark ? 'light' : 'dark';
-        get().setPreference(nextPreference);
-      },
-    }),
+        setSystemTheme: (systemTheme) =>
+          set((state) => {
+            // Only recalculate isDark when preference is 'system'
+            // Otherwise, respect the user's explicit choice
+            if (state.preference !== 'system') {
+              return { systemTheme };
+            }
+            const resolved = resolveTheme(state.preference, systemTheme);
+            return {
+              systemTheme,
+              resolvedTheme: resolved,
+              isDark: resolved === 'dark',
+            };
+          }),
+
+        toggle: () => {
+          const { preference, systemTheme } = get();
+
+          // If currently on 'system', toggle to opposite of current resolved theme
+          // Otherwise, toggle between 'dark' and 'light'
+          let nextPreference: ThemePreference;
+
+          if (preference === 'system') {
+            // Switch to opposite of current resolved theme
+            nextPreference = isDarkFromPreference(preference, systemTheme) ? 'light' : 'dark';
+          } else {
+            // Toggle between 'dark' and 'light'
+            nextPreference = preference === 'dark' ? 'light' : 'dark';
+          }
+
+          get().setPreference(nextPreference);
+        },
+      };
+    },
     {
       name: 'simulador-theme',
       version: 2,
-      // Ao recuperar do localStorage, recalculamos isDark baseado na preferência salva
+      // Mark hydration as complete after state is restored
       onRehydrateStorage: () => (state) => {
         if (state) {
-          // Recalcula isDark baseado na preferência restaurada
-          const resolved = resolveTheme(state.preference, state.systemTheme);
-          state.resolvedTheme = resolved;
-          state.isDark = resolved === 'dark';
+          state.hydrated = true;
         }
       },
+      // Only persist the preference, not derived state
       partialize: (state) => ({ preference: state.preference }),
       migrate: (persistedState: unknown) => {
         const state = (persistedState ?? {}) as {
@@ -91,6 +129,7 @@ const useThemeStore = create<ThemeState>()(
           return { preference: state.preference };
         }
 
+        // Handle migration from v1 where only isDark was stored
         if (typeof state.isDark === 'boolean') {
           return { preference: state.isDark ? 'dark' : 'light' };
         }
@@ -100,5 +139,22 @@ const useThemeStore = create<ThemeState>()(
     }
   )
 );
+
+// Listen for system theme changes
+if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
+  const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+
+  const handleChange = (e: MediaQueryListEvent) => {
+    useThemeStore.getState().setSystemTheme(e.matches ? 'dark' : 'light');
+  };
+
+  // Modern browsers
+  if (mediaQuery.addEventListener) {
+    mediaQuery.addEventListener('change', handleChange);
+  } else {
+    // Legacy browsers (Safari < 14)
+    mediaQuery.addListener(handleChange);
+  }
+}
 
 export default useThemeStore;
