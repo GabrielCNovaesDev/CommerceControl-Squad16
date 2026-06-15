@@ -1,5 +1,4 @@
 import axios from 'axios';
-import { getSession } from 'next-auth/react';
 import { useAuthStore } from '@/store/authStore';
 
 const api = axios.create({
@@ -7,21 +6,13 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  withCredentials: true, // Send NextAuth HTTP-only cookies
 });
 
 // Request interceptor
 api.interceptors.request.use(async (config) => {
-  // Try to get token from Zustand store first
+  // Try to get token from Zustand store
   const token = useAuthStore.getState().token;
-
-  // If no token in store, try to get from session
-  if (!token) {
-    const session = await getSession();
-    if (session?.token) {
-      config.headers.Authorization = `Bearer ${session.token}`;
-      return config;
-    }
-  }
 
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
