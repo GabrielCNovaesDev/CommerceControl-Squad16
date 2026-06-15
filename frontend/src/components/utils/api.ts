@@ -1,7 +1,5 @@
 'use client';
 
-import { getSession } from 'next-auth/react';
-
 interface ApiResult<T> {
   data: T;
   error: null;
@@ -16,7 +14,7 @@ type ApiResponse<T> = ApiResult<T> | ApiError;
 
 /**
  * Fetch helper que lida com erros de API de forma consistente.
- * Inclui automaticamente o token de autenticação do NextAuth.
+ * O cookie de sessão do NextAuth é enviado automaticamente (same-origin).
  * Retorna { data, error } - nunca lança exceções para erros HTTP.
  * Se o status for 401, dispara redirect para /login.
  */
@@ -25,17 +23,13 @@ export async function apiFetch<T = unknown>(
   options: RequestInit = {}
 ): Promise<ApiResponse<T>> {
   try {
-    // Get session to include auth token
-    const session = await getSession();
-    const token = (session?.user as { token?: string } | undefined)?.token;
-
     const res = await fetch(url, {
       ...options,
       headers: {
         'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...options.headers,
       },
+      credentials: 'include',
     });
 
     // 401 = não autenticado, redireciona para login
@@ -70,22 +64,19 @@ export async function apiFetch<T = unknown>(
 /**
  * Fetch autenticado que retorna a Response completa.
  * Útil para operações POST/PUT/DELETE que precisam verificar status.
- * Inclui automaticamente o token de autenticação do NextAuth.
+ * O cookie de sessão do NextAuth é enviado automaticamente.
  */
 export async function authFetch(
   url: string,
   options: RequestInit = {}
 ): Promise<Response> {
-  const session = await getSession();
-  const token = (session?.user as { token?: string } | undefined)?.token;
-
   return fetch(url, {
     ...options,
     headers: {
       'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...options.headers,
     },
+    credentials: 'include',
   });
 }
 

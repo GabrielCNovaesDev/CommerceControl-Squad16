@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/authOptions';
 import prisma from '@/lib/prisma';
 
 // GET /stores/my - Obter loja do jogador atual
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession();
+    const session = await getServerSession(authOptions);
 
     if (!session || session.user.role !== 'PLAYER') {
       return NextResponse.json({ error: 'Acesso negado' }, { status: 403 });
@@ -32,7 +33,7 @@ export async function GET(request: NextRequest) {
 // POST /stores - Criar loja (apenas para jogadores)
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession();
+    const session = await getServerSession(authOptions);
 
     if (!session || session.user.role !== 'PLAYER') {
       return NextResponse.json({ error: 'Acesso negado' }, { status: 403 });
