@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import PrivateRoute from './components/layout/PrivateRoute';
 import Toast from './components/ui/Toast';
@@ -24,13 +24,22 @@ import TutorialsPage from './pages/TutorialsPage';
 
 export default function App() {
   const { isDark, setSystemTheme } = useThemeStore();
+  const [mounted, setMounted] = useState(false);
 
+  // Marca quando o componente está montado (após hidratação do localStorage)
   useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Aplica o tema no documento quando isDark ou mounted mudam
+  useEffect(() => {
+    if (!mounted) return;
     document.documentElement.classList.toggle('dark', isDark);
     document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
     document.documentElement.style.colorScheme = isDark ? 'dark' : 'light';
-  }, [isDark]);
+  }, [isDark, mounted]);
 
+  // Listener para mudanças na preferência do sistema
   useEffect(() => {
     if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return;
 
@@ -48,7 +57,7 @@ export default function App() {
     }
 
     mediaQuery.addListener(handleChange);
-    return () => mediaQuery.removeListener(handleChange);
+    return () => mediaQuery.removeEventListener('change', handleChange);
   }, [setSystemTheme]);
 
   return (

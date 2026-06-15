@@ -26,13 +26,23 @@ function resolveTheme(preference: ThemePreference, systemTheme: ThemeResolved): 
   return preference;
 }
 
+// Função helper para criar estado inicial com base na preferência
+function createInitialState(preference: ThemePreference): Pick<ThemeState, 'preference' | 'systemTheme' | 'resolvedTheme' | 'isDark'> {
+  const systemTheme = getSystemTheme();
+  const resolvedTheme = resolveTheme(preference, systemTheme);
+  return {
+    preference,
+    systemTheme,
+    resolvedTheme,
+    isDark: resolvedTheme === 'dark',
+  };
+}
+
 const useThemeStore = create<ThemeState>()(
   persist(
     (set, get) => ({
-      preference: 'system',
-      systemTheme: getSystemTheme(),
-      resolvedTheme: getSystemTheme(),
-      isDark: getSystemTheme() === 'dark',
+      ...createInitialState('system'),
+
       setPreference: (preference) =>
         set((state) => {
           const resolved = resolveTheme(preference, state.systemTheme);
@@ -42,6 +52,7 @@ const useThemeStore = create<ThemeState>()(
             isDark: resolved === 'dark',
           };
         }),
+
       setSystemTheme: (systemTheme) =>
         set((state) => {
           const resolved = resolveTheme(state.preference, systemTheme);
@@ -51,7 +62,7 @@ const useThemeStore = create<ThemeState>()(
             isDark: resolved === 'dark',
           };
         }),
-      // Keep API compatible with existing layout toggles.
+
       toggle: () => {
         const nextPreference: ThemePreference = get().isDark ? 'light' : 'dark';
         get().setPreference(nextPreference);
@@ -60,6 +71,15 @@ const useThemeStore = create<ThemeState>()(
     {
       name: 'simulador-theme',
       version: 2,
+      // Ao recuperar do localStorage, recalculamos isDark baseado na preferência salva
+      onRehydrateStorage: () => (state) => {
+        if (state) {
+          // Recalcula isDark baseado na preferência restaurada
+          const resolved = resolveTheme(state.preference, state.systemTheme);
+          state.resolvedTheme = resolved;
+          state.isDark = resolved === 'dark';
+        }
+      },
       partialize: (state) => ({ preference: state.preference }),
       migrate: (persistedState: unknown) => {
         const state = (persistedState ?? {}) as {
