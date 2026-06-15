@@ -1,63 +1,55 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/authOptions';
+import { ApiError, requireRole, withApiHandler } from '@/lib/apiAuth';
+import { getPaginationParams, getSkip, createPaginatedResponse } from '@/lib/pagination';
+import { createRoundSchema } from '@/lib/validators/rounds';
 import prisma from '@/lib/prisma';
 
-export async function GET(request: NextRequest) {
-  try {
-    const session = await getServerSession(authOptions);
+export const GET = withApiHandler(async (request: NextRequest) => {
+  await requireRole(['GAME_MASTER', 'PLAYER']);
+  const params = getPaginationParams(request);
+  const skip = getSkip(params);
 
-    if (!session || !['GAME_MASTER', 'PLAYER'].includes(session.user.role)) {
-      return NextResponse.json({ error: 'Acesso negado' }, { status: 403 });
-    }
-
-    const rounds = await prisma.round.findMany({
+  const [rounds, total] = await Promise.all([
+    prisma.round.findMany({
+      skip,
+      take: params.limit,
       include: {
         _count: {
           select: { roundConfigs: true, financialResults: true },
         },
       },
       orderBy: { number: 'desc' },
-    });
+    }),
+    prisma.round.count(),
+  ]);
 
-    return NextResponse.json({ data: rounds });
-  } catch (error) {
-    console.error('Erro ao listar rodadas:', error);
-    return NextResponse.json({ error: 'Erro interno' }, { status: 500 });
+  // Inclui submittedConfigsCount no payload (mantido do contrato antigo)
+  const data = rounds.map((r) => {
+    const { _count, ...rest } = r;
+    return { ...rest, submittedConfigsCount: _count?.roundConfigs ?? 0 };
+  });
+
+  return NextResponse.json(createPaginatedResponse(data, total, params.page!, params.limit!));
+});
+
+export const POST = withApiHandler(async (request: NextRequest) => {
+  await requireRole(['GAME_MASTER']);
+  const body = await request.json();
+  const parsed = createRoundSchema.safeParse(body);
+  if (!parsed.success) {
+    throw new ApiError(400, 'VALIDATION_ERROR', 'Dados inválidos', parsed.error.flatten().fieldErrors);
   }
-}
+  const { number, durationHours, demandFactor } = parsed.data;
 
-export async function POST(request: NextRequest) {
-  try {
-    const session = await getServerSession(authOptions);
-
-    if (!session || session.user.role !== 'GAME_MASTER') {
-      return NextResponse.json({ error: 'Acesso negado' }, { status: 403 });
-    }
-
-    const body = await request.json();
-    const { number, durationHours, demandFactor } = body;
-
-    if (!number) {
-      return NextResponse.json({ error: 'Número da rodada é obrigatório' }, { status: 400 });
-    }
-
-    const duration = durationHours ? parseInt(durationHours) : 1;
-    const endsAt = new Date(Date.now() + duration * 60 * 60 * 1000);
-
-    const round = await prisma.round.create({
-      data: {
-        number: parseInt(number),
-        durationHours: duration,
-        endsAt,
-        demandFactor: demandFactor ? parseFloat(demandFactor) : 0.5,
-        status: 'OPEN',
-      },
-    });
-
-    return NextResponse.json(round, { status: 201 });
-  } catch (error) {
-    console.error('Erro ao criar rodada:', error);
-    return NextResponse.json({ error: 'Erro interno' }, { status: 500 });
+  // Regra de negócio: não permite criar se já existe rodada OPEN
+  const active = await prisma.round.findFirst({ where: { status: 'OPEN' } });
+  if (active) {
+    throw new ApiError(409, 'ROUND_ALREADY_OPEN', 'Encerre a rodada atual antes de criar uma nova');
   }
-}
+
+  const endsAt = new Date(Date.now() + durationHours * 60 * 60 * 1000);
+  const round = await prisma.round.create({
+    data: { number, durationHours, demandFactor, endsAt, status: 'OPEN' },
+  });
+  return NextResponse.json({ data: round }, { status: 201 });
+});

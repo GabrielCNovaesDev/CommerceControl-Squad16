@@ -1,46 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/authOptions';
+import { ApiError, requireRole, withApiHandler } from '@/lib/apiAuth';
+import { updateSquadSchema } from '@/lib/validators/squads';
 import prisma from '@/lib/prisma';
 
-export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  try {
-    const session = await getServerSession(authOptions);
-
-    if (!session || session.user.role !== 'GAME_MASTER') {
-      return NextResponse.json({ error: 'Acesso negado' }, { status: 403 });
-    }
-
-    const { id } = await params;
-    const body = await request.json();
-
-    const squad = await prisma.squad.update({
-      where: { id },
-      data: { name: body.name },
-    });
-
-    return NextResponse.json(squad);
-  } catch (error) {
-    console.error('Erro ao atualizar squad:', error);
-    return NextResponse.json({ error: 'Erro interno' }, { status: 500 });
+export const PUT = withApiHandler(async (request: NextRequest, ctx: { params: Promise<{ id: string }> }) => {
+  await requireRole(['GAME_MASTER']);
+  const { id } = await ctx.params;
+  const body = await request.json();
+  const parsed = updateSquadSchema.safeParse(body);
+  if (!parsed.success) {
+    throw new ApiError(400, 'VALIDATION_ERROR', 'Dados inválidos', parsed.error.flatten().fieldErrors);
   }
-}
+  const squad = await prisma.squad.update({ where: { id }, data: parsed.data });
+  return NextResponse.json({ data: squad });
+});
 
-export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  try {
-    const session = await getServerSession(authOptions);
+export const DELETE = withApiHandler(async (_request: NextRequest, ctx: { params: Promise<{ id: string }> }) => {
+  await requireRole(['GAME_MASTER']);
+  const { id } = await ctx.params;
 
-    if (!session || session.user.role !== 'GAME_MASTER') {
-      return NextResponse.json({ error: 'Acesso negado' }, { status: 403 });
-    }
-
-    const { id } = await params;
-
-    await prisma.squad.delete({ where: { id } });
-
-    return NextResponse.json({ message: 'Squad deletado com sucesso' });
-  } catch (error) {
-    console.error('Erro ao deletar squad:', error);
-    return NextResponse.json({ error: 'Erro interno' }, { status: 500 });
-  }
-}
+  // Cascade: remove referências
+  await prisma.$transaction([
+    prisma.user.updateMany({ where: { squadId: id }, data: { squadId: null } }),
+    prisma.squad.delete({ where: { id } }),
+  ]);
+  return NextResponse.json({ message: 'Squad deletado com sucesso' });
+});

@@ -1,32 +1,30 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/authOptions';
+import { ApiError, requireRole, withApiHandler } from '@/lib/apiAuth';
+import { addUserToSquadSchema } from '@/lib/validators/squads';
 import prisma from '@/lib/prisma';
 
-export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  try {
-    const session = await getServerSession(authOptions);
-
-    if (!session || session.user.role !== 'GAME_MASTER') {
-      return NextResponse.json({ error: 'Acesso negado' }, { status: 403 });
-    }
-
-    const { id: squadId } = await params;
-    const body = await request.json();
-    const { userId } = body;
-
-    if (!userId) {
-      return NextResponse.json({ error: 'userId é obrigatório' }, { status: 400 });
-    }
-
-    await prisma.user.update({
-      where: { id: userId },
-      data: { squadId },
-    });
-
-    return NextResponse.json({ message: 'Usuário adicionado ao squad' });
-  } catch (error) {
-    console.error('Erro ao adicionar usuário ao squad:', error);
-    return NextResponse.json({ error: 'Erro interno' }, { status: 500 });
+// POST /squads/[id]/users
+export const POST = withApiHandler(async (request: NextRequest, ctx: { params: Promise<{ id: string }> }) => {
+  await requireRole(['GAME_MASTER']);
+  const { id: squadId } = await ctx.params;
+  const body = await request.json();
+  const parsed = addUserToSquadSchema.safeParse(body);
+  if (!parsed.success) {
+    throw new ApiError(400, 'VALIDATION_ERROR', 'Dados inválidos', parsed.error.flatten().fieldErrors);
   }
-}
+
+  const squad = await prisma.squad.findUnique({ where: { id: squadId } });
+  if (!squad) {
+    throw new ApiError(404, 'SQUAD_NOT_FOUND', 'Squad não encontrado');
+  }
+  const user = await prisma.user.findUnique({ where: { id: parsed.data.userId } });
+  if (!user) {
+    throw new ApiError(404, 'USER_NOT_FOUND', 'Usuário não encontrado');
+  }
+
+  const updated = await prisma.user.update({
+    where: { id: parsed.data.userId },
+    data: { squadId },
+  });
+  return NextResponse.json({ data: updated, message: 'Usuário adicionado ao squad' });
+});

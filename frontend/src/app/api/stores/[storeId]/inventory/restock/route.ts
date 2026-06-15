@@ -1,51 +1,33 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/authOptions';
+import { ApiError, requireRole, withApiHandler } from '@/lib/apiAuth';
+import { restockInventorySchema } from '@/lib/validators/stores';
 import prisma from '@/lib/prisma';
 
 // POST /stores/[storeId]/inventory/restock
-export async function POST(
-  request: NextRequest,
-  { params }: { params: Promise<{ storeId: string }> }
-) {
-  try {
-    const session = await getServerSession(authOptions);
-
-    if (!session || session.user.role !== 'GAME_MASTER') {
-      return NextResponse.json({ error: 'Acesso negado' }, { status: 403 });
-    }
-
-    const { storeId } = await params;
-    const body = await request.json();
-    const { productId, quantity } = body;
-
-    if (!productId || quantity === undefined) {
-      return NextResponse.json(
-        { error: 'productId e quantity são obrigatórios' },
-        { status: 400 }
-      );
-    }
-
-    const inventory = await prisma.inventory.upsert({
-      where: {
-        storeId_productId: { storeId, productId },
-      },
-      create: {
-        storeId,
-        productId,
-        quantity: parseInt(quantity),
-      },
-      update: {
-        quantity: { increment: parseInt(quantity) },
-      },
-      include: {
-        product: { select: { id: true, name: true } },
-      },
-    });
-
-    return NextResponse.json(inventory);
-  } catch (error) {
-    console.error('Erro ao repor estoque:', error);
-    return NextResponse.json({ error: 'Erro interno' }, { status: 500 });
+export const POST = withApiHandler(async (request: NextRequest, ctx: { params: Promise<{ storeId: string }> }) => {
+  await requireRole(['GAME_MASTER']);
+  const { storeId } = await ctx.params;
+  const body = await request.json();
+  const parsed = restockInventorySchema.safeParse(body);
+  if (!parsed.success) {
+    throw new ApiError(400, 'VALIDATION_ERROR', 'Dados inválidos', parsed.error.flatten().fieldErrors);
   }
-}
+  const { productId, quantity } = parsed.data;
+
+  const store = await prisma.store.findUnique({ where: { id: storeId } });
+  if (!store) {
+    throw new ApiError(404, 'STORE_NOT_FOUND', 'Loja não encontrada');
+  }
+  const product = await prisma.product.findUnique({ where: { id: productId } });
+  if (!product) {
+    throw new ApiError(404, 'PRODUCT_NOT_FOUND', 'Produto não encontrado');
+  }
+
+  const inventory = await prisma.inventory.upsert({
+    where: { storeId_productId: { storeId, productId } },
+    create: { storeId, productId, quantity },
+    update: { quantity: { increment: quantity } },
+    include: { product: { select: { id: true, name: true } } },
+  });
+  return NextResponse.json({ data: inventory });
+});

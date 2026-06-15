@@ -1,59 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/authOptions';
+import { ApiError, requireRole, withApiHandler } from '@/lib/apiAuth';
+import { getPaginationParams, getSkip, createPaginatedResponse } from '@/lib/pagination';
+import { createProductSchema } from '@/lib/validators/products';
 import prisma from '@/lib/prisma';
 
-export async function GET(request: NextRequest) {
-  try {
-    const session = await getServerSession(authOptions);
+export const GET = withApiHandler(async (request: NextRequest) => {
+  await requireRole(['GAME_MASTER', 'PLAYER']);
+  const params = getPaginationParams(request);
+  const skip = getSkip(params);
 
-    if (!session || !['GAME_MASTER', 'PLAYER'].includes(session.user.role)) {
-      return NextResponse.json({ error: 'Acesso negado' }, { status: 403 });
-    }
+  const [products, total] = await Promise.all([
+    prisma.product.findMany({ skip, take: params.limit, orderBy: { name: 'asc' } }),
+    prisma.product.count(),
+  ]);
+  return NextResponse.json(createPaginatedResponse(products, total, params.page!, params.limit!));
+});
 
-    const products = await prisma.product.findMany({
-      orderBy: { name: 'asc' },
-    });
-
-    return NextResponse.json({ data: products });
-  } catch (error) {
-    console.error('Erro ao listar produtos:', error);
-    return NextResponse.json({ error: 'Erro interno' }, { status: 500 });
+export const POST = withApiHandler(async (request: NextRequest) => {
+  await requireRole(['GAME_MASTER']);
+  const body = await request.json();
+  const parsed = createProductSchema.safeParse(body);
+  if (!parsed.success) {
+    throw new ApiError(400, 'VALIDATION_ERROR', 'Dados inválidos', parsed.error.flatten().fieldErrors);
   }
-}
-
-export async function POST(request: NextRequest) {
-  try {
-    const session = await getServerSession(authOptions);
-
-    if (!session || session.user.role !== 'GAME_MASTER') {
-      return NextResponse.json({ error: 'Acesso negado' }, { status: 403 });
-    }
-
-    const body = await request.json();
-    const { name, purchasePrice, taxRate, breakageRate, agingRate, mixAvailable } = body;
-
-    if (!name || purchasePrice === undefined) {
-      return NextResponse.json(
-        { error: 'Nome e preço de compra são obrigatórios' },
-        { status: 400 }
-      );
-    }
-
-    const product = await prisma.product.create({
-      data: {
-        name,
-        purchasePrice: parseFloat(purchasePrice),
-        taxRate: taxRate ? parseFloat(taxRate) : 0,
-        breakageRate: breakageRate ? parseFloat(breakageRate) : 0,
-        agingRate: agingRate ? parseFloat(agingRate) : 0,
-        mixAvailable: mixAvailable ? parseInt(mixAvailable) : 0,
-      },
-    });
-
-    return NextResponse.json(product, { status: 201 });
-  } catch (error) {
-    console.error('Erro ao criar produto:', error);
-    return NextResponse.json({ error: 'Erro interno' }, { status: 500 });
-  }
-}
+  const product = await prisma.product.create({ data: parsed.data });
+  return NextResponse.json({ data: product }, { status: 201 });
+});

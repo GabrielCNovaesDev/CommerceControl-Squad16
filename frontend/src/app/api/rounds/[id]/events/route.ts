@@ -1,35 +1,37 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/authOptions';
+import { ApiError, requireRole, withApiHandler } from '@/lib/apiAuth';
 import prisma from '@/lib/prisma';
 
 // GET /rounds/[id]/events
-export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  try {
-    const session = await getServerSession(authOptions);
+export const GET = withApiHandler(async (request: NextRequest, ctx: { params: Promise<{ id: string }> }) => {
+  const session = await requireRole(['GAME_MASTER', 'PLAYER']);
+  const { id: roundId } = await ctx.params;
+  const storeId = request.nextUrl.searchParams.get('storeId');
 
-    if (!session || !['GAME_MASTER', 'PLAYER'].includes(session.user.role)) {
-      return NextResponse.json({ error: 'Acesso negado' }, { status: 403 });
+  // Players só podem ver eventos da própria loja
+  if (session.user.role === 'PLAYER') {
+    if (!session.user.squadId) {
+      throw new ApiError(400, 'NO_SQUAD', 'Usuário não pertence a um squad');
     }
-
-    const { id: roundId } = await params;
-    const { searchParams } = new URL(request.url);
-    const storeId = searchParams.get('storeId');
-
+    const store = await prisma.store.findFirst({ where: { squadId: session.user.squadId } });
+    if (!store) {
+      throw new ApiError(400, 'NO_STORE', 'Seu squad não possui uma loja cadastrada');
+    }
     const events = await prisma.roundEvent.findMany({
-      where: {
-        roundId,
-        ...(storeId ? { storeId } : {}),
-      },
-      include: {
-        store: { select: { id: true, name: true } },
-      },
-      orderBy: { createdAt: 'desc' },
+      where: { roundId, storeId: store.id },
+      orderBy: { createdAt: 'asc' },
     });
-
     return NextResponse.json({ data: events });
-  } catch (error) {
-    console.error('Erro ao obter eventos:', error);
-    return NextResponse.json({ error: 'Erro interno' }, { status: 500 });
   }
-}
+
+  // Game Master vê tudo
+  const events = await prisma.roundEvent.findMany({
+    where: {
+      roundId,
+      ...(storeId ? { storeId } : {}),
+    },
+    include: { store: { select: { id: true, name: true, squad: { select: { name: true } } } } },
+    orderBy: { createdAt: 'asc' },
+  });
+  return NextResponse.json({ data: events });
+});

@@ -2,15 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
 import Button from '@/components/ui/Button';
-import Input from '@/components/ui/Input';
 import Skeleton from '@/components/ui/Skeleton';
 import ErrorMessage from '@/components/ui/ErrorMessage';
 import { useCountdown } from '@/components/hooks/useCountdown';
-import { useToast } from '@/components/hooks/useToast';
 import { formatCurrency } from '@/components/utils/formatters';
 import { apiFetch, asArray } from '@/components/utils/api';
 import type { Store, InventoryItem, Round, RoundStatus } from '@/components/types';
@@ -22,12 +17,6 @@ const ROUND_STATUS_BADGE: Record<RoundStatus, { label: string; variant: 'green' 
   PROCESSING: { label: 'Processando', variant: 'yellow' },
   CLOSED: { label: 'Encerrada', variant: 'gray' },
 };
-
-const createStoreSchema = z.object({
-  name: z.string().min(1, 'Nome é obrigatório'),
-  initialCapital: z.coerce.number({ error: 'Informe um valor numérico' }).positive('O capital deve ser positivo'),
-});
-type CreateStoreFormData = z.infer<typeof createStoreSchema>;
 
 // ─── Timer ────────────────────────────────────────────────────────────────────
 
@@ -52,23 +41,17 @@ function RoundTimer({ endsAt }: { endsAt: string }) {
 
 export default function StoresDashboardPage() {
   const router = useRouter();
-  const toast = useToast();
   const [store, setStore] = useState<Store | null>(null);
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [activeRound, setActiveRound] = useState<Round | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
-  const [creating, setCreating] = useState(false);
-
-  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<CreateStoreFormData, unknown, CreateStoreFormData>({
-    resolver: zodResolver(createStoreSchema) as never,
-  });
 
   async function load() {
     setLoadError('');
     try {
-      const storeRes = await apiFetch<Store>(`${API_BASE}/stores/me`);
-      // 404 = usuário não tem loja ainda (estado normal)
+      const storeRes = await apiFetch<Store>(`${API_BASE}/stores/my`);
+      // 404 = usuário não tem loja ainda (estado normal — GM é quem cria)
       if (storeRes.status === 404) {
         setStore(null);
         setLoading(false);
@@ -104,23 +87,6 @@ export default function StoresDashboardPage() {
 
   useEffect(() => { load(); }, []);
 
-  async function onCreateStore(data: CreateStoreFormData) {
-    try {
-      const res = await apiFetch<Store>(`${API_BASE}/stores`, {
-        method: 'POST',
-        body: JSON.stringify(data),
-      });
-      if (res.error) throw new Error(res.error);
-      if (res.data) {
-        setStore(res.data);
-      }
-      setCreating(false);
-      toast.success('Loja criada com sucesso!');
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Erro ao criar loja');
-    }
-  }
-
   if (loading) {
     return (
       <div style={{ maxWidth: 800, display: 'flex', flexDirection: 'column', gap: 20 }}>
@@ -137,40 +103,25 @@ export default function StoresDashboardPage() {
     return <ErrorMessage message={loadError} onRetry={() => { setLoading(true); load(); }} />;
   }
 
-  // No store yet
+  // Squad ainda não tem loja. Quem cria é o Game Master.
   if (!store) {
     return (
-      <div style={{ maxWidth: 420, margin: '48px auto' }} className="animate-fade-in">
+      <div style={{ maxWidth: 480, margin: '48px auto' }} className="animate-fade-in">
         <div style={{ background: 'white', borderRadius: 20, border: '1px solid var(--cenc-gray-200)', boxShadow: '0 4px 24px rgba(0,48,135,0.08)', overflow: 'hidden' }}>
-          <div style={{ padding: '24px 28px', borderBottom: '1px solid var(--cenc-gray-100)', background: 'linear-gradient(135deg, var(--cenc-blue-900), var(--cenc-blue-700))', textAlign: 'center' }}>
-            <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
+          <div style={{ padding: '32px 28px', textAlign: 'center' }}>
+            <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'var(--cenc-blue-50)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--cenc-blue-600)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10"/>
+                <polyline points="12 6 12 12 16 14"/>
               </svg>
             </div>
-            <h2 style={{ margin: 0, fontSize: '18px', fontWeight: 700, color: 'white' }}>Criar sua Loja</h2>
-            <p style={{ margin: '6px 0 0', fontSize: '13px', color: 'rgba(255,255,255,0.7)' }}>Seu squad ainda não possui uma loja</p>
-          </div>
-          <div style={{ padding: '24px 28px' }}>
-            {!creating ? (
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16, padding: '8px 0' }}>
-                <p style={{ margin: 0, fontSize: '13px', color: 'var(--cenc-gray-500)', textAlign: 'center' }}>
-                  Crie uma loja para começar a participar das rodadas de simulação.
-                </p>
-                <Button onClick={() => setCreating(true)} icon={
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                }>Criar Loja</Button>
-              </div>
-            ) : (
-              <form onSubmit={handleSubmit(onCreateStore)} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                <Input label="Nome da loja" placeholder="Ex: Supermercado Alpha" error={errors.name?.message} {...register('name')} />
-                <Input label="Capital inicial (R$)" type="number" step="0.01" placeholder="10000.00" error={errors.initialCapital?.message} {...register('initialCapital')} />
-                <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
-                  <Button type="submit" loading={isSubmitting} style={{ flex: 1 }}>Criar</Button>
-                  <Button type="button" variant="secondary" onClick={() => setCreating(false)}>Cancelar</Button>
-                </div>
-              </form>
-            )}
+            <h2 style={{ margin: 0, fontSize: '18px', fontWeight: 700, color: 'var(--cenc-gray-900)' }}>Aguardando Game Master</h2>
+            <p style={{ margin: '8px 0 0', fontSize: '13px', color: 'var(--cenc-gray-500)', lineHeight: 1.5 }}>
+              Seu squad ainda não possui uma loja cadastrada. O Game Master é responsável por criar a loja e definir o capital inicial.
+            </p>
+            <p style={{ margin: '16px 0 0', fontSize: '12px', color: 'var(--cenc-gray-400)' }}>
+              Você será notificado assim que a loja for criada.
+            </p>
           </div>
         </div>
       </div>

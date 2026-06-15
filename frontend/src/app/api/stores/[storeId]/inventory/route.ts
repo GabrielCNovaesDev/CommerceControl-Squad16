@@ -1,29 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/authOptions';
+import { ApiError, requireRole, withApiHandler } from '@/lib/apiAuth';
 import prisma from '@/lib/prisma';
 
 // GET /stores/[storeId]/inventory
-export async function GET(request: NextRequest, { params }: { params: Promise<{ storeId: string }> }) {
-  try {
-    const session = await getServerSession(authOptions);
+export const GET = withApiHandler(async (_request: NextRequest, ctx: { params: Promise<{ storeId: string }> }) => {
+  const session = await requireRole(['GAME_MASTER', 'PLAYER']);
+  const { storeId } = await ctx.params;
 
-    if (!session || !['GAME_MASTER', 'PLAYER'].includes(session.user.role)) {
-      return NextResponse.json({ error: 'Acesso negado' }, { status: 403 });
-    }
-
-    const { storeId } = await params;
-
-    const inventories = await prisma.inventory.findMany({
-      where: { storeId },
-      include: {
-        product: { select: { id: true, name: true, purchasePrice: true } },
-      },
+  // Player só vê inventário da própria loja
+  if (session.user.role === 'PLAYER') {
+    const ownStore = await prisma.store.findFirst({
+      where: { squad: { users: { some: { id: session.user.id } } } },
+      select: { id: true },
     });
-
-    return NextResponse.json({ data: inventories });
-  } catch (error) {
-    console.error('Erro ao obter inventário:', error);
-    return NextResponse.json({ error: 'Erro interno' }, { status: 500 });
+    if (!ownStore || ownStore.id !== storeId) {
+      throw new ApiError(403, 'NOT_YOUR_STORE', 'Você não tem acesso a esta loja');
+    }
   }
-}
+
+  const inventories = await prisma.inventory.findMany({
+    where: { storeId },
+    include: { product: { select: { id: true, name: true, purchasePrice: true } } },
+  });
+  return NextResponse.json({ data: inventories });
+});

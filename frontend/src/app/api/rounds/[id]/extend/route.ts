@@ -1,37 +1,36 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/authOptions';
+import { ApiError, requireRole, withApiHandler } from '@/lib/apiAuth';
+import { extendRoundSchema } from '@/lib/validators/rounds';
 import prisma from '@/lib/prisma';
 
 // PATCH /rounds/[id]/extend
-export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  try {
-    const session = await getServerSession(authOptions);
+export const PATCH = withApiHandler(async (request: NextRequest, ctx: { params: Promise<{ id: string }> }) => {
+  await requireRole(['GAME_MASTER']);
+  const { id } = await ctx.params;
+  const body = await request.json();
 
-    if (!session || session.user.role !== 'GAME_MASTER') {
-      return NextResponse.json({ error: 'Acesso negado' }, { status: 403 });
-    }
-
-    const { id } = await params;
-    const body = await request.json();
-    const { hours } = body;
-
-    const round = await prisma.round.findUnique({ where: { id } });
-    if (!round) {
-      return NextResponse.json({ error: 'Rodada não encontrada' }, { status: 404 });
-    }
-
-    const extendBy = hours ? parseInt(hours) : 1;
-    const newEndsAt = new Date(round.endsAt.getTime() + extendBy * 60 * 60 * 1000);
-
-    const updated = await prisma.round.update({
-      where: { id },
-      data: { endsAt: newEndsAt },
-    });
-
-    return NextResponse.json({ data: updated, message: `Rodada extendida por ${extendBy} hora(s)` });
-  } catch (error) {
-    console.error('Erro ao extender rodada:', error);
-    return NextResponse.json({ error: 'Erro interno' }, { status: 500 });
+  const parsed = extendRoundSchema.safeParse(body);
+  if (!parsed.success) {
+    throw new ApiError(400, 'VALIDATION_ERROR', 'Dados inválidos', parsed.error.flatten().fieldErrors);
   }
-}
+  const { additionalMinutes } = parsed.data;
+
+  const round = await prisma.round.findUnique({ where: { id } });
+  if (!round) {
+    throw new ApiError(404, 'ROUND_NOT_FOUND', 'Rodada não encontrada');
+  }
+  if (round.status !== 'OPEN') {
+    throw new ApiError(409, 'ROUND_NOT_OPEN', 'Só é possível adicionar tempo a uma rodada aberta');
+  }
+
+  // Nunca reduz tempo: estende a partir do MAIOR entre endsAt e agora
+  const baseTime = Math.max(round.endsAt.getTime(), Date.now());
+  const newEndsAt = new Date(baseTime + additionalMinutes * 60 * 1000);
+
+  const updated = await prisma.round.update({ where: { id }, data: { endsAt: newEndsAt } });
+  return NextResponse.json({
+    data: updated,
+    message: `Tempo adicionado: +${additionalMinutes} minutos`,
+    endsAt: newEndsAt.toISOString(),
+  });
+});

@@ -49,6 +49,12 @@ const IconBook = () => (
     <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
   </svg>
 );
+const IconStore = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+    <polyline points="9 22 9 12 15 12 15 22"/>
+  </svg>
+);
 const IconSettings = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
@@ -94,6 +100,7 @@ const navLinks = [
   { href: '/admin/rounds', label: 'Rodadas',       icon: IconRounds },
   { href: '/admin/squads',  label: 'Squads',        icon: IconSquads },
   { href: '/admin/users',   label: 'Usuários',      icon: IconUsers },
+  { href: '/admin/stores',  label: 'Lojas',         icon: IconStore },
   { href: '/admin/products',label: 'Produtos',      icon: IconProducts },
   { href: '/admin/results', label: 'Resultados',    icon: IconResults },
   { href: '/admin/settings',label: 'Configurações', icon: IconSettings },
@@ -105,20 +112,48 @@ export default function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
   const router = useRouter();
   const pathname = usePathname();
   const [userMenuOpen, setUserMenuOpen] = useState(false);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
-    if (typeof window === 'undefined') return false;
-
-    return window.localStorage.getItem('cc-admin-sidebar-collapsed') === '1';
-  });
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const { isDark, toggle } = useTheme();
 
+  // Hidrata o estado de colapso do sidebar APÓS o mount (client-side only)
   useEffect(() => {
+    if (typeof window === 'undefined') return;
+    setSidebarCollapsed(window.localStorage.getItem('cc-admin-sidebar-collapsed') === '1');
+  }, []);
+
+  // Persiste o colapso sempre que mudar
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
     window.localStorage.setItem('cc-admin-sidebar-collapsed', sidebarCollapsed ? '1' : '0');
   }, [sidebarCollapsed]);
+
+  // Guard: redireciona conforme status da sessão
+  useEffect(() => {
+    if (status === 'loading') return;
+    if (status === 'unauthenticated') {
+      router.replace('/login');
+      return;
+    }
+    if (session?.user?.role && session.user.role !== 'GAME_MASTER') {
+      router.replace('/dashboard');
+    }
+  }, [status, session, router]);
+
+  if (status === 'loading' || status === 'unauthenticated' ||
+      (status === 'authenticated' && session?.user?.role !== 'GAME_MASTER')) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--cenc-gray-50)' }}>
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 mx-auto" style={{ borderColor: 'var(--cenc-blue-600)' }} />
+          <p className="mt-4 text-sm" style={{ color: 'var(--cenc-gray-600)' }}>Carregando...</p>
+        </div>
+      </div>
+    );
+  }
 
   async function handleLogout() {
     setUserMenuOpen(false);

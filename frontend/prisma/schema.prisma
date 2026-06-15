@@ -49,7 +49,7 @@ model Store {
   name           String
   initialCapital Decimal @db.Decimal(18, 2)
   currentCash    Decimal @default(700000) @db.Decimal(18, 2)
-  squadId        String
+  squadId        String  @unique
   createdAt      DateTime @default(now())
 
   squad            Squad             @relation(fields: [squadId], references: [id], onDelete: Cascade)

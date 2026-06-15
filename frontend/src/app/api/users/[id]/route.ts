@@ -1,63 +1,50 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/authOptions';
+import bcrypt from 'bcryptjs';
+import { ApiError, requireRole, withApiHandler } from '@/lib/apiAuth';
+import { updateUserSchema } from '@/lib/validators/users';
 import prisma from '@/lib/prisma';
 
-export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  try {
-    const session = await getServerSession(authOptions);
+const safeSelect = {
+  id: true,
+  name: true,
+  email: true,
+  role: true,
+  cargo: true,
+  leader: true,
+  squadId: true,
+  createdAt: true,
+} as const;
 
-    if (!session || session.user.role !== 'GAME_MASTER') {
-      return NextResponse.json({ error: 'Acesso negado' }, { status: 403 });
-    }
+export const PUT = withApiHandler(async (request: NextRequest, ctx: { params: Promise<{ id: string }> }) => {
+  await requireRole(['GAME_MASTER']);
+  const { id } = await ctx.params;
+  const body = await request.json();
 
-    const { id } = await params;
-    const body = await request.json();
-
-    const user = await prisma.user.update({
-      where: { id },
-      data: {
-        name: body.name,
-        email: body.email,
-        role: body.role,
-        cargo: body.cargo,
-        leader: body.leader,
-        squadId: body.squadId,
-      },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        role: true,
-        cargo: true,
-        leader: true,
-        squadId: true,
-        createdAt: true,
-      },
-    });
-
-    return NextResponse.json(user);
-  } catch (error) {
-    console.error('Erro ao atualizar usuário:', error);
-    return NextResponse.json({ error: 'Erro interno' }, { status: 500 });
+  const parsed = updateUserSchema.safeParse(body);
+  if (!parsed.success) {
+    throw new ApiError(400, 'VALIDATION_ERROR', 'Dados inválidos', parsed.error.flatten().fieldErrors);
   }
-}
-
-export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  try {
-    const session = await getServerSession(authOptions);
-
-    if (!session || session.user.role !== 'GAME_MASTER') {
-      return NextResponse.json({ error: 'Acesso negado' }, { status: 403 });
-    }
-
-    const { id } = await params;
-
-    await prisma.user.delete({ where: { id } });
-
-    return NextResponse.json({ message: 'Usuário deletado com sucesso' });
-  } catch (error) {
-    console.error('Erro ao deletar usuário:', error);
-    return NextResponse.json({ error: 'Erro interno' }, { status: 500 });
+  const { password, ...rest } = parsed.data;
+  const data: Record<string, unknown> = { ...rest };
+  if (password) {
+    data.password = await bcrypt.hash(password, 10);
   }
-}
+  const user = await prisma.user.update({ where: { id }, data, select: safeSelect });
+  return NextResponse.json({ data: user });
+});
+
+export const DELETE = withApiHandler(async (_request: NextRequest, ctx: { params: Promise<{ id: string }> }) => {
+  await requireRole(['GAME_MASTER']);
+  const { id } = await ctx.params;
+
+  const existing = await prisma.user.findUnique({ where: { id } });
+  if (!existing) {
+    throw new ApiError(404, 'USER_NOT_FOUND', 'Usuário não encontrado');
+  }
+  if (existing.leader) {
+    throw new ApiError(409, 'USER_IS_LEADER', 'Transfira a liderança antes de remover este usuário');
+  }
+
+  await prisma.user.delete({ where: { id } });
+  return NextResponse.json({ message: 'Usuário deletado com sucesso' });
+});

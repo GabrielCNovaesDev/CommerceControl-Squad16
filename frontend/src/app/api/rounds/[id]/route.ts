@@ -1,34 +1,30 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/authOptions';
+import { ApiError, requireRole, withApiHandler } from '@/lib/apiAuth';
 import prisma from '@/lib/prisma';
 
-export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  try {
-    const session = await getServerSession(authOptions);
+export const GET = withApiHandler(async (_request: NextRequest, ctx: { params: Promise<{ id: string }> }) => {
+  await requireRole(['GAME_MASTER', 'PLAYER']);
+  const { id } = await ctx.params;
 
-    if (!session || !['GAME_MASTER', 'PLAYER'].includes(session.user.role)) {
-      return NextResponse.json({ error: 'Acesso negado' }, { status: 403 });
-    }
+  const round = await prisma.round.findUnique({
+    where: { id },
+    include: {
+      _count: { select: { roundConfigs: true, financialResults: true } },
+      roundConfigs: { select: { storeId: true } },
+    },
+  });
 
-    const { id } = await params;
-
-    const round = await prisma.round.findUnique({
-      where: { id },
-      include: {
-        _count: {
-          select: { roundConfigs: true, financialResults: true },
-        },
-      },
-    });
-
-    if (!round) {
-      return NextResponse.json({ error: 'Rodada não encontrada' }, { status: 404 });
-    }
-
-    return NextResponse.json({ data: round });
-  } catch (error) {
-    console.error('Erro ao obter rodada:', error);
-    return NextResponse.json({ error: 'Erro interno' }, { status: 500 });
+  if (!round) {
+    throw new ApiError(404, 'ROUND_NOT_FOUND', 'Rodada não encontrada');
   }
-}
+
+  // Contrato antigo: devolve submittedConfigsCount + submittedStoreIds
+  const { _count, roundConfigs, ...rest } = round;
+  return NextResponse.json({
+    data: {
+      ...rest,
+      submittedConfigsCount: _count.roundConfigs,
+      submittedStoreIds: roundConfigs.map((rc) => rc.storeId),
+    },
+  });
+});

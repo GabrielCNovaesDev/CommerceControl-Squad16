@@ -1,53 +1,31 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/authOptions';
+import { ApiError, requireRole, withApiHandler } from '@/lib/apiAuth';
+import { updateProductSchema } from '@/lib/validators/products';
 import prisma from '@/lib/prisma';
 
-export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  try {
-    const session = await getServerSession(authOptions);
+export const PUT = withApiHandler(async (request: NextRequest, ctx: { params: Promise<{ id: string }> }) => {
+  await requireRole(['GAME_MASTER']);
+  const { id } = await ctx.params;
+  const body = await request.json();
 
-    if (!session || session.user.role !== 'GAME_MASTER') {
-      return NextResponse.json({ error: 'Acesso negado' }, { status: 403 });
-    }
-
-    const { id } = await params;
-    const body = await request.json();
-
-    const product = await prisma.product.update({
-      where: { id },
-      data: {
-        name: body.name,
-        purchasePrice: body.purchasePrice ? parseFloat(body.purchasePrice) : undefined,
-        taxRate: body.taxRate !== undefined ? parseFloat(body.taxRate) : undefined,
-        breakageRate: body.breakageRate !== undefined ? parseFloat(body.breakageRate) : undefined,
-        agingRate: body.agingRate !== undefined ? parseFloat(body.agingRate) : undefined,
-        mixAvailable: body.mixAvailable !== undefined ? parseInt(body.mixAvailable) : undefined,
-      },
-    });
-
-    return NextResponse.json(product);
-  } catch (error) {
-    console.error('Erro ao atualizar produto:', error);
-    return NextResponse.json({ error: 'Erro interno' }, { status: 500 });
+  const parsed = updateProductSchema.safeParse(body);
+  if (!parsed.success) {
+    throw new ApiError(400, 'VALIDATION_ERROR', 'Dados inválidos', parsed.error.flatten().fieldErrors);
   }
-}
+  const product = await prisma.product.update({ where: { id }, data: parsed.data });
+  return NextResponse.json({ data: product });
+});
 
-export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  try {
-    const session = await getServerSession(authOptions);
+export const DELETE = withApiHandler(async (_request: NextRequest, ctx: { params: Promise<{ id: string }> }) => {
+  await requireRole(['GAME_MASTER']);
+  const { id } = await ctx.params;
 
-    if (!session || session.user.role !== 'GAME_MASTER') {
-      return NextResponse.json({ error: 'Acesso negado' }, { status: 403 });
-    }
-
-    const { id } = await params;
-
-    await prisma.product.delete({ where: { id } });
-
-    return NextResponse.json({ message: 'Produto deletado com sucesso' });
-  } catch (error) {
-    console.error('Erro ao deletar produto:', error);
-    return NextResponse.json({ error: 'Erro interno' }, { status: 500 });
+  // Regra de negócio antiga: produto em uso não pode ser removido
+  const inUse = await prisma.roundConfigItem.findFirst({ where: { productId: id } });
+  if (inUse) {
+    throw new ApiError(409, 'PRODUCT_IN_USE', 'Produto está em uso e não pode ser removido');
   }
-}
+
+  await prisma.product.delete({ where: { id } });
+  return NextResponse.json({ message: 'Produto deletado com sucesso' });
+});

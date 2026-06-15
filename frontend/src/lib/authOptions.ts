@@ -44,20 +44,20 @@ export const authOptions: NextAuthOptions = {
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
-        token.name = user.name || '';
-        token.email = user.email || '';
-        token.role = (user as { role: 'GAME_MASTER' | 'PLAYER' | 'OBSERVER' }).role;
-        token.squadId = (user as { squadId: string | null }).squadId;
+        token.name = user.name ?? '';
+        token.email = user.email ?? '';
+        token.role = user.role;
+        token.squadId = user.squadId;
       }
       return token;
     },
     async session({ session, token }) {
       session.user = {
-        id: token.id as string,
-        name: token.name as string,
-        email: token.email as string,
-        role: token.role as 'GAME_MASTER' | 'PLAYER' | 'OBSERVER',
-        squadId: token.squadId as string | null,
+        id: token.id,
+        name: token.name,
+        email: token.email,
+        role: token.role,
+        squadId: token.squadId,
       };
       return session;
     },

@@ -1,42 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/authOptions';
+import { ApiError, requireRole, withApiHandler } from '@/lib/apiAuth';
 import prisma from '@/lib/prisma';
 
 // GET /rounds/[id]/my-config
-export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  try {
-    const session = await getServerSession(authOptions);
+export const GET = withApiHandler(async (_request: NextRequest, ctx: { params: Promise<{ id: string }> }) => {
+  const session = await requireRole(['PLAYER']);
+  const { id: roundId } = await ctx.params;
 
-    if (!session || session.user.role !== 'PLAYER') {
-      return NextResponse.json({ error: 'Acesso negado' }, { status: 403 });
-    }
-
-    const { id: roundId } = await params;
-
-    // Obter a loja do jogador
-    const store = await prisma.store.findFirst({
-      where: { squad: { users: { some: { id: session.user.id } } } },
-    });
-
-    if (!store) {
-      return NextResponse.json({ error: 'Nenhuma loja encontrada' }, { status: 404 });
-    }
-
-    const config = await prisma.roundConfig.findUnique({
-      where: {
-        roundId_storeId: { roundId, storeId: store.id },
-      },
-      include: {
-        roundConfigItems: {
-          include: { product: true },
-        },
-      },
-    });
-
-    return NextResponse.json({ data: config });
-  } catch (error) {
-    console.error('Erro ao obter configuração:', error);
-    return NextResponse.json({ error: 'Erro interno' }, { status: 500 });
+  if (!session.user.squadId) {
+    throw new ApiError(400, 'NO_SQUAD', 'Usuário não pertence a um squad');
   }
-}
+  const store = await prisma.store.findFirst({ where: { squadId: session.user.squadId } });
+  if (!store) {
+    throw new ApiError(404, 'NO_STORE', 'Seu squad não possui uma loja cadastrada');
+  }
+
+  const config = await prisma.roundConfig.findUnique({
+    where: { roundId_storeId: { roundId, storeId: store.id } },
+    include: { roundConfigItems: { include: { product: true } } },
+  });
+  return NextResponse.json({ data: config });
+});

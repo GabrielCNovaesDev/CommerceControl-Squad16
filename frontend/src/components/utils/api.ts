@@ -44,7 +44,18 @@ export async function apiFetch<T = unknown>(
       let errMsg = `Erro ${res.status}`;
       try {
         const errBody = await res.json();
-        errMsg = errBody.message ?? errBody.error ?? errMsg;
+        // Suporta tanto o formato padronizado { error: { code, message, details } }
+        // quanto formatos legados { message }, { error: 'string' } ou string crua.
+        if (errBody && typeof errBody === 'object') {
+          const e = errBody.error;
+          if (e && typeof e === 'object' && typeof e.message === 'string') {
+            errMsg = e.message;
+          } else if (typeof e === 'string') {
+            errMsg = e;
+          } else if (typeof errBody.message === 'string') {
+            errMsg = errBody.message;
+          }
+        }
       } catch {
         // ignore parse error
       }

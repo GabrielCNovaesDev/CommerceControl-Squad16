@@ -1,48 +1,37 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/authOptions';
+import { ApiError, requireRole, withApiHandler } from '@/lib/apiAuth';
 import prisma from '@/lib/prisma';
 
-export async function GET(request: NextRequest) {
-  try {
-    const session = await getServerSession(authOptions);
+// GET /stores/my/previous-capex
+export const GET = withApiHandler(async (_request: NextRequest) => {
+  const session = await requireRole(['PLAYER']);
 
-    if (!session || session.user.role !== 'PLAYER') {
-      return NextResponse.json({ error: 'Acesso negado' }, { status: 403 });
-    }
-
-    const store = await prisma.store.findFirst({
-      where: { squad: { users: { some: { id: session.user.id } } } },
-      include: {
-        financialResults: {
-          orderBy: { round: { number: 'desc' } },
-          take: 1,
-          include: { round: { select: { number: true } } },
-        },
+  const store = await prisma.store.findFirst({
+    where: { squad: { users: { some: { id: session.user.id } } } },
+    include: {
+      roundConfigs: {
+        orderBy: { submittedAt: 'desc' },
+        take: 1,
       },
-    });
-
-    if (!store) {
-      return NextResponse.json({ error: 'Nenhuma loja encontrada' }, { status: 404 });
-    }
-
-    // Obter o último CAPEX (despesas de capital)
-    const lastResult = store.financialResults[0];
-    const previousCapex = lastResult
-      ? {
-          totalCapex: 0, // Calcular baseado nos CAPEX selections
-          capexSeguranca: false,
-          capexBalanca: false,
-          capexRedes: false,
-          capexSite: false,
-          capexSelfCheckout: false,
-          capexMelhoria: false,
-        }
-      : null;
-
-    return NextResponse.json({ data: previousCapex });
-  } catch (error) {
-    console.error('Erro ao obter CAPEX anterior:', error);
-    return NextResponse.json({ error: 'Erro interno' }, { status: 500 });
+    },
+  });
+  if (!store) {
+    throw new ApiError(404, 'NO_STORE', 'Nenhuma loja encontrada');
   }
-}
+
+  // Pega os CAPEX flags do último roundConfig submetido
+  const last = store.roundConfigs[0];
+  const previousCapex = last
+    ? {
+        capexSeguranca: last.capexSeguranca,
+        capexBalanca: last.capexBalanca,
+        capexRedes: last.capexRedes,
+        capexSite: last.capexSite,
+        capexSelfCheckout: last.capexSelfCheckout,
+        capexMelhoria: last.capexMelhoria,
+        roundNumber: last.roundId,
+      }
+    : null;
+
+  return NextResponse.json({ data: previousCapex });
+});

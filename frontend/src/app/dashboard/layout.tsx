@@ -93,20 +93,48 @@ export default function PlayerLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
   const router = useRouter();
   const pathname = usePathname();
   const [userMenuOpen, setUserMenuOpen] = useState(false);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
-    if (typeof window === 'undefined') return false;
-
-    return window.localStorage.getItem('cc-player-sidebar-collapsed') === '1';
-  });
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const { isDark, toggle } = useTheme();
 
+  // Hidrata o estado de colapso do sidebar APÓS o mount (client-side only)
   useEffect(() => {
+    if (typeof window === 'undefined') return;
+    setSidebarCollapsed(window.localStorage.getItem('cc-player-sidebar-collapsed') === '1');
+  }, []);
+
+  // Persiste o colapso sempre que mudar
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
     window.localStorage.setItem('cc-player-sidebar-collapsed', sidebarCollapsed ? '1' : '0');
   }, [sidebarCollapsed]);
+
+  // Guard: redireciona conforme status da sessão
+  useEffect(() => {
+    if (status === 'loading') return;
+    if (status === 'unauthenticated') {
+      router.replace('/login');
+      return;
+    }
+    if (session?.user?.role === 'GAME_MASTER') {
+      router.replace('/admin');
+    }
+  }, [status, session, router]);
+
+  if (status === 'loading' || status === 'unauthenticated' ||
+      (status === 'authenticated' && session?.user?.role === 'GAME_MASTER')) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--cenc-gray-50)' }}>
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 mx-auto" style={{ borderColor: 'var(--cenc-blue-600)' }} />
+          <p className="mt-4 text-sm" style={{ color: 'var(--cenc-gray-600)' }}>Carregando...</p>
+        </div>
+      </div>
+    );
+  }
 
   async function handleLogout() {
     setUserMenuOpen(false);

@@ -1,42 +1,34 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/authOptions';
+import { ApiError, requireRole, withApiHandler } from '@/lib/apiAuth';
 import prisma from '@/lib/prisma';
 
 // GET /rounds/[id]/results
-export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  try {
-    const session = await getServerSession(authOptions);
+export const GET = withApiHandler(async (request: NextRequest, ctx: { params: Promise<{ id: string }> }) => {
+  const session = await requireRole(['GAME_MASTER', 'PLAYER']);
+  const { id: roundId } = await ctx.params;
+  const storeIdQuery = request.nextUrl.searchParams.get('storeId');
 
-    if (!session || !['GAME_MASTER', 'PLAYER'].includes(session.user.role)) {
-      return NextResponse.json({ error: 'Acesso negado' }, { status: 403 });
+  const where: { roundId: string; storeId?: string } = { roundId };
+  if (session.user.role === 'GAME_MASTER' && storeIdQuery) {
+    where.storeId = storeIdQuery;
+  } else if (session.user.role === 'PLAYER') {
+    if (!session.user.squadId) {
+      throw new ApiError(400, 'NO_SQUAD', 'Usuário não pertence a um squad');
     }
-
-    const { id: roundId } = await params;
-    const { searchParams } = new URL(request.url);
-    const storeId = searchParams.get('storeId');
-
-    const results = await prisma.financialResult.findMany({
-      where: {
-        roundId,
-        ...(storeId ? { storeId } : {}),
-      },
-      include: {
-        store: { select: { id: true, name: true } },
-        roundConfig: {
-          include: {
-            roundConfigItems: {
-              include: { product: true },
-            },
-          },
-        },
-      },
-      orderBy: { ebitda: 'desc' },
-    });
-
-    return NextResponse.json({ data: results });
-  } catch (error) {
-    console.error('Erro ao obter resultados:', error);
-    return NextResponse.json({ error: 'Erro interno' }, { status: 500 });
+    const store = await prisma.store.findFirst({ where: { squadId: session.user.squadId } });
+    if (!store) {
+      throw new ApiError(404, 'NO_STORE', 'Seu squad não possui uma loja cadastrada');
+    }
+    where.storeId = store.id;
   }
-}
+
+  const results = await prisma.financialResult.findMany({
+    where,
+    include: {
+      store: { select: { id: true, name: true } },
+      roundConfig: { include: { roundConfigItems: { include: { product: true } } } },
+    },
+    orderBy: { ebitda: 'desc' },
+  });
+  return NextResponse.json({ data: results });
+});
