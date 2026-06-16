@@ -10,6 +10,7 @@ export interface AuthedUser {
   email: string;
   role: UserRole;
   squadId: string | null;
+  squadName: string | null;
 }
 
 export interface AuthedSession {

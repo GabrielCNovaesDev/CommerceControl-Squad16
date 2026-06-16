@@ -1,3 +1,19 @@
 {
-  "mcpServers": {}
+  "mcpServers": {
+    "claude-code": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "claude-code"
+      ]
+    },
+    "neon": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "mcp-remote@latest",
+        "https://mcp.neon.tech/mcp"
+      ]
+    }
+  }
 }

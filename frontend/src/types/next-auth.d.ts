@@ -7,6 +7,7 @@ declare module 'next-auth' {
     email: string;
     role: 'GAME_MASTER' | 'PLAYER' | 'OBSERVER';
     squadId: string | null;
+    squadName: string | null;
   }
 
   interface Session {
@@ -21,5 +22,6 @@ declare module 'next-auth/jwt' {
     email: string;
     role: 'GAME_MASTER' | 'PLAYER' | 'OBSERVER';
     squadId: string | null;
+    squadName: string | null;
   }
 }

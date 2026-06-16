@@ -182,14 +182,13 @@ export default function PlayerLayout({
         </div>
 
         {/* Squad info pill */}
-        {/* Note: squadId would come from session metadata in a real implementation */}
-        {false && !sidebarCollapsed && (
+        {!sidebarCollapsed && session?.user?.squadName && (
           <div className="mx-3 mt-3 flex items-center gap-2 rounded-xl px-3 py-2.5"
             style={{ background: 'rgba(245,166,35,0.15)', border: '1px solid rgba(245,166,35,0.25)' }}>
             <IconStore />
             <div>
               <p className="text-xs font-semibold" style={{ color: 'var(--cenc-gold-400)' }}>Minha Loja</p>
-              <p className="text-xs" style={{ color: 'rgba(255,255,255,0.7)' }}>Squad ativo</p>
+              <p className="text-xs" style={{ color: 'rgba(255,255,255,0.7)' }}>{session.user.squadName}</p>
             </div>
           </div>
         )}

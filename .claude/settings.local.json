@@ -18,11 +18,15 @@
       "PowerShell(git config --global credential.helper 2>$null)",
       "PowerShell($env:GITHUB_TOKEN)",
       "PowerShell($env:GH_TOKEN)",
-      "PowerShell(git config --global credential.helper; $env:GITHUB_TOKEN; [System.Environment]::GetEnvironmentVariable\\(\"GITHUB_TOKEN\", \"User\"\\))"
+      "PowerShell(git config --global credential.helper; $env:GITHUB_TOKEN; [System.Environment]::GetEnvironmentVariable\\(\"GITHUB_TOKEN\", \"User\"\\))",
+      "Bash(PGPASSWORD=\"npg_EQM7PyvpfkB0\" psql \"postgresql://neondb_owner:npg_EQM7PyvpfkB0@ep-young-breeze-aq2dq5fk.c-8.us-east-1.aws.neon.tech:5432/neondb?sslmode=require\" -c \"SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' ORDER BY table_name;\")",
+      "mcp__neon__describe_project",
+      "mcp__neon__get_database_tables",
+      "mcp__neon__run_sql"
     ]
   },
+  "enableAllProjectMcpServers": true,
   "enabledMcpjsonServers": [
     "supabase"
-  ],
-  "enableAllProjectMcpServers": true
+  ]
 }
